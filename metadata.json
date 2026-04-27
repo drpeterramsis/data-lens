@@ -1,0 +1,6 @@
+{
+  "name": "data-lens",
+  "description": "A multi-tool CSV analyzer platform for supervisors with auth and user management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

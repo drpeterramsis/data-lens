@@ -1,0 +1,31 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "name": "Admin User",
+      "email": "admin@datalens.com",
+      "password": "admin123",
+      "role": "admin",
+      "active": true,
+      "tools": ["call-detailing", "sales-analyzer"]
+    },
+    {
+      "id": 2,
+      "name": "Sara Mohamed",
+      "email": "sara@datalens.com",
+      "password": "sara123",
+      "role": "user",
+      "active": true,
+      "tools": ["call-detailing"]
+    },
+    {
+      "id": 3,
+      "name": "Omar Ali",
+      "email": "omar@datalens.com",
+      "password": "omar123",
+      "role": "user",
+      "active": true,
+      "tools": ["call-detailing", "sales-analyzer"]
+    }
+  ]
+}
