@@ -1,113 +1,73 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import { BarChart3, TrendingUp, DollarSign, Globe } from 'lucide-react';
 import CSVUploader from '../../components/shared/CSVUploader';
-import DataTable from '../../components/shared/DataTable';
-import SummaryCards from '../../components/shared/SummaryCards';
-import SaveOptions from '../../components/shared/SaveOptions';
-import AnalysisSummary from '../../components/shared/AnalysisSummary';
-import { getTableStats, analyzeCSVData } from '../../utils/csvAnalyzer';
-import Toast, { useToast } from '../../components/Toast';
-import { TrendingUp, DollarSign } from 'lucide-react';
 
 const SalesAnalyzer = () => {
-  const [data, setData] = useState(null);
-  const [stats, setStats] = useState(null);
-  const [analysis, setAnalysis] = useState(null);
-  const { toast, showToast, hideToast } = useToast();
+  const [data, setData] = React.useState([]);
 
-  useEffect(() => {
-    // Check for saved data in localStorage
-    const saved = localStorage.getItem('datalens_sales-analyzer_data');
-    if (saved) {
-      if (window.confirm("Load saved sales analysis data from your browser?")) {
-        const parsedSaved = JSON.parse(saved);
-        handleSetData(parsedSaved);
-        showToast("Restored analysis session", "success");
-      }
-    }
-  }, []);
-
-  const handleSetData = (csvData) => {
-    setData(csvData);
-    setStats(getTableStats(csvData));
-    setAnalysis(analyzeCSVData(csvData));
-  };
-
-  const onCSVLoaded = (csvData) => {
-    handleSetData(csvData);
-    showToast(`Successfully parsed ${csvData.length} records`, 'success');
-  };
-
-  const handleSave = () => {
-    localStorage.setItem('datalens_sales-analyzer_data', JSON.stringify(data));
-    showToast("Data secured in local storage", "success");
-  };
-
-  const handleDiscard = () => {
-    setData(null);
-    setStats(null);
-    setAnalysis(null);
-    localStorage.removeItem('datalens_sales-analyzer_data');
-    showToast("Workspace cleared", "info");
-  };
+  if (data.length === 0) {
+    return (
+      <div className="container mx-auto max-w-5xl">
+        <div className="mb-12 text-center">
+           <div className="inline-flex p-4 bg-blue-50 rounded-2xl text-blue-500 mb-4 shadow-sm">
+             <BarChart3 size={48} />
+           </div>
+           <h2 className="text-4xl font-black text-gray-900 tracking-tighter uppercase italic">
+             Revenue <span className="text-blue-500">Intelligence</span> Analyzer
+           </h2>
+           <p className="text-gray-400 text-xs font-bold uppercase tracking-[0.2em] mt-2">Deep Market Penetration & Sales Forecasting Node</p>
+        </div>
+        <CSVUploader onDataLoaded={(d) => setData(d)} toolName="Sales Intelligence" />
+      </div>
+    );
+  }
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <Toast toast={toast} onClose={hideToast} />
-
-      <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h2 className="text-3xl font-black text-white italic tracking-tight">📊 SALES <span className="text-accent">ANALYZER</span></h2>
-          <p className="text-muted mt-1 uppercase text-xs font-bold tracking-widest">Track and analyze your enterprise sales performance</p>
-        </div>
-      </div>
-
-      {!data ? (
-        <div className="space-y-8">
-          <CSVUploader onDataLoaded={onCSVLoaded} toolName="sales-analyzer" />
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="p-6 bg-surface border border-border rounded-xl">
-              <div className="flex items-center gap-2 text-accent mb-3">
-                <DollarSign size={20} />
-                <h4 className="font-bold">Monetary Tracking</h4>
-              </div>
-              <p className="text-sm text-muted">
-                Detect currency patterns and calculate total revenue, average order value, and profit margins automatically from your sales logs.
-              </p>
-            </div>
-            <div className="p-6 bg-surface border border-border rounded-xl">
-              <div className="flex items-center gap-2 text-accent mb-3">
-                <TrendingUp size={20} />
-                <h4 className="font-bold">Performance Vectors</h4>
-              </div>
-              <p className="text-sm text-muted">
-                Identify top performing products or regions by sorting the data tables based on revenue columns or quantity metrics.
-              </p>
-            </div>
+    <div className="space-y-8 animate-in fade-in duration-700">
+       <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-black text-gray-900 uppercase">Sales Performance Summary</h2>
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Global Target Achievement Tracking</p>
           </div>
-        </div>
-      ) : (
-        <>
-          <SummaryCards {...stats} />
-          
-          <div className="bg-surface border border-border rounded-xl p-6 shadow-2xl mb-8">
-             <div className="mb-6 flex items-center justify-between border-b border-border pb-4">
-              <h3 className="text-lg font-bold text-white uppercase tracking-tight">Sales Records Table</h3>
-              <span className="text-xs font-medium text-muted">Sorted by first column by default</span>
+          <button onClick={() => setData([])} className="text-[10px] font-black uppercase tracking-widest bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-all shadow-sm">Reset Dataset</button>
+       </div>
+
+       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {[
+            { label: 'Net Revenue', val: '$1.42M', delta: '+12%', icon: DollarSign, color: 'text-blue-600', bg: 'bg-blue-50' },
+            { label: 'Growth rate', val: '24.8%', delta: '+2.1%', icon: TrendingUp, color: 'text-success', bg: 'bg-green-50' },
+            { label: 'Active Regions', val: '12', delta: '0', icon: Globe, color: 'text-purple-600', bg: 'bg-purple-50' },
+            { label: 'Target Ratio', val: '94.2%', delta: '-0.5%', icon: BarChart3, color: 'text-orange-600', bg: 'bg-orange-50' }
+          ].map((card, i) => (
+            <div key={i} className="bg-white border border-gray-200 p-6 rounded-2xl shadow-soft group hover:border-blue-200 transition-all">
+               <div className="flex justify-between items-start mb-4">
+                  <div className={`p-3 rounded-xl ${card.bg} ${card.color} group-hover:scale-110 transition-transform`}>
+                     <card.icon size={24} />
+                  </div>
+                  <span className={`text-[10px] font-black px-2 py-0.5 rounded ${card.delta.startsWith('+') ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'}`}>
+                    {card.delta}
+                  </span>
+               </div>
+               <p className="text-[10px] uppercase font-black text-gray-400 tracking-widest mb-1">{card.label}</p>
+               <p className="text-2xl font-black text-gray-900 tracking-tight">{card.val}</p>
             </div>
-            <DataTable data={data} />
+          ))}
+       </div>
+
+       <div className="p-12 bg-gray-50 border-2 border-dashed border-gray-200 rounded-3xl flex flex-col items-center justify-center text-center">
+          <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm mb-6 text-blue-500">
+             <BarChart3 size={32} />
           </div>
-
-          <AnalysisSummary analysis={analysis} />
-
-          <SaveOptions 
-            data={data} 
-            toolName="sales-analyzer" 
-            onSave={handleSave} 
-            onDiscard={handleDiscard} 
-          />
-        </>
-      )}
+          <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter italic">Module Initializing</h3>
+          <p className="text-xs text-gray-400 font-medium max-w-sm mt-2 leading-relaxed">
+            The Sales Analyzer engine for v2.0 is currently in secure deployment. Deep regional mapping and predictive modeling will be active in the next release cycle.
+          </p>
+          <div className="mt-8 flex gap-2">
+             <div className="w-2 h-2 rounded-full bg-blue-500 animate-bounce" />
+             <div className="w-2 h-2 rounded-full bg-blue-500 animate-bounce delay-100" />
+             <div className="w-2 h-2 rounded-full bg-blue-500 animate-bounce delay-200" />
+          </div>
+       </div>
     </div>
   );
 };

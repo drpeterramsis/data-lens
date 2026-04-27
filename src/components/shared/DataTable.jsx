@@ -18,7 +18,22 @@ const DataTable = ({ data }) => {
     return Object.keys(data[0]).map((key) => ({
       header: key,
       accessorKey: key,
-      cell: (info) => info.getValue(),
+      cell: (info) => {
+        const val = info.getValue();
+        if (typeof val === 'string' && val.length > 40) {
+          return (
+            <div className="group relative">
+              <span className="truncate max-w-[200px] block cursor-help">
+                {val.substring(0, 40)}...
+              </span>
+              <div className="absolute z-[100] hidden group-hover:block bg-surface border border-border p-3 rounded-xl shadow-2xl text-xs max-w-xs whitespace-normal left-0 top-full mt-1">
+                {val}
+              </div>
+            </div>
+          );
+        }
+        return val;
+      },
     }));
   }, [data]);
 
@@ -95,7 +110,9 @@ const DataTable = ({ data }) => {
               {table.getRowModel().rows.map((row) => (
                 <tr 
                   key={row.id} 
-                  className="border-b border-border last:border-0 hover:bg-accent/[0.03] transition-colors"
+                  className={`border-b border-border last:border-0 hover:bg-accent/[0.03] transition-colors ${
+                    row.original.IsMRCoachingSubmitted === 'True' ? 'border-l-4 border-l-accent' : ''
+                  }`}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <td key={cell.id} className="px-5 py-3 text-white border-r last:border-r-0 border-border">

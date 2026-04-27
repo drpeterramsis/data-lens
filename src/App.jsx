@@ -1,9 +1,11 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { SidebarProvider, useSidebar } from './context/SidebarContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
+import Footer from './components/Footer';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import CallDetailingAnalyzer from './tools/CallDetailingAnalyzer';
@@ -11,21 +13,22 @@ import SalesAnalyzer from './tools/SalesAnalyzer';
 import UserManagement from './pages/admin/UserManagement';
 
 const AppLayout = ({ children }) => {
+  const { isOpen } = useSidebar();
+  
   return (
-    <div className="min-h-screen bg-bg">
+    <div className="min-h-screen bg-[#F8F9FA] flex flex-col font-sans selection:bg-accent/30 selection:text-accent-dark">
       <Navbar />
-      <Sidebar />
-      <main className="pl-[260px] pt-16 min-h-screen">
-        <div className="p-8 max-w-[1400px] mx-auto flex flex-col gap-6">
-          {children}
-        </div>
-      </main>
-      
-      <footer className="pl-[260px] pb-8 text-center">
-        <p className="text-[10px] text-muted uppercase tracking-[0.2em] font-medium">
-          Datalens Analytics Engine ● Developed for Supervisors ● Version 1.0.012
-        </p>
-      </footer>
+      <div className="flex flex-1">
+        <Sidebar />
+        <main 
+          className={`pt-14 flex-1 flex flex-col transition-all duration-300 ${isOpen ? 'pl-60' : 'pl-0'}`}
+        >
+          <div className="p-8 pb-32 max-w-[1600px] mx-auto w-full flex flex-col flex-1">
+            {children}
+          </div>
+        </main>
+      </div>
+      <Footer />
     </div>
   );
 };
@@ -82,9 +85,11 @@ const AppRoutes = () => {
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
+      <SidebarProvider>
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </SidebarProvider>
     </AuthProvider>
   );
 }

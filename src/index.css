@@ -4,25 +4,49 @@
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   
-  --color-bg: #0A0A0A;
-  --color-surface: #1A1A1A;
-  --color-border: #2A2A2A;
+  --color-bg: #F8F9FA;
+  --color-surface: #FFFFFF;
+  --color-surface-2: #F1F3F5;
+  --color-border: #DEE2E6;
   --color-accent: #F5C518;
   --color-accent-hover: #D4A017;
-  --color-text: #FFFFFF;
-  --color-muted: #A0A0A0;
-  --color-success: #22C55E;
-  --color-danger: #E63946;
+  --color-accent-dark: #1A1A2E;
+  --color-text: #212529;
+  --color-muted: #6C757D;
+  --color-success: #198754;
+  --color-danger: #DC3545;
+  --color-info: #0D6EFD;
+  --color-warning: #FFC107;
 }
 
 @layer base {
-  body {
-    background-color: var(--color-bg);
-    color: var(--color-text);
+  :root {
+    color-scheme: light;
+  }
+
+  * {
+    -webkit-color-scheme: light;
+    color-scheme: light;
+  }
+
+  html, body {
+    background-color: #F8F9FA !important;
+    color: #212529 !important;
+  }
+
+  /* Style all inputs, selects for light mode */
+  input, select, textarea {
+    background-color: #FFFFFF !important;
+    border-color: #DEE2E6 !important;
+    color: #212529 !important;
+  }
+
+  input::placeholder {
+    color: #ADB5BD !important;
   }
 }
 
-/* Custom Scrollbar for dark theme */
+/* Custom Scrollbar for light theme */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -35,5 +59,13 @@
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-surface);
+  background: #CED4DA;
+}
+
+.shadow-soft {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+}
+
+.shadow-card {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
 }

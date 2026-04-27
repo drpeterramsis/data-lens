@@ -42,8 +42,17 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 
 ## Version History
 
+- **v1.0.024:** Critical stabilization of `VirtualTable`. Hardened `react-window` integration with robust import recovery and render-time safety guards. Fixed 'Element type is invalid' crash in high-volume data views.
+- **v1.0.023:** Implemented auto-detection for CSV delimiters (Comma and Pipe). Fixed "0 rows loaded" issue when uploading standard comma-delimited export files.
+- **v1.0.022:** Critical fix for `.split()` crashes on malformed CSV data. Implemented robust PapaParse configuration to handle quoted newlines and escaped characters. Added secondary data sanitization layer in `safeCSV` and `csvAnalyzer` to guarantee `undefined` safety during processing.
+- **v1.0.021:** Refactored analyzer to focus on Field Force performance and coaching. Removed product analysis sections and transitioned to a core behavioral metrics model. Hardened insight generation logic.
+- **v1.0.020:** Hardened data ingestion layer with `safeCSV` utilities. Implemented comprehensive header cleaning (BOM/whitespace) and safe string/product parsing to prevent `.split()` crashes on malformed CSV exports. Revised `CSVUploader` with real-time processing logs.
+- **v1.0.019:** Implemented `src/utils/csvParser.js` for safe data ingestion and hardened parsing logs. Fixed critical `.split()` crashes across all components using optional chaining and guarded parser utilities. Updated Navbar and Login branding.
+- **v1.0.015:** Professional Header redesign, forced Dark Mode enforcement, and advanced Call Detailing Smart Analysis with pipe-delimiter support.
+- **v1.0.014:** Fixed missing Info icon import in UserManagement.
+- **v1.0.013:** Added centralized Footer component with specialized supervisor signature and versioning.
 - **v1.0.012:** Technical Dashboard transformation and design layout refinements.
 - **v1.0.001:** Initial release. Authentication, CSV parsing, Analysis tools, and Admin panel implemented.
 
 ---
-© 2026 data-lens Analytics | version 1.0.012
+© 2026 data-lens Analytics | version 1.0.024

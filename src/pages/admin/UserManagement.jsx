@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, UserPlus, Edit, Power, Shield, Settings, Mail, X, Check, Search } from 'lucide-react';
+import { Plus, UserPlus, Edit, Power, Shield, Settings, Mail, X, Check, Search, Info } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import Toast, { useToast } from '../../components/Toast';
 
@@ -88,86 +88,89 @@ const UserManagement = () => {
   );
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-8 animate-in fade-in duration-500 pb-20">
       <Toast toast={toast} onClose={hideToast} />
 
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-black text-white italic tracking-tight">⚙️ USER <span className="text-accent">MANAGEMENT</span></h2>
-          <p className="text-muted mt-1">Control platform access and tool assignments.</p>
+          <h2 className="text-3xl font-black text-gray-900 tracking-tighter flex items-center gap-3">
+            <Settings className="text-accent" size={32} />
+            USER <span className="text-accent">MANAGEMENT</span>
+          </h2>
+          <p className="text-gray-400 text-xs font-bold uppercase tracking-[0.2em] mt-1">Control system access and assign supervisor toolsets</p>
         </div>
         
         <button
           onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 px-6 py-3 bg-accent hover:bg-accent-hover text-bg font-black rounded-xl transition-all shadow-lg active:scale-95"
+          className="flex items-center gap-2 px-6 py-3 bg-accent hover:bg-accent-hover text-accent-dark font-black uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95"
         >
           <UserPlus size={20} />
-          <span>Add New Supervisor</span>
+          <span>Onboard Supervisor</span>
         </button>
       </div>
 
-      <div className="bg-surface border border-border rounded-2xl overflow-hidden shadow-2xl">
-        <div className="p-4 border-b border-border bg-white/5 flex items-center gap-4">
+      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-soft">
+        <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex items-center gap-4">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={18} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
             <input 
               type="text" 
-              placeholder="Filter supervisors by name or email..." 
+              placeholder="Query users by name, email or role..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-bg border border-border rounded-lg text-white text-sm focus:outline-none focus:border-accent transition-all"
+              className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-gray-900 text-sm focus:outline-none focus:border-accent transition-all font-medium"
             />
           </div>
-          <div className="px-4 py-2 bg-bg border border-border rounded-lg">
-             <span className="text-xs font-bold text-muted uppercase tracking-widest">Total: {users.length}</span>
+          <div className="px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm">
+             <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none">Total Nodes: {users.length}</span>
           </div>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left">
-            <thead>
-              <tr className="bg-bg text-muted uppercase text-[10px] font-black tracking-widest border-b border-border">
-                <th className="px-6 py-4">Supervisor</th>
-                <th className="px-6 py-4">Role</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4">Assigned Tools</th>
-                <th className="px-6 py-4 text-right">Actions</th>
+            <thead className="bg-gray-50/50 border-b border-gray-100">
+              <tr className="text-[10px] font-black uppercase text-gray-400 tracking-wider">
+                <th className="px-6 py-4">Supervisor Node</th>
+                <th className="px-6 py-4">Access Tier</th>
+                <th className="px-6 py-4">Pulse</th>
+                <th className="px-6 py-4">Provisioned Tools</th>
+                <th className="px-6 py-4 text-right">Operations</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border/50">
+            <tbody className="divide-y divide-gray-100">
               {filteredUsers.map((u) => (
-                <tr key={u.id} className="hover:bg-white/5 transition-colors group">
+                <tr key={u.id} className="hover:bg-gray-50/50 transition-colors group">
                   <td className="px-6 py-5">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-accent font-black">
+                      <div className="w-10 h-10 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-accent-dark font-black shadow-sm">
                         {u.name.charAt(0)}
                       </div>
                       <div>
-                        <p className="font-bold text-white leading-tight">{u.name}</p>
-                        <p className="text-xs text-muted">{u.email}</p>
+                        <p className="font-black text-gray-900 leading-tight">{u.name}</p>
+                        <p className="text-[11px] text-gray-400 font-medium">{u.email}</p>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-5">
-                    <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md border ${
-                      u.role === 'admin' ? 'bg-accent/10 border-accent text-accent' : 'bg-white/5 border-white/10 text-muted'
+                    <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border shadow-sm ${
+                      u.role === 'admin' ? 'bg-accent/10 border-accent/20 text-accent-dark' : 'bg-gray-100 border-gray-200 text-gray-500'
                     }`}>
-                      {u.role}
+                      {u.role === 'admin' ? 'Administrator' : 'Standard Node'}
                     </span>
                   </td>
                   <td className="px-6 py-5">
-                    <div className="flex items-center gap-2">
-                       <div className={`w-2 h-2 rounded-full ${u.active ? 'bg-success' : 'bg-danger shadow-[0_0_8px_rgba(230,57,70,0.5)]'}`} />
-                       <span className={`text-sm font-bold ${u.active ? 'text-success' : 'text-danger'}`}>
-                        {u.active ? 'Active' : 'Inactive'}
+                    <div className="flex items-center gap-1.5">
+                       <div className={`w-2 h-2 rounded-full ${u.active ? 'bg-success animate-pulse' : 'bg-gray-300'}`} />
+                       <span className={`text-[10px] font-black uppercase tracking-widest ${u.active ? 'text-success' : 'text-gray-400'}`}>
+                        {u.active ? 'Online' : 'Locked'}
                        </span>
                     </div>
                   </td>
                   <td className="px-6 py-5">
                     <div className="flex flex-wrap gap-1.5">
                       {u.tools.map(tool => (
-                        <span key={tool} className="text-[10px] font-bold bg-accent/20 text-accent border border-accent/30 px-2 py-0.5 rounded-full">
-                          {tool}
+                        <span key={tool} className="text-[10px] font-black uppercase tracking-tighter bg-white border border-gray-200 text-gray-500 px-2.5 py-0.5 rounded shadow-sm">
+                          {tool.replace(/-/g, ' ')}
                         </span>
                       ))}
                     </div>
@@ -176,17 +179,15 @@ const UserManagement = () => {
                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button 
                         onClick={() => handleOpenModal(u)}
-                        className="p-2 hover:bg-white/10 rounded-lg text-muted hover:text-white transition-all"
-                        title="Edit User"
+                        className="p-2 border border-gray-100 bg-white hover:bg-gray-50 rounded-lg text-gray-400 hover:text-accent transition-all shadow-sm"
                       >
-                        <Edit size={18} />
+                        <Edit size={16} />
                       </button>
                       <button 
                         onClick={() => handleToggleActive(u.id)}
-                        className={`p-2 rounded-lg transition-all ${u.active ? 'text-muted hover:text-danger hover:bg-danger/10' : 'text-success hover:bg-success/10'}`}
-                        title={u.active ? "Deactivate" : "Activate"}
+                        className={`p-2 border rounded-lg transition-all shadow-sm ${u.active ? 'bg-white border-gray-100 text-danger hover:bg-danger/5' : 'bg-white border-gray-100 text-success hover:bg-success/5'}`}
                       >
-                        <Power size={18} />
+                        <Power size={16} />
                       </button>
                     </div>
                   </td>
@@ -197,12 +198,16 @@ const UserManagement = () => {
         </div>
       </div>
 
-      <div className="flex items-start gap-4 p-4 bg-accent/5 border border-accent/20 rounded-xl">
-        <Info className="text-accent shrink-0 mt-0.5" size={18} />
-        <div>
-          <p className="text-sm font-bold text-accent mb-0.5">Persistence Warning</p>
-          <p className="text-xs text-accent/80">User information is stored in the browser's local storage for this session. Changes made here will persist across reloads on this machine but are not hosted on a server.</p>
+      <div className="flex items-start gap-4 p-5 bg-gray-900 rounded-2xl shadow-xl text-white relative overflow-hidden group">
+        <Info className="text-accent shrink-0 mt-0.5 group-hover:rotate-12 transition-transform" size={20} />
+        <div className="relative z-10">
+          <p className="text-xs font-black uppercase tracking-widest text-accent mb-1 italic">Security Governance Protocol</p>
+          <p className="text-[11px] text-gray-400 font-medium leading-relaxed">
+            Analyzer toolsets are assigned per node. Supervisors only gain visibility into modules explicitly provisioned by the Administrator. 
+            All state changes are persisted in the local secure storage environment.
+          </p>
         </div>
+        <div className="absolute top-0 right-0 w-32 h-32 bg-accent/5 rounded-full -mr-16 -mt-16 blur-2xl" />
       </div>
 
       {/* User Modal */}
@@ -234,69 +239,72 @@ const UserManagement = () => {
                 </button>
               </div>
 
-              <form onSubmit={handleSave} className="p-6 space-y-5">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="col-span-2">
-                    <label className="block text-[10px] uppercase font-black text-muted tracking-widest mb-2">Display Name</label>
+              <form onSubmit={handleSave} className="p-6 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="md:col-span-2">
+                    <label className="block text-[10px] uppercase font-black text-gray-400 tracking-widest mb-2 ml-1">Supervisor Full Name</label>
                     <input 
                       required 
                       type="text"
                       value={formData.name}
                       onChange={e => setFormData({...formData, name: e.target.value})}
-                      className="w-full px-4 py-2.5 bg-bg border border-border rounded-xl text-white focus:outline-none focus:border-accent"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:border-accent font-medium"
+                      placeholder="e.g. Dr. Peter Ramsis"
                     />
                   </div>
                   
                   <div>
-                    <label className="block text-[10px] uppercase font-black text-muted tracking-widest mb-2">Email Identity</label>
+                    <label className="block text-[10px] uppercase font-black text-gray-400 tracking-widest mb-2 ml-1">Communication Identity</label>
                     <input 
                       required 
                       disabled={!!editingUser}
                       type="email"
                       value={formData.email}
                       onChange={e => setFormData({...formData, email: e.target.value})}
-                      className={`w-full px-4 py-2.5 bg-bg border border-border rounded-xl text-white focus:outline-none focus:border-accent ${editingUser ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      className={`w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:border-accent font-medium ${editingUser ? 'opacity-50 cursor-not-allowed bg-gray-100' : ''}`}
+                      placeholder="user@datalens.com"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[10px] uppercase font-black text-muted tracking-widest mb-2">Password</label>
+                    <label className="block text-[10px] uppercase font-black text-gray-400 tracking-widest mb-2 ml-1">System Passkey</label>
                     <input 
                       required 
                       type="text"
                       value={formData.password}
                       onChange={e => setFormData({...formData, password: e.target.value})}
-                      className="w-full px-4 py-2.5 bg-bg border border-border rounded-xl text-white focus:outline-none focus:border-accent"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:border-accent font-medium"
+                      placeholder="••••••••"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[10px] uppercase font-black text-muted tracking-widest mb-2">System Role</label>
+                    <label className="block text-[10px] uppercase font-black text-gray-400 tracking-widest mb-2 ml-1">Governance Role</label>
                     <select 
                       value={formData.role}
                       onChange={e => setFormData({...formData, role: e.target.value})}
-                      className="w-full px-4 py-2.5 bg-bg border border-border rounded-xl text-white focus:outline-none focus:border-accent"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:border-accent font-bold"
                     >
-                      <option value="user">Field Supervisor</option>
-                      <option value="admin">Platform Administrator</option>
+                      <option value="user">Supervisor Node</option>
+                      <option value="admin">Platform Admin</option>
                     </select>
                   </div>
 
-                  <div className="flex items-center gap-3 self-end h-[46px] px-2">
-                    <div className="flex-1 text-sm font-bold text-white">Account Active</div>
+                  <div className="flex items-center justify-between bg-gray-50 p-3 rounded-xl border border-gray-100 self-end">
+                    <span className="text-xs font-black text-gray-500 uppercase tracking-widest">Active Node</span>
                     <button
                       type="button"
                       onClick={() => setFormData({...formData, active: !formData.active})}
-                      className={`relative w-12 h-6 rounded-full transition-all ${formData.active ? 'bg-success' : 'bg-danger'}`}
+                      className={`relative w-12 h-6 rounded-full transition-all shadow-inner ${formData.active ? 'bg-success' : 'bg-gray-200'}`}
                     >
-                      <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${formData.active ? 'left-7' : 'left-1'}`} />
+                      <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow ${formData.active ? 'left-7' : 'left-1'}`} />
                     </button>
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-[10px] uppercase font-black text-muted tracking-widest mb-3">Tool Authorization</label>
-                  <div className="flex flex-wrap gap-4 px-1">
+                <div className="py-2">
+                  <label className="block text-[10px] uppercase font-black text-gray-400 tracking-widest mb-4 ml-1">Analysis Module Authorizations</label>
+                  <div className="flex items-center gap-6 px-1">
                     {['call-detailing', 'sales-analyzer'].map(tool => (
                       <label key={tool} className="flex items-center gap-3 cursor-pointer group">
                         <div 
@@ -306,24 +314,24 @@ const UserManagement = () => {
                               : [...formData.tools, tool];
                             setFormData({...formData, tools: newTools});
                           }}
-                          className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
-                            formData.tools.includes(tool) ? 'bg-accent border-accent text-bg' : 'border-border group-hover:border-accent'
+                          className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all shadow-sm ${
+                            formData.tools.includes(tool) ? 'bg-accent border-accent text-accent-dark' : 'bg-white border-gray-200 group-hover:border-accent/40'
                           }`}
                         >
-                          {formData.tools.includes(tool) && <Check size={14} strokeWidth={4} />}
+                          {formData.tools.includes(tool) && <Check size={16} strokeWidth={4} />}
                         </div>
-                        <span className="text-sm font-bold text-white capitalize">{tool.replace('-', ' ')}</span>
+                        <span className="text-xs font-black text-gray-700 uppercase tracking-tight capitalize">{tool.replace(/-/g, ' ')}</span>
                       </label>
                     ))}
                   </div>
                 </div>
 
-                <div className="pt-6 border-t border-border mt-4">
+                <div className="pt-6 border-t border-gray-100 mt-4">
                   <button 
                     type="submit"
-                    className="w-full py-4 bg-accent hover:bg-accent-hover text-bg font-black rounded-xl transition-all shadow-lg active:scale-95"
+                    className="w-full py-4 bg-accent hover:bg-accent-hover text-accent-dark font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg active:scale-[0.98]"
                   >
-                    {editingUser ? 'Commit Changes' : 'Initialize Supervisor'}
+                    {editingUser ? 'Commit Node Updates' : 'Initialize Supervisor'}
                   </button>
                 </div>
               </form>
