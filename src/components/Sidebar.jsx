@@ -3,7 +3,6 @@ import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, Settings, ChevronRight, Activity, BarChart3, Shield } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSidebar } from '../context/SidebarContext';
-import appVersion from '../config/version';
 
 const Sidebar = () => {
   const { user } = useAuth();
@@ -40,7 +39,7 @@ const Sidebar = () => {
               key={item.path}
               to={item.path}
               className={({ isActive }) =>
-                `group flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 border-l-4 font-bold text-sm ${
+                `group flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 border-l-4 font-bold text-sm whitespace-nowrap overflow-hidden ${
                   isActive
                     ? 'bg-accent/10 border-accent text-accent-dark shadow-sm'
                     : 'border-transparent text-gray-500 hover:bg-gray-50 hover:text-gray-900'
@@ -48,20 +47,13 @@ const Sidebar = () => {
               }
             >
               <div className="flex items-center gap-3">
-                <item.icon size={18} className="transition-transform group-hover:scale-110" />
+                <item.icon size={18} className="transition-transform group-hover:scale-110 shrink-0" />
                 <span>{item.title}</span>
               </div>
-              <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+              <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
             </NavLink>
           ))}
         </nav>
-      </div>
-      
-      <div className={`mt-auto p-6 border-t border-gray-200 bg-gray-50/50 ${isOpen ? 'opacity-100' : 'opacity-0'} transition-opacity duration-200`}>
-        <div className="flex flex-col gap-1">
-          <p className="text-[9px] text-gray-400 tracking-[0.3em] font-black uppercase text-center">Version</p>
-          <p className="text-xs text-accent-dark font-black text-center tabular-nums">{appVersion.version}</p>
-        </div>
       </div>
     </aside>
   );

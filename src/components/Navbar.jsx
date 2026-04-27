@@ -1,11 +1,13 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
-import { Shield } from 'lucide-react';
+import { Shield, Menu } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useSidebar } from '../context/SidebarContext';
 
 const Navbar = () => {
   const { user } = useAuth();
   const location = useLocation();
+  const { toggle } = useSidebar();
 
   // Get current tool name for breadcrumbs
   const getBreadcrumb = () => {
@@ -27,6 +29,13 @@ const Navbar = () => {
     <nav className="fixed top-0 left-0 right-0 h-14 bg-surface border-b border-border z-50 px-6 flex items-center justify-between shadow-sm flex-shrink-0">
       {/* LEFT: App Information */}
       <div className="flex items-center gap-3">
+        <button 
+          onClick={toggle}
+          className="p-1.5 -ml-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors"
+          aria-label="Toggle Sidebar"
+        >
+          <Menu size={20} />
+        </button>
         <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center shadow-[0_0_10px_rgba(245,197,24,0.3)]">
           <span className="text-sm">🔍</span>
         </div>

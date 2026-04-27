@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import CSVUploader from '../../components/shared/CSVUploader';
 import SummaryCards from '../../components/shared/SummaryCards';
 import FilterBar from '../../components/shared/FilterBar';
+import DateRangeFilter from './DateRangeFilter';
 import VirtualTable from '../../components/shared/VirtualTable';
 import AutoInsights from '../../components/shared/AutoInsights.jsx';
 import ActivityCalendar from '../../components/shared/ActivityCalendar.jsx';
@@ -9,12 +10,19 @@ import { parseISO, isValid } from 'date-fns';
 import { generateInsights } from '../../utils/insightGenerator';
 
 // Sub-components
-import MRAnalysis from './MRAnalysis';
+import TargetSettingsPanel from './TargetSettingsPanel';
+import MRCardsGrid from './MRCardsGrid';
+import ForecastTool from './ForecastTool';
+import TeamOverviewTable from './TeamOverviewTable';
 import InteractionAnalysis from './InteractionAnalysis';
 import CoachingAnalysis from './CoachingAnalysis';
 
 const CallDetailingAnalyzer = () => {
   const [rawData, setRawData] = useState([]);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [targets, setTargets] = useState({ hcpPerDay: 0, hcoPerDay: 0, phPerDay: 0 });
+
   const [filters, setFilters] = useState({
     search: '',
     mrName: 'All',
@@ -22,8 +30,6 @@ const CallDetailingAnalyzer = () => {
     customerGrade: 'All',
     specialty: 'All',
     coaching: 'All',
-    dateFrom: '',
-    dateTo: ''
   });
 
   const handleDataLoaded = (data) => {
@@ -42,8 +48,6 @@ const CallDetailingAnalyzer = () => {
       customerGrade: 'All',
       specialty: 'All',
       coaching: 'All',
-      dateFrom: '',
-      dateTo: ''
     });
   };
 
@@ -64,12 +68,12 @@ const CallDetailingAnalyzer = () => {
       if (filters.coaching !== 'All' && d.IsMRCoachingSubmitted !== filters.coaching) return false;
 
       // Date Range
-      if (filters.dateFrom && d.ReportDate && d.ReportDate < filters.dateFrom) return false;
-      if (filters.dateTo && d.ReportDate && d.ReportDate > filters.dateTo) return false;
+      if (dateFrom && d.ReportDate && d.ReportDate < dateFrom) return false;
+      if (dateTo && d.ReportDate && d.ReportDate > dateTo) return false;
 
       return true;
     });
-  }, [rawData, filters]);
+  }, [rawData, filters, dateFrom, dateTo]);
 
   const filterOptions = useMemo(() => {
     return {
@@ -90,7 +94,7 @@ const CallDetailingAnalyzer = () => {
     };
   }, [filteredData]);
 
-  const insights = useMemo(() => generateInsights(filteredData), [filteredData]);
+  const insights = useMemo(() => generateInsights(filteredData, targets), [filteredData, targets]);
 
   const tableColumns = useMemo(() => [
     { header: 'ID', accessorKey: 'InteractionId', size: 100 },
@@ -119,7 +123,7 @@ const CallDetailingAnalyzer = () => {
   }
 
   return (
-    <div className="space-y-12 pb-24">
+    <div className="space-y-2 pb-24">
       {/* Header section with summaries */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-2">
         <div>
@@ -129,43 +133,61 @@ const CallDetailingAnalyzer = () => {
            </div>
            <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">Global Field Operations Metrics ● Environment Live</p>
         </div>
-        <div className="flex gap-3">
-           <button onClick={() => setRawData([])} className="text-xs font-black uppercase tracking-widest bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-all">New Data Sink</button>
-           <button className="text-xs font-black uppercase tracking-widest bg-accent hover:bg-accent-hover text-accent-dark px-4 py-2 rounded-lg transition-all shadow-sm">Export Report</button>
+        <div className="flex flex-col items-end gap-2">
+           <CSVUploader onDataLoaded={(d) => { if(d && d.length>0) handleDataLoaded(d); }} />
         </div>
       </div>
+
+      <DateRangeFilter 
+        dateFrom={dateFrom} 
+        dateTo={dateTo} 
+        setDateFrom={setDateFrom} 
+        setDateTo={setDateTo} 
+        data={rawData} 
+      />
 
       <SummaryCards metrics={metrics} />
       
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        <div className="xl:col-span-2 space-y-8">
-           <FilterBar 
-             options={filterOptions} 
-             filters={filters} 
-             onFilterChange={handleFilterChange} 
-             onReset={resetFilters}
-             dataCount={filteredData.length}
-           />
-           
-           <MRAnalysis data={filteredData} />
-           <InteractionAnalysis data={filteredData} />
-           <CoachingAnalysis data={filteredData} />
-        </div>
-        
-        <div className="space-y-8">
-           <ActivityCalendar data={filteredData} />
-           <AutoInsights insights={insights} />
-        </div>
+      <TargetSettingsPanel 
+        data={rawData} 
+        dateFrom={dateFrom} 
+        dateTo={dateTo} 
+        onTargetsChange={setTargets} 
+      />
+
+      <MRCardsGrid data={filteredData} targets={targets} />
+
+      <ForecastTool data={filteredData} targets={targets} />
+
+      <div className="mb-8">
+        <FilterBar 
+           options={filterOptions} 
+           filters={filters} 
+           onFilterChange={handleFilterChange} 
+           onReset={resetFilters}
+           dataCount={filteredData.length}
+        />
       </div>
 
+      <TeamOverviewTable data={filteredData} targets={targets} />
+
+      <InteractionAnalysis data={filteredData} />
+      <CoachingAnalysis data={filteredData} />
+      <AutoInsights insights={insights} />
+
       {/* Full Raw Data Section */}
-      <div className="mt-12">
-        <div className="mb-6">
-           <h3 className="text-xl font-bold text-gray-900 italic tracking-tight">Raw Data Ingestion Log</h3>
-           <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest">High-performance virtualized rendering of {filteredData.length.toLocaleString()} interactions</p>
+      <details className="mt-12 bg-white border border-gray-200 shadow-sm rounded-xl [&_summary::-webkit-details-marker]:hidden">
+        <summary className="p-6 cursor-pointer hover:bg-gray-50 flex items-center justify-between transition-colors">
+          <div>
+            <h3 className="text-xl font-bold text-gray-900 italic tracking-tight">📋 Raw Data ({filteredData.length.toLocaleString()} rows)</h3>
+            <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mt-1">High-performance virtualized rendering</p>
+          </div>
+          <span className="text-xs font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-lg">Expand / Collapse</span>
+        </summary>
+        <div className="p-6 border-t border-gray-100">
+          <VirtualTable data={filteredData} columns={tableColumns} />
         </div>
-        <VirtualTable data={filteredData} columns={tableColumns} />
-      </div>
+      </details>
     </div>
   );
 };

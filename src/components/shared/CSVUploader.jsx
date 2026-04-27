@@ -1,9 +1,49 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Papa from "papaparse";
 
 const CSVUploader = ({ onDataLoaded }) => {
   const [status, setStatus]     = useState("idle");
   const [rowCount, setRowCount] = useState(0);
+  const [cacheInfo, setCacheInfo] = useState(null);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("datalens_last_report");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        setCacheInfo(parsed);
+        setRowCount(parsed.rowCount || parsed.rows.length);
+        setStatus("done");
+        onDataLoaded(parsed.rows);
+      }
+    } catch (e) {
+      console.warn("Failed to load cached report:", e);
+    }
+  }, [onDataLoaded]);
+
+  const saveToCache = (rows, fileName) => {
+    try {
+      const payload = {
+        uploadedAt: new Date().toISOString(),
+        fileName,
+        rowCount: rows.length,
+        rows,
+      };
+      localStorage.setItem("datalens_last_report", JSON.stringify(payload));
+      setCacheInfo(payload);
+    } catch (e) {
+      console.warn("Data too large to cache:", e);
+      alert("Data too large to cache. Will reload on refresh.");
+    }
+  };
+
+  const clearCache = () => {
+    localStorage.removeItem("datalens_last_report");
+    setCacheInfo(null);
+    setStatus("idle");
+    setRowCount(0);
+    onDataLoaded([]);
+  };
 
   const processFile = (file) => {
     if (!file) return;
@@ -48,6 +88,7 @@ const CSVUploader = ({ onDataLoaded }) => {
 
         setRowCount(cleaned.length);
         setStatus("done");
+        saveToCache(cleaned, file.name);
         console.log("✅ Loaded:", cleaned.length, "rows");
         console.log("🔑 Headers:", Object.keys(cleaned[0] || {}));
         onDataLoaded(cleaned);
@@ -62,6 +103,21 @@ const CSVUploader = ({ onDataLoaded }) => {
 
   return (
     <div className="w-full">
+      {cacheInfo ? (
+        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold text-blue-900">📂 Showing last report: {cacheInfo.fileName}</p>
+            <p className="text-xs text-blue-700 mt-1">Uploaded {new Date(cacheInfo.uploadedAt).toLocaleString()} · {cacheInfo.rowCount.toLocaleString()} rows. Upload new file to refresh.</p>
+          </div>
+          <button 
+            onClick={clearCache}
+            className="px-4 py-2 bg-white text-blue-700 hover:bg-blue-100 text-xs font-bold rounded-lg border border-blue-200 transition-colors"
+          >
+            Clear Data
+          </button>
+        </div>
+      ) : null}
+
       <div
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {

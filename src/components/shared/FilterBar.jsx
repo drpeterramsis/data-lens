@@ -107,28 +107,8 @@ const FilterBar = ({ options, filters, onFilterChange, onReset, dataCount }) => 
           </select>
         </div>
 
-        {/* Date Ranges */}
-        <div className="lg:col-span-2">
-           <label className="text-[10px] uppercase font-black text-gray-400 tracking-widest mb-2 block">Report Date Window</label>
-           <div className="flex items-center gap-4">
-              <input 
-                type="date" 
-                className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm"
-                value={filters.dateFrom}
-                onChange={(e) => onFilterChange('dateFrom', e.target.value)}
-              />
-              <span className="text-gray-400 font-bold">›</span>
-              <input 
-                type="date" 
-                className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm"
-                value={filters.dateTo}
-                onChange={(e) => onFilterChange('dateTo', e.target.value)}
-              />
-           </div>
-        </div>
-
         {/* Specialty */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-3">
           <label className="text-[10px] uppercase font-black text-gray-400 tracking-widest mb-2 block">Specialty Domain</label>
           <select 
             className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-accent outline-none font-medium"

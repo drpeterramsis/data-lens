@@ -122,7 +122,7 @@ const Login = () => {
         </motion.div>
         
         <p className="mt-12 text-center text-[10px] text-gray-400 uppercase tracking-[0.3em] font-black">
-          Datalens Analytics Engine ● v1.0.024
+          Datalens Analytics Engine ● v1.0.025
         </p>
       </div>
     </div>

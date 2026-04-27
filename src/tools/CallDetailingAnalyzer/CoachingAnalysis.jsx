@@ -37,15 +37,14 @@ const CoachingAnalysis = ({ data }) => {
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
          {[
-           { label: 'MR Coaching Done', val: stats.mrCoaching, color: 'text-success', bg: 'bg-green-50' },
-           { label: 'MR Not Coached', val: stats.total - stats.mrCoaching, color: 'text-danger', bg: 'bg-red-50' },
-           { label: 'Manager Coaching', val: stats.mgrCoaching, color: 'text-blue-500', bg: 'bg-blue-50' },
-           { label: 'Manager Default', val: stats.total - stats.mgrCoaching, color: 'text-gray-400', bg: 'bg-gray-50' }
+           { label: 'Total Coached MRs', val: Object.values(stats.mrBreakdown).filter(m => m.coached >= 4).length, color: 'text-success', bg: 'bg-green-50' },
+           { label: 'MRs with 0 Coaching', val: Object.values(stats.mrBreakdown).filter(m => m.coached === 0).length, color: 'text-danger', bg: 'bg-red-50' },
+           { label: 'Total Coaching Sessions', val: stats.mrCoaching, color: 'text-blue-500', bg: 'bg-blue-50' },
+           { label: 'Coaching Coverage %', val: ((Object.values(stats.mrBreakdown).filter(m => m.coached >= 4).length / Math.max(Object.values(stats.mrBreakdown).length, 1)) * 100).toFixed(1), color: 'text-purple-500', bg: 'bg-purple-50', isPct: true }
          ].map((card, i) => (
            <div key={i} className={`p-4 rounded-xl border border-gray-100 ${card.bg}`}>
               <p className="text-[10px] font-black uppercase text-gray-400 mb-1 leading-none">{card.label}</p>
-              <p className={`text-xl font-black ${card.color}`}>{card.val.toLocaleString()}</p>
-              <p className="text-[10px] font-bold mt-1 text-gray-400">({((card.val/stats.total)*100).toFixed(1)}%)</p>
+              <p className={`text-xl font-black ${card.color}`}>{card.val}{card.isPct && '%'}</p>
            </div>
          ))}
       </div>
