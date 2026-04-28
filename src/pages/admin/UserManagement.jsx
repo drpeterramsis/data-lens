@@ -44,7 +44,7 @@ const UserManagement = () => {
         password: user.password,
         role: user.role,
         active: user.active,
-        tools: user.tools
+        tools: user.tools || ['call-detailing']
       });
     } else {
       setEditingUser(null);
@@ -168,7 +168,7 @@ const UserManagement = () => {
                   </td>
                   <td className="px-6 py-5">
                     <div className="flex flex-wrap gap-1.5">
-                      {u.tools.map(tool => (
+                      {(u.tools || []).map(tool => (
                         <span key={tool} className="text-[10px] font-black uppercase tracking-tighter bg-white border border-gray-200 text-gray-500 px-2.5 py-0.5 rounded shadow-sm">
                           {tool.replace(/-/g, ' ')}
                         </span>

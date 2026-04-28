@@ -42,6 +42,7 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 
 ## Version History
 
+- **v1.0.402:** Fixed a critical rendering issue in the User Management and Dashboard screens where newly initialized administrative users that did not have specific platform modules assigned in their data configuration caused sudden application failures on tool parsing. Applied graceful fallbacks to the map iterations.
 - **v1.0.401:** Data Lens Branding update: Refactored Call Detailing local storage caching logic to use `datalens_rows` and `datalens_meta`, updated Daily Card Calendar Modals with full customer visit breakdown, and implemented Collapsible Type Sections filtering per visit type (HCO, Pharmacy, HCP). Set app name to "Data Lens" and tagline to "Pharma Analytics Portal" with a 🔍 icon.
 - **v1.0.383:** Fixed "Clear Data" and "Upload New File" issues by syncing unique cache storage keys for each tool (Call Detailing vs Sales Analyzer); enhanced table date display using localized helpers; further hardened CSV header normalization.
 - **v1.0.382:** Removed auto-login system and restored full authentication requirements (Login page + Protected Routes) to resolve session corruption issues.
@@ -72,4 +73,4 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 - **v1.0.001:** Initial release. Authentication, CSV parsing, Analysis tools, and Admin panel implemented.
 
 ---
-© 2026 Data Lens Analytics | version 1.0.401
+© 2026 Data Lens Analytics | version 1.0.402
