@@ -89,9 +89,9 @@ export const calculateForecast = ({
     // Build remaining dates
     const nextDay = new Date(lastDate + "T00:00:00");
     nextDay.setDate(nextDay.getDate() + 1);
-    const fromDate = nextDay.toISOString().split("T")[0];
+    const remStartDate = nextDay.toISOString().split("T")[0];
 
-    const remainingDates = getDatesInRange(fromDate, periodEndDate);
+    const remainingDates = getDatesInRange(remStartDate, periodEndDate);
 
     // Count remaining working days per type
     const remHCO = remainingDates.filter(d => isAvailableForType(d, "HCO", mr.mrName)).length;
@@ -144,7 +144,7 @@ export const calculateForecast = ({
       mrName: mr.mrName,
       lineName: mr.lineName,
       lastDate,
-      fromDate,
+      fromDate: mr.fromDate,
 
       // HCO
       hcoDone: mr.totalHCO,

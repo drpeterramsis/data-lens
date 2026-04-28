@@ -145,6 +145,7 @@ export const calculateMRStats = (filteredRows) => {
     );
 
     const lastDate = allDates[allDates.length-1] ?? "";
+    const fromDate = allDates[0] ?? "";
 
     return {
       mrName, lineName,
@@ -158,6 +159,7 @@ export const calculateMRStats = (filteredRows) => {
       totalCoached,
       hcoCoached, phCoached, hcpCoached,
       lastDate,
+      fromDate,
       dateMap,
       allDates,
       totalCalls: totalHCO + totalPH + totalHCP,

@@ -3,6 +3,82 @@ import { TrendingUp, Trash2, Calendar, ShieldCheck, AlertCircle } from 'lucide-r
 import { calculateForecast, STATUS_CONFIG } from '../../utils/forecastEngine';
 
 const ForecastTool = ({ data, targets, mrStats }) => {
+  const getRequiredColor = (required, target, status) => {
+    if (status === "achieved") return {
+      bg:     "bg-green-50",
+      border: "border-green-200",
+      text:   "text-green-700",
+      badge:  "bg-green-100 text-green-800",
+    };
+
+    if (status === "impossible" || required === null) return {
+      bg:     "bg-gray-50",
+      border: "border-gray-200",
+      text:   "text-gray-500",
+      badge:  "bg-gray-100 text-gray-600",
+    };
+
+    if (required <= target) return {
+      bg:     "bg-green-50",
+      border: "border-green-200",
+      text:   "text-green-700",
+      badge:  "bg-green-100 text-green-800",
+    };
+
+    return {
+      bg:     "bg-red-50",
+      border: "border-red-200",
+      text:   "text-red-700",
+      badge:  "bg-red-100 text-red-800",
+    };
+  };
+
+  const RequiredCell = ({ required, target, status, done, totalTarget, remDays }) => {
+    const colors = getRequiredColor(required, target, status);
+
+    return (
+      <td className={`p-3 text-center border-b border-t ${colors.border} ${colors.bg}`}>
+        <div className={`text-lg font-black ${colors.text}`}>
+          {status === "achieved"
+            ? "✅"
+            : status === "impossible"
+              ? "❌"
+              : `${required?.toFixed(1) ?? "—"}`
+          }
+        </div>
+        <div className={`text-[10px] mt-0.5 ${colors.text} opacity-80`}>
+          {status === "achieved"
+            ? "Target achieved"
+            : status === "impossible"
+              ? "No days left"
+              : required <= target
+                ? `≤ ${target} ✓`
+                : `> ${target} target`
+          }
+        </div>
+        {status !== "achieved" && status !== "impossible" && remDays > 0 && (
+          <div className={`mt-1 text-[9px] px-1.5 py-0.5 rounded-full inline-block ${colors.badge}`}>
+            {remDays} days left
+          </div>
+        )}
+      </td>
+    );
+  };
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "—";
+    try {
+      return new Date(dateStr + "T00:00:00")
+        .toLocaleDateString("en-GB", {
+          day:   "numeric",
+          month: "short",
+          year:  "numeric",
+        });
+    } catch {
+      return dateStr;
+    }
+  };
+
   const [isOpen, setIsOpen] = useState(false);
   
   // Base period state
@@ -367,102 +443,110 @@ const ForecastTool = ({ data, targets, mrStats }) => {
                    <div className="overflow-x-auto">
                       <table className="w-full text-left text-[11px] whitespace-nowrap border-collapse">
                          <thead>
-                            <tr className="bg-gray-100/50 text-[9px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-200">
-                               <th className="px-6 py-4 border-r border-gray-100">MR Identity</th>
-                               <th colSpan="3" className="px-4 py-4 text-center border-r border-gray-100 bg-green-50/50 text-green-700">🏥 HCO Coverage</th>
-                               <th colSpan="3" className="px-4 py-4 text-center border-r border-gray-100 bg-purple-50/50 text-purple-700">💊 Pharmacy (PH)</th>
-                               <th colSpan="3" className="px-4 py-4 text-center border-r border-gray-100 bg-blue-50/50 text-blue-700">👨‍⚕️ HCP Visits</th>
-                               <th className="px-6 py-4 text-center">Status</th>
+                            <tr className="bg-gray-800 text-white text-xs">
+                               <th className="p-2 text-left sticky left-0 bg-gray-800 min-w-[160px] z-10">MR</th>
+                               <th colSpan="4" className="p-2 text-center border-l border-gray-600">🏥 HCO (Target: {targets?.hcoPerDay || 2}/day)</th>
+                               <th colSpan="4" className="p-2 text-center border-l-2 border-gray-500">💊 Pharmacy (Target: {targets?.phPerDay || 10}/day)</th>
+                               <th colSpan="4" className="p-2 text-center border-l-2 border-gray-500">👤 HCP (Target: {targets?.hcpPerDay || 9}/day)</th>
+                               <th className="p-2 text-center border-l-2 border-gray-500">Overall</th>
                             </tr>
-                            <tr className="bg-white text-[8px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-200">
-                               <th className="px-6 py-2 border-r border-gray-100"></th>
+                            <tr className="bg-gray-100 text-xs text-gray-600 font-semibold">
+                               <th className="p-2 text-left sticky left-0 bg-gray-100 border-b border-gray-200 z-10">Name</th>
                                {/* HCO */}
-                               <th className="px-2 py-2 text-center border-r border-gray-50">Done</th>
-                               <th className="px-2 py-2 text-center border-r border-gray-50">Left</th>
-                               <th className="px-2 py-2 text-center border-r border-gray-100">Req/d</th>
+                               <th className="p-2 text-center border-l border-gray-300 border-b border-gray-200">Done</th>
+                               <th className="p-2 text-center border-b border-gray-200">Days</th>
+                               <th className="p-2 text-center border-b border-gray-200">Rate/d</th>
+                               <th className="p-2 text-center border-b border-gray-200">Required/d</th>
                                {/* PH */}
-                               <th className="px-2 py-2 text-center border-r border-gray-50">Done</th>
-                               <th className="px-2 py-2 text-center border-r border-gray-50">Left</th>
-                               <th className="px-2 py-2 text-center border-r border-gray-100">Req/d</th>
+                               <th className="p-2 text-center border-l-2 border-gray-300 border-b border-gray-200">Done</th>
+                               <th className="p-2 text-center border-b border-gray-200">Days</th>
+                               <th className="p-2 text-center border-b border-gray-200">Rate/d</th>
+                               <th className="p-2 text-center border-b border-gray-200">Required/d</th>
                                {/* HCP */}
-                               <th className="px-2 py-2 text-center border-r border-gray-50">Done</th>
-                               <th className="px-2 py-2 text-center border-r border-gray-50">Left</th>
-                               <th className="px-2 py-2 text-center border-r border-gray-100">Req/d</th>
-                               <th></th>
+                               <th className="p-2 text-center border-l-2 border-gray-300 border-b border-gray-200">Done</th>
+                               <th className="p-2 text-center border-b border-gray-200">Days</th>
+                               <th className="p-2 text-center border-b border-gray-200">Rate/d</th>
+                               <th className="p-2 text-center border-b border-gray-200">Required/d</th>
+                               {/* Overall */}
+                               <th className="p-2 text-center border-l-2 border-gray-300 border-b border-gray-200">Status</th>
                             </tr>
                          </thead>
                          <tbody className="divide-y divide-gray-100">
-                            {forecastResults.map((r, i) => {
-                               if (r.skipped) return null;
-                               const overall = getStatusDisplay(r.overallStatus);
+                            {forecastResults.map((row, i) => {
+                               if (row.skipped) return null;
                                
+                               const hcoTarget = targets?.hcoPerDay || 2;
+                               const phTarget = targets?.phPerDay || 10;
+                               const hcpTarget = targets?.hcpPerDay || 9;
+
                                return (
-                                 <tr key={i} className="hover:bg-gray-50 border-l-4 border-transparent hover:border-yellow-400 transition-all">
-                                    <td className="px-6 py-4 border-r border-gray-100">
-                                       <div className="font-black text-gray-900 text-sm tracking-tight">{r.mrName}</div>
-                                       <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{r.lineName}</div>
+                                 <tr key={i} className="hover:bg-gray-50 transition-colors">
+                                    <td className="p-3 align-top min-w-[160px] sticky left-0 bg-white border-r border-b border-gray-200 group-hover:bg-gray-50">
+                                       <div className="font-bold text-sm text-gray-900">{row.mrName}</div>
+                                       <div className="text-[11px] text-gray-500 mt-0.5">📅 Last: {formatDate(row.lastDate)}</div>
+                                       <div className="text-[11px] text-blue-500 mt-0.5">From: {formatDate(row.fromDate)}</div>
                                     </td>
                                     
                                     {/* HCO */}
-                                    <td className="px-2 py-4 text-center font-bold text-gray-600 bg-green-50/10 border-r border-gray-50">{r.hcoDone} <span className="opacity-30">/ {r.hcoTotalTarget}</span></td>
-                                    <td className="px-2 py-4 text-center font-black text-green-700 bg-green-50/10 border-r border-gray-50">{r.hcoRemDays}</td>
-                                    <td className="px-4 py-4 text-center border-r border-gray-100 bg-white group/cell relative">
-                                       {r.hcoStatus === 'achieved' ? (
-                                         <div className="bg-green-100 text-green-700 text-[9px] font-black px-2 py-1 rounded-lg">✅ DONE</div>
-                                       ) : r.hcoRemDays === 0 ? (
-                                         <div className="text-red-500 font-bold text-[10px]">❌ N/A</div>
-                                       ) : (
-                                         <div className={`px-2 py-1 rounded-xl text-sm font-black border-2 border-transparent ${r.hcoRequired > (targets?.hcoPerDay || 2) * 1.5 ? 'bg-red-100 text-red-700 border-red-200' : 'bg-gray-50 text-gray-900 group-hover/cell:bg-white transition-colors'}`}>
-                                            {r.hcoRequired?.toFixed(1)}<span className="text-[10px] opacity-40 ml-1">v/d</span>
-                                         </div>
-                                       )}
-                                       <div className="absolute opacity-0 group-hover/cell:opacity-100 bottom-full left-1/2 -translate-x-1/2 mb-2 bg-gray-900 text-white text-[9px] p-2 rounded-xl z-50 pointer-events-none transition-opacity">
-                                          Deficit: {r.hcoDeficit} calls
-                                       </div>
-                                    </td>
+                                    <td className="p-3 text-center text-sm text-gray-700 border-r border-b border-gray-200">{row.hcoDone}</td>
+                                    <td className="p-3 text-center text-sm text-gray-700 border-r border-b border-gray-200">{row.hcoWorkedDays}d</td>
+                                    <td className={`p-3 text-center text-sm font-bold border-r border-b border-gray-200 ${
+                                      row.hcoActualRate >= hcoTarget ? "text-green-700" : row.hcoActualRate >= hcoTarget * 0.9 ? "text-yellow-600" : "text-red-600"
+                                    }`}>{row.hcoActualRate}</td>
+                                    <RequiredCell
+                                      required={row.hcoRequired}
+                                      target={hcoTarget}
+                                      status={row.hcoStatus}
+                                      done={row.hcoDone}
+                                      totalTarget={row.hcoTotalTarget}
+                                      remDays={row.hcoRemDays}
+                                    />
 
                                     {/* PH */}
-                                    <td className="px-2 py-4 text-center font-bold text-gray-600 bg-purple-50/10 border-r border-gray-50">{r.phDone} <span className="opacity-30">/ {r.phTotalTarget}</span></td>
-                                    <td className="px-2 py-4 text-center font-black text-purple-700 bg-purple-50/10 border-r border-gray-50">{r.phRemDays}</td>
-                                    <td className="px-4 py-4 text-center border-r border-gray-100 bg-white group/cell relative">
-                                       {r.phStatus === 'achieved' ? (
-                                         <div className="bg-green-100 text-green-700 text-[9px] font-black px-2 py-1 rounded-lg">✅ DONE</div>
-                                       ) : r.phRemDays === 0 ? (
-                                         <div className="text-red-500 font-bold text-[10px]">❌ N/A</div>
-                                       ) : (
-                                         <div className={`px-2 py-1 rounded-xl text-sm font-black border-2 border-transparent ${r.phRequired > (targets?.phPerDay || 10) * 1.5 ? 'bg-red-100 text-red-700 border-red-200' : 'bg-gray-50 text-gray-900 group-hover/cell:bg-white transition-colors'}`}>
-                                            {r.phRequired?.toFixed(1)}<span className="text-[10px] opacity-40 ml-1">v/d</span>
-                                         </div>
-                                       )}
-                                       <div className="absolute opacity-0 group-hover/cell:opacity-100 bottom-full left-1/2 -translate-x-1/2 mb-2 bg-gray-900 text-white text-[9px] p-2 rounded-xl z-50 pointer-events-none transition-opacity">
-                                          Deficit: {r.phDeficit} calls
-                                       </div>
-                                    </td>
+                                    <td className="p-3 text-center text-sm text-gray-700 border-r border-b border-gray-200 border-l-2 border-l-gray-300">{row.phDone}</td>
+                                    <td className="p-3 text-center text-sm text-gray-700 border-r border-b border-gray-200">{row.phWorkedDays}d</td>
+                                    <td className={`p-3 text-center text-sm font-bold border-r border-b border-gray-200 ${
+                                      row.phActualRate >= phTarget ? "text-green-700" : row.phActualRate >= phTarget * 0.9 ? "text-yellow-600" : "text-red-600"
+                                    }`}>{row.phActualRate}</td>
+                                    <RequiredCell
+                                      required={row.phRequired}
+                                      target={phTarget}
+                                      status={row.phStatus}
+                                      done={row.phDone}
+                                      totalTarget={row.phTotalTarget}
+                                      remDays={row.phRemDays}
+                                    />
 
                                     {/* HCP */}
-                                    <td className="px-2 py-4 text-center font-bold text-gray-600 bg-blue-50/10 border-r border-gray-50">{r.hcpDone} <span className="opacity-30">/ {r.hcpTotalTarget}</span></td>
-                                    <td className="px-2 py-4 text-center font-black text-blue-700 bg-blue-50/10 border-r border-gray-50">{r.hcpRemDays}</td>
-                                    <td className="px-4 py-4 text-center border-r border-gray-100 bg-white group/cell relative">
-                                       {r.hcpStatus === 'achieved' ? (
-                                         <div className="bg-green-100 text-green-700 text-[9px] font-black px-2 py-1 rounded-lg">✅ DONE</div>
-                                       ) : r.hcpRemDays === 0 ? (
-                                         <div className="text-red-500 font-bold text-[10px]">❌ N/A</div>
-                                       ) : (
-                                         <div className={`px-2 py-1 rounded-xl text-sm font-black border-2 border-transparent ${r.hcpRequired > (targets?.hcpPerDay || 9) * 1.5 ? 'bg-red-100 text-red-700 border-red-200' : 'bg-gray-50 text-gray-900 group-hover/cell:bg-white transition-colors'}`}>
-                                            {r.hcpRequired?.toFixed(1)}<span className="text-[10px] opacity-40 ml-1">v/d</span>
-                                         </div>
-                                       )}
-                                       <div className="absolute opacity-0 group-hover/cell:opacity-100 bottom-full left-1/2 -translate-x-1/2 mb-2 bg-gray-900 text-white text-[9px] p-2 rounded-xl z-50 pointer-events-none transition-opacity">
-                                          Deficit: {r.hcpDeficit} calls
-                                       </div>
-                                    </td>
+                                    <td className="p-3 text-center text-sm text-gray-700 border-r border-b border-gray-200 border-l-2 border-l-gray-300">{row.hcpDone}</td>
+                                    <td className="p-3 text-center text-sm text-gray-700 border-r border-b border-gray-200">{row.hcpWorkedDays}d</td>
+                                    <td className={`p-3 text-center text-sm font-bold border-r border-b border-gray-200 ${
+                                      row.hcpActualRate >= hcpTarget ? "text-green-700" : row.hcpActualRate >= hcpTarget * 0.9 ? "text-yellow-600" : "text-red-600"
+                                    }`}>{row.hcpActualRate}</td>
+                                    <RequiredCell
+                                      required={row.hcpRequired}
+                                      target={hcpTarget}
+                                      status={row.hcpStatus}
+                                      done={row.hcpDone}
+                                      totalTarget={row.hcpTotalTarget}
+                                      remDays={row.hcpRemDays}
+                                    />
 
-                                    <td className="px-6 py-4 text-center">
-                                       <span 
-                                         className="px-4 py-1.5 rounded-full text-[10px] font-black border uppercase tracking-widest whitespace-nowrap"
-                                         style={{ backgroundColor: overall.bg, color: overall.text, borderColor: `${overall.text}33` }}
-                                       >
-                                          {overall.label}
+                                    <td className="p-3 text-center border-l-2 border-l-gray-300 border-b border-gray-200">
+                                       <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                                         row.overallStatus === "achieved" ? "bg-green-100 text-green-800" :
+                                         row.overallStatus === "on_track" ? "bg-green-100 text-green-800" :
+                                         row.overallStatus === "warning" ? "bg-yellow-100 text-yellow-800" :
+                                         row.overallStatus === "at_risk" ? "bg-orange-100 text-orange-800" :
+                                         row.overallStatus === "critical" ? "bg-red-100 text-red-800" :
+                                         "bg-gray-100 text-gray-600"
+                                       }`}>
+                                          {row.overallStatus === "achieved" ? "✅ Achieved" :
+                                           row.overallStatus === "on_track" ? "🟢 On Track" :
+                                           row.overallStatus === "warning" ? "🟡 Warning" :
+                                           row.overallStatus === "at_risk" ? "🟠 At Risk" :
+                                           row.overallStatus === "critical" ? "🔴 Critical" :
+                                           "❌ No Days"}
                                        </span>
                                     </td>
                                  </tr>

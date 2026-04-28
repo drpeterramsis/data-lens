@@ -109,6 +109,7 @@ const CallDetailingAnalyzer = () => {
   const [loadedFromCache, setLoadedFromCache] = useState(false);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo,   setDateTo]   = useState("");
+  const [selectedMonths, setSelectedMonths] = useState(null); // null = ALL
   const [targets, setTargets] = useState({ hcpPerDay: 0, hcoPerDay: 0, phPerDay: 0 });
   const [selectedMRForCalendar, setSelectedMRForCalendar] = useState(null);
   const [activeTab, setActiveTab] = useState('section-performance');
@@ -145,6 +146,96 @@ const CallDetailingAnalyzer = () => {
     };
   }, [rawData]);
 
+  const formatMonthLabel = (ym) => {
+    try {
+      const [y, m] = ym.split("-").map(Number);
+      return new Date(y, m - 1, 1).toLocaleDateString("en-GB", {
+        month: "long",
+        year:  "numeric",
+      });
+    } catch {
+      return ym;
+    }
+  };
+
+  const availableMonths = useMemo(() => {
+    if (!rawData.length) return [];
+
+    const monthMap = {};
+
+    rawData.forEach(row => {
+      const d = row.ReportDate; // "YYYY-MM-DD"
+      if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
+
+      const ym = d.substring(0, 7); // "YYYY-MM"
+      if (!monthMap[ym]) {
+        monthMap[ym] = {
+          yearMonth: ym,
+          count:     0,
+          mrSet:     new Set(),
+        };
+      }
+      monthMap[ym].count++;
+      monthMap[ym].mrSet.add(row.MrName);
+    });
+
+    return Object.values(monthMap)
+      .sort((a, b) => a.yearMonth.localeCompare(b.yearMonth))
+      .map(m => ({
+        yearMonth: m.yearMonth,
+        label:     formatMonthLabel(m.yearMonth),
+        rowCount:  m.count,
+        mrCount:   m.mrSet.size,
+      }));
+  }, [rawData]);
+
+  const toggleMonth = (ym) => {
+    setSelectedMonths(prev => {
+      if (prev === null) return new Set([ym]);
+
+      const next = new Set(prev);
+      if (next.has(ym)) {
+        next.delete(ym);
+        if (next.size === 0) return null;
+      } else {
+        next.add(ym);
+        if (next.size === availableMonths.length) return null;
+      }
+      return next;
+    });
+  };
+
+  const selectAllMonths = () => setSelectedMonths(null);
+
+  const isMonthSelected = (ym) => {
+    if (selectedMonths === null) return true;
+    return selectedMonths.has(ym);
+  };
+
+  const isAllSelected = selectedMonths === null || selectedMonths.size === availableMonths.length;
+
+  useEffect(() => {
+    if (selectedMonths === null) {
+      localStorage.removeItem("datalens_month_filter");
+    } else {
+      localStorage.setItem("datalens_month_filter", JSON.stringify([...selectedMonths]));
+    }
+  }, [selectedMonths]);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("datalens_month_filter");
+      if (saved) {
+        const arr = JSON.parse(saved);
+        if (Array.isArray(arr) && arr.length > 0) {
+          setSelectedMonths(new Set(arr));
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
   useEffect(() => {
     if (minDate && maxDate && !dateFrom) {
       setDateFrom(minDate);
@@ -157,12 +248,14 @@ const CallDetailingAnalyzer = () => {
 
     localStorage.removeItem("datalens_rows");
     localStorage.removeItem("datalens_meta");
+    localStorage.removeItem("datalens_month_filter");
 
     setRawData([]);
     setCsvMeta(null);
     setLoadedFromCache(false);
     setDateFrom("");
     setDateTo("");
+    setSelectedMonths(null);
     setSelectedMRForCalendar(null);
   };
 
@@ -175,9 +268,11 @@ const CallDetailingAnalyzer = () => {
     // 1. Clear old
     localStorage.removeItem("datalens_rows");
     localStorage.removeItem("datalens_meta");
+    localStorage.removeItem("datalens_month_filter");
     setRawData([]);
     setDateFrom("");
     setDateTo("");
+    setSelectedMonths(null);
     setSelectedMRForCalendar(null);
 
     // 2. Save new
@@ -218,14 +313,32 @@ const CallDetailingAnalyzer = () => {
     setDateTo(maxDate);
   };
 
-  const filteredData = useMemo(() => {
+  const monthFilteredRows = useMemo(() => {
     if (!rawData.length) return [];
-    return rawData.filter(d => {
-      const date = d.ReportDate;
-      if (date < dateFrom || date > dateTo) return false;
-      return true;
+    if (selectedMonths === null) return rawData;
+
+    return rawData.filter(row => {
+      const d = row.ReportDate;
+      if (!d) return false;
+      const ym = d.substring(0, 7);
+      return selectedMonths.has(ym);
     });
-  }, [rawData, dateFrom, dateTo]);
+  }, [rawData, selectedMonths]);
+
+  const filteredData = useMemo(() => {
+    if (!monthFilteredRows.length) return [];
+
+    if (!dateFrom && !dateTo) return monthFilteredRows;
+
+    const from = dateFrom || minDate;
+    const to   = dateTo   || maxDate;
+
+    return monthFilteredRows.filter(d => {
+      const date = d.ReportDate;
+      if (date && date >= from && date <= to) return true;
+      return false;
+    });
+  }, [monthFilteredRows, dateFrom, dateTo, minDate, maxDate]);
 
   const mrStats = useMemo(() => calculateMRStats(filteredData), [filteredData]);
   const metrics = useMemo(() => calculateKPICards(mrStats), [mrStats]);
@@ -370,6 +483,92 @@ const CallDetailingAnalyzer = () => {
 
       {hasData && (
         <>
+          {/* MONTH SELECTOR */}
+          {availableMonths.length > 1 && (
+            <div className="bg-white border rounded-[2rem] shadow-sm p-6 mb-2">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs font-black text-gray-600 uppercase tracking-[0.2em]">
+                  📅 Month Filter
+                </span>
+                {!isAllSelected && (
+                  <button
+                    onClick={selectAllMonths}
+                    className="text-[10px] text-yellow-600 hover:text-yellow-800 font-black uppercase tracking-widest px-3 py-1 bg-yellow-50 rounded-full transition-colors">
+                    Show All
+                  </button>
+                )}
+              </div>
+
+              <div className="flex gap-2 flex-wrap mb-2">
+                <button
+                  onClick={selectAllMonths}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-2xl border text-xs font-black transition-all ${
+                    isAllSelected
+                      ? "bg-yellow-400 border-yellow-400 text-gray-900 shadow-lg shadow-yellow-200"
+                      : "bg-white border-gray-200 text-gray-500 hover:bg-gray-50 hover:border-gray-300"
+                  }`}>
+                  All
+                  <span className={`text-[9px] px-2 py-0.5 rounded-full ${
+                    isAllSelected ? "bg-yellow-500 text-white" : "bg-gray-100 text-gray-500"
+                  }`}>
+                    {rawData.length.toLocaleString()}
+                  </span>
+                </button>
+
+                {availableMonths.map(m => {
+                  const active = isMonthSelected(m.yearMonth) && !isAllSelected;
+                  return (
+                    <div key={m.yearMonth} className="relative group/month cursor-pointer">
+                      <button
+                        onClick={() => toggleMonth(m.yearMonth)}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-2xl border text-xs transition-all ${
+                          active
+                            ? "bg-yellow-400 border-yellow-400 text-gray-900 font-black shadow-lg shadow-yellow-200"
+                            : isAllSelected
+                              ? "bg-gray-50 border-gray-100 text-gray-600 hover:bg-yellow-50 hover:border-yellow-200 font-bold"
+                              : "bg-white border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-600 font-bold"
+                        }`}>
+                        {m.label}
+                        <span className={`text-[9px] px-2 py-0.5 rounded-full ${
+                          active ? "bg-yellow-500 text-white" : "bg-gray-100 text-gray-500 font-bold"
+                        }`}>
+                          {m.rowCount.toLocaleString()}
+                        </span>
+                      </button>
+
+                      {/* Tooltip */}
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-gray-900 text-white rounded-2xl px-4 py-3 text-xs whitespace-nowrap z-50 shadow-2xl pointer-events-none opacity-0 group-hover/month:opacity-100 transition-all translate-y-2 group-hover/month:translate-y-0 border border-gray-800">
+                        <div className="font-black mb-2 text-sm text-yellow-400">
+                          {m.label}
+                        </div>
+                        <div className="text-gray-300 font-medium mb-1">
+                          <span className="opacity-50 inline-block w-12">Rows:</span> <span className="text-white font-bold">{m.rowCount.toLocaleString()}</span>
+                        </div>
+                        <div className="text-gray-300 font-medium">
+                          <span className="opacity-50 inline-block w-12">MRs:</span> <span className="text-white font-bold">{m.mrCount}</span>
+                        </div>
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"/>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {!isAllSelected && (
+                <div className="mt-4 pt-3 border-t border-gray-100 text-[10px] text-gray-500 flex items-center gap-2 uppercase tracking-widest font-bold">
+                  <span className="text-gray-400">Showing:</span>
+                  <span className="font-black text-gray-900 bg-gray-100 px-2 py-1 rounded-md">
+                    {[...selectedMonths].sort().map(ym => formatMonthLabel(ym)).join(" · ")}
+                  </span>
+                  <span className="text-gray-300">|</span>
+                  <span className="text-accent font-black">
+                    {filteredData.length.toLocaleString()} rows
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* 3. PERIOD BANNER */}
           <div className="bg-gradient-to-r from-gray-900 to-gray-800 rounded-3xl p-6 text-white shadow-2xl relative overflow-hidden group">
              <div className="absolute right-0 top-0 w-64 h-64 bg-accent/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl group-hover:bg-accent/20 transition-all duration-700"></div>
@@ -377,12 +576,33 @@ const CallDetailingAnalyzer = () => {
                 <div>
                    <p className="text-[10px] font-black text-accent uppercase tracking-[0.2em] mb-1">📅 Report Period</p>
                    <h2 className="text-2xl md:text-3xl font-black tracking-tight uppercase">
-                      {formatDateBanner(minDate)} <span className="text-accent">→</span> {formatDateBanner(maxDate)}
+                      {(() => {
+                        const sDates = filteredData.map(r => r.ReportDate).filter(d => d && /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
+                        const pFrom = sDates[0] ?? "";
+                        const pTo = sDates[sDates.length - 1] ?? "";
+                        return (
+                           <>{formatDateBanner(pFrom)} <span className="text-accent">→</span> {formatDateBanner(pTo)}
+                             {availableMonths.length > 1 && (
+                               <span className="text-sm ml-3 text-gray-400 lowercase font-medium">
+                                 ({isAllSelected ? "All months" : `${selectedMonths.size} month${selectedMonths.size > 1 ? 's' : ''}`})
+                               </span>
+                             )}
+                           </>
+                        );
+                      })()}
                    </h2>
                 </div>
                 <div className="bg-white/10 backdrop-blur-md rounded-2xl px-6 py-3 border border-white/5 text-right">
-                   <p className="text-2xl font-black leading-none">{Math.ceil((new Date(maxDate) - new Date(minDate)) / (1000*60*60*24)) + 1} <span className="text-xs text-gray-400 uppercase">Days</span></p>
-                   <p className="text-[10px] font-bold text-accent uppercase tracking-widest mt-1">{rawData.length.toLocaleString()} Interactions</p>
+                   <p className="text-2xl font-black leading-none">
+                      {(() => {
+                        const sDates = filteredData.map(r => r.ReportDate).filter(d => d && /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
+                        if (!sDates.length) return 0;
+                        return Math.ceil((new Date(sDates[sDates.length - 1]) - new Date(sDates[0])) / (1000*60*60*24)) + 1;
+                      })()} <span className="text-xs text-gray-400 uppercase">Days</span>
+                   </p>
+                   <p className="text-[10px] font-bold text-accent uppercase tracking-widest mt-1">
+                      {filteredData.length.toLocaleString()} Interactions
+                   </p>
                 </div>
              </div>
           </div>
@@ -469,15 +689,26 @@ const CallDetailingAnalyzer = () => {
           </div>
 
           <div id="mr-calendar-section" className="scroll-mt-24">
-             {selectedMRForCalendar && (
-               <div className="animate-in zoom-in-95 duration-300">
-                  <InlineCalendar 
-                     mr={selectedMRForCalendar} 
-                     targets={targets} 
-                     onClose={handleCloseCalendar} 
-                  />
-               </div>
-             )}
+             {selectedMRForCalendar && (() => {
+               let defaultMonth = "";
+               const mrStat = mrStats.find(m => m.mrName === selectedMRForCalendar);
+               if (selectedMonths && selectedMonths.size > 0) {
+                 defaultMonth = [...selectedMonths].sort()[0];
+               } else if (mrStat?.lastDate) {
+                 defaultMonth = mrStat.lastDate.substring(0, 7);
+               }
+               
+               return (
+                 <div className="animate-in zoom-in-95 duration-300">
+                    <InlineCalendar 
+                       mr={selectedMRForCalendar} 
+                       targets={targets} 
+                       onClose={handleCloseCalendar}
+                       defaultMonth={defaultMonth}
+                    />
+                 </div>
+               );
+             })()}
           </div>
 
           {/* 11. INSIGHTS SECTION */}
