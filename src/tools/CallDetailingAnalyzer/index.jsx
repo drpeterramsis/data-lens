@@ -88,6 +88,8 @@ const CallDetailingAnalyzer = () => {
     setIsUploadModalOpen(false);
     if (data.length === 0) {
        setSelectedMRForCalendar(null);
+       // Clear tool cache
+       localStorage.removeItem('datalens_csv_cache_call_detailing');
     }
   }, []);
 

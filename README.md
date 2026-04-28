@@ -42,6 +42,8 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 
 ## Version History
 
+- **v1.0.382:** Removed auto-login system and restored full authentication requirements (Login page + Protected Routes) to resolve session corruption issues.
+- **v1.0.381:** Fixed Logout functionality by adding explicit session tracking; implemented multi-format CSV date parsing (supporting M/D/YYYY) and auto-delimiter detection; enabled "Clear Data" to fully reset local storage cache; streamlined "Upload New File" with a modal overlay for faster tool switching.
 - **v1.0.038:** Expanded the centralized `dateHelpers` system to core logic files, including `periodRules.js`, `forecastEngine.js`, and `insightGenerator.js`, eliminating all direct `toLocaleDateString` calls and manual date constructions that triggered `RangeError`.
 - **v1.0.037:** Fixed `Uncaught RangeError: Invalid time value` by implementing a centralized `safeFormatDate` utility with error boundaries for all date parsing and formatting operations; further hardened CSV date normalization to handle various input formats reliably.
 - **v1.0.036:** Critical fix for CSV data loading: implemented fuzzy header matching (removing spaces), relaxed ID length constraints, added multi-format date normalization (supporting YYYY-MM-DD, DD/MM/YYYY, MM/DD/YYYY), and enabled case-insensitive InteractionType validation.
@@ -68,4 +70,4 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 - **v1.0.001:** Initial release. Authentication, CSV parsing, Analysis tools, and Admin panel implemented.
 
 ---
-© 2026 data-lens Analytics | version 1.0.038
+© 2026 data-lens Analytics | version 1.0.382

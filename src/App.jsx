@@ -34,22 +34,30 @@ const AppLayout = ({ children }) => {
 };
 
 const AppRoutes = () => {
+  const { user } = useAuth();
+
   return (
     <Routes>
-      {/* Auto-redirect root to dashboard as user is always logged in */}
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      {/* Root redirect to login or dashboard */}
+      <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <Login />} />
       
       {/* Main App Routes */}
       <Route path="/dashboard" element={
-        <AppLayout><Dashboard /></AppLayout>
+        <ProtectedRoute>
+          <AppLayout><Dashboard /></AppLayout>
+        </ProtectedRoute>
       } />
 
       <Route path="/tools/call-detailing" element={
-        <AppLayout><CallDetailingAnalyzer /></AppLayout>
+        <ProtectedRoute>
+          <AppLayout><CallDetailingAnalyzer /></AppLayout>
+        </ProtectedRoute>
       } />
 
       <Route path="/tools/sales-analyzer" element={
-        <AppLayout><SalesAnalyzer /></AppLayout>
+        <ProtectedRoute>
+          <AppLayout><SalesAnalyzer /></AppLayout>
+        </ProtectedRoute>
       } />
 
       {/* Admin Route still protected for adminOnly check */}

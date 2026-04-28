@@ -50,10 +50,9 @@ const CSVUploader = ({ onDataLoaded }) => {
     setStatus("parsing");
 
     Papa.parse(file, {
-      delimiter: "|",
       header: true,
       skipEmptyLines: true,
-      transformHeader: h => h.replace(/^\uFEFF/, "").trim(),
+      transformHeader: h => h.replace(/^\uFEFF/, "").replace(/\r/g, "").trim(),
       complete: (results) => {
         const cleaned = cleanRows(results.data);
         setRowCount(cleaned.length);
