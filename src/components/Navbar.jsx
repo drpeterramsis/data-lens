@@ -37,14 +37,14 @@ const Navbar = () => {
           <Menu size={20} />
         </button>
         <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center shadow-[0_0_10px_rgba(245,197,24,0.3)]">
-          <span className="text-sm">💊</span>
+          <span className="text-sm">🔍</span>
         </div>
         <div className="flex flex-col">
           <h1 className="text-sm font-black tracking-tight text-black leading-tight">
             Data<span className="text-accent underline decoration-accent/20"> Lens</span>
           </h1>
           <span className="text-[10px] text-muted font-medium uppercase tracking-wider">
-            Field Force Analytics Platform
+            Pharma Analytics Portal
           </span>
         </div>
       </div>

@@ -10,7 +10,7 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     // Load users and prioritize localStorage overrides
-    const storedUsers = localStorage.getItem('pharmapulse_users_override');
+    const storedUsers = localStorage.getItem('datalens_users_override');
     const mergedUsers = storedUsers 
       ? JSON.parse(storedUsers) 
       : initialUsers.users;
@@ -49,7 +49,7 @@ export const AuthProvider = ({ children }) => {
 
   const updateUsers = (newUsers) => {
     setUsers(newUsers);
-    localStorage.setItem('pharmapulse_users_override', JSON.stringify(newUsers));
+    localStorage.setItem('datalens_users_override', JSON.stringify(newUsers));
   };
 
   return (

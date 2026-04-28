@@ -41,13 +41,13 @@ const Login = () => {
         <div className="text-center mb-10">
           <div className="flex items-center justify-center gap-3 mb-4">
             <div className="w-16 h-16 bg-accent rounded-[1.5rem] flex items-center justify-center shadow-xl transform rotate-3 border-4 border-white">
-               <span className="text-3xl">💊</span>
+               <span className="text-3xl">🔍</span>
             </div>
             <div className="text-left">
               <h1 className="text-3xl font-black tracking-tighter text-gray-900 uppercase">
                 Data<span className="text-accent underline decoration-accent/10"> Lens</span>
               </h1>
-              <p className="text-[10px] text-gray-400 font-black uppercase tracking-[0.2em] leading-tight mt-0.5">Supervisor Analytics Portal</p>
+              <p className="text-[10px] text-gray-400 font-black uppercase tracking-[0.2em] leading-tight mt-0.5">Pharma Analytics Portal</p>
             </div>
           </div>
         </div>
@@ -128,7 +128,7 @@ const Login = () => {
         </motion.div>
         
         <p className="mt-12 text-center text-[9px] text-gray-400 uppercase tracking-[0.4em] font-black opacity-40">
-          Data Lens Analytics Engine ● Pharmaceutical Portal
+          Data Lens Analytics Engine ● Pharma Analytics Portal
         </p>
       </div>
     </div>

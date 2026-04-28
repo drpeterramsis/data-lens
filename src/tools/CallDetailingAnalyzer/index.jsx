@@ -48,10 +48,65 @@ const KPICard = ({ title, value, unit, sub, icon, color }) => (
   </div>
 );
 
-const STORAGE_KEY = 'datalens_csv_cache_call_detailing';
+const loadRowsFromStorage = () => {
+  try {
+    const raw = localStorage.getItem("datalens_rows");
+    const meta = localStorage.getItem("datalens_meta");
+    if (!raw) return { rows: [], meta: null };
+    return {
+      rows: JSON.parse(raw),
+      meta: meta ? JSON.parse(meta) : null,
+    };
+  } catch {
+    return { rows: [], meta: null };
+  }
+};
+
+const saveRowsToStorage = (rows, fileName) => {
+  try {
+    localStorage.setItem("datalens_rows", JSON.stringify(rows));
+    localStorage.setItem(
+      "datalens_meta",
+      JSON.stringify({
+        fileName: fileName || "report.csv",
+        uploadedAt: new Date().toISOString(),
+        rowCount: rows.length,
+      })
+    );
+  } catch (e) {
+    console.warn("Storage quota exceeded:", e);
+    const slim = rows.map(r => ({
+      InteractionId:           r.InteractionId,
+      MrName:                  r.MrName,
+      MrId:                    r.MrId,
+      LineName:                r.LineName,
+      CustomerName:            r.CustomerName,
+      CustomerId:              r.CustomerId,
+      InteractionType:         r.InteractionType,
+      CustomerGrade:           r.CustomerGrade,
+      Specialty:               r.Specialty,
+      ReportDate:              r.ReportDate,
+      IsMRCoachingSubmitted:   r.IsMRCoachingSubmitted,
+      IsManagerCoachingSubmitted: r.IsManagerCoachingSubmitted,
+      CoachingType:            r.CoachingType,
+      InteractionVisitedSite:  r.InteractionVisitedSite,
+    }));
+    localStorage.setItem("datalens_rows", JSON.stringify(slim));
+    localStorage.setItem(
+      "datalens_meta",
+      JSON.stringify({
+        fileName: fileName || "report.csv",
+        uploadedAt: new Date().toISOString(),
+        rowCount: rows.length,
+      })
+    );
+  }
+};
 
 const CallDetailingAnalyzer = () => {
   const [rawData, setRawData] = useState([]);
+  const [csvMeta, setCsvMeta] = useState(null);
+  const [loadedFromCache, setLoadedFromCache] = useState(false);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo,   setDateTo]   = useState("");
   const [targets, setTargets] = useState({ hcpPerDay: 0, hcoPerDay: 0, phPerDay: 0 });
@@ -59,9 +114,20 @@ const CallDetailingAnalyzer = () => {
   const [activeTab, setActiveTab] = useState('section-performance');
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [globalSearch, setGlobalSearch] = useState("");
-  const [searchFilter, setSearchFilter] = useState("All"); // All, HCP, HCO, Pharmacy
+  const [searchFilter, setSearchFilter] = useState("All");
   const [onlyCoached, setOnlyCoached] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+
+  // Auto-load on mount
+  useEffect(() => {
+    const { rows, meta } = loadRowsFromStorage();
+    if (rows.length > 0) {
+      setRawData(rows);
+      setCsvMeta(meta);
+      setLoadedFromCache(true);
+      console.log(`Auto-loaded ${rows.length} rows from cache`);
+    }
+  }, []);
 
   // Period extraction
   const { minDate, maxDate } = useMemo(() => {
@@ -86,27 +152,44 @@ const CallDetailingAnalyzer = () => {
     }
   }, [minDate, maxDate]);
 
-  const handleDataLoaded = useCallback((data) => {
+  const handleClearData = () => {
+    if (!window.confirm("Clear all data? This cannot be undone.")) return;
+
+    localStorage.removeItem("datalens_rows");
+    localStorage.removeItem("datalens_meta");
+
+    setRawData([]);
+    setCsvMeta(null);
+    setLoadedFromCache(false);
+    setDateFrom("");
+    setDateTo("");
+    setSelectedMRForCalendar(null);
+  };
+
+  const handleDataLoaded = useCallback((data, fileIdentifier) => {
     if (data.length === 0) {
-       // Manual clear
-       setRawData([]);
-       setDateFrom("");
-       setDateTo("");
-       setSelectedMRForCalendar(null);
-       localStorage.removeItem(STORAGE_KEY);
+       handleClearData();
        return;
     }
 
-    // When loading new file, we MUST clear old state first to avoid weird artifacts
+    // 1. Clear old
+    localStorage.removeItem("datalens_rows");
+    localStorage.removeItem("datalens_meta");
     setRawData([]);
+    setDateFrom("");
+    setDateTo("");
+    setSelectedMRForCalendar(null);
+
+    // 2. Save new
+    saveRowsToStorage(data, fileIdentifier);
+
+    // 3. Update state
     setTimeout(() => {
+      const meta = localStorage.getItem("datalens_meta");
       setRawData(data);
+      setCsvMeta(meta ? JSON.parse(meta) : null);
+      setLoadedFromCache(false);
       setIsUploadModalOpen(false);
-      // Clear tool cache specifically
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        data,
-        timestamp: new Date().toISOString()
-      }));
     }, 10);
   }, []);
 
@@ -210,20 +293,34 @@ const CallDetailingAnalyzer = () => {
       {/* 2. UPLOAD BANNER / DROPZONE */}
       {!hasData ? (
         <div className="py-12">
-          <CSVUploader onDataLoaded={handleDataLoaded} storageKey={STORAGE_KEY} toolName="Call Detailing" />
+          <CSVUploader onDataLoaded={handleDataLoaded} toolName="Call Detailing" />
         </div>
       ) : (
         <div className="bg-white border-2 border-accent/20 rounded-3xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 shadow-xl animate-in fade-in slide-in-from-top-4 duration-500">
            <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-2xl bg-accent/10 flex items-center justify-center text-2xl">📂</div>
               <div>
-                 <h3 className="font-black text-gray-900 uppercase tracking-tight">CallDetailingReport.csv</h3>
-                 <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{rawData.length.toLocaleString()} rows uploaded today</p>
+                 <h3 className="font-black text-gray-900 uppercase tracking-tight flex items-center gap-2">
+                    {csvMeta?.fileName || "report.csv"}
+                    {loadedFromCache && (
+                      <span className="text-[10px] text-yellow-600 bg-yellow-100 px-2 py-0.5 rounded-full uppercase tracking-widest font-black">
+                        Cached
+                      </span>
+                    )}
+                 </h3>
+                 <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest flex items-center gap-1.5 mt-0.5">
+                    {rawData.length.toLocaleString()} rows
+                    {csvMeta?.uploadedAt && (
+                      <span className="text-gray-300">
+                        • {new Date(csvMeta.uploadedAt).toLocaleDateString("en-GB", { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </span>
+                    )}
+                 </p>
               </div>
            </div>
            <div className="flex gap-2">
               <button 
-                onClick={() => handleDataLoaded([])}
+                onClick={handleClearData}
                 className="px-6 py-2.5 bg-red-50 text-red-600 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-red-100 hover:bg-red-100 transition-colors"
               >
                 Clear Data
@@ -257,7 +354,6 @@ const CallDetailingAnalyzer = () => {
               </div>
               <CSVUploader 
                 onDataLoaded={handleDataLoaded} 
-                storageKey={STORAGE_KEY} 
                 toolName="Call Detailing" 
               />
               <div className="mt-6 text-center">
@@ -265,7 +361,7 @@ const CallDetailingAnalyzer = () => {
                    onClick={() => setIsUploadModalOpen(false)}
                    className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-colors"
                  >
-                   Cancel and return to dashboard
+                   Cancel and return to Dashboard
                  </button>
               </div>
            </div>

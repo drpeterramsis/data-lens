@@ -41,7 +41,7 @@ const Dashboard = () => {
         <div>
           <h2 className="text-3xl font-black text-gray-900 tracking-tight flex items-center gap-3">
             <LayoutDashboard className="text-accent" size={32} />
-            SUPERVISOR <span className="text-accent">DASHBOARD</span>
+            <span className="text-accent">DASHBOARD</span>
           </h2>
           <p className="text-gray-400 text-xs font-bold uppercase tracking-[0.2em] mt-1">Select an intelligence module to begin analysis</p>
         </div>
