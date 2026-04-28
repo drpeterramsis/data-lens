@@ -47,6 +47,8 @@ const KPICard = ({ title, value, unit, sub, icon, color }) => (
   </div>
 );
 
+const STORAGE_KEY = 'datalens_csv_cache_call_detailing';
+
 const CallDetailingAnalyzer = () => {
   const [rawData, setRawData] = useState([]);
   const [dateFrom, setDateFrom] = useState("");
@@ -88,8 +90,8 @@ const CallDetailingAnalyzer = () => {
     setIsUploadModalOpen(false);
     if (data.length === 0) {
        setSelectedMRForCalendar(null);
-       // Clear tool cache
-       localStorage.removeItem('datalens_csv_cache_call_detailing');
+       // Clear tool cache specifically
+       localStorage.removeItem(STORAGE_KEY);
     }
   }, []);
 
@@ -173,7 +175,7 @@ const CallDetailingAnalyzer = () => {
       {/* 2. UPLOAD BANNER / DROPZONE */}
       {!hasData ? (
         <div className="py-12">
-          <CSVUploader onDataLoaded={handleDataLoaded} toolName="Call Detailing" />
+          <CSVUploader onDataLoaded={handleDataLoaded} storageKey={STORAGE_KEY} toolName="Call Detailing" />
         </div>
       ) : (
         <div className="bg-white border-2 border-accent/20 rounded-3xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 shadow-xl animate-in fade-in slide-in-from-top-4 duration-500">
@@ -215,7 +217,11 @@ const CallDetailingAnalyzer = () => {
                  <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tight">Upload <span className="text-accent underline decoration-accent/20">Interactions</span></h2>
                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] mt-1">Select a new CSV export to analyze</p>
               </div>
-              <CSVUploader onDataLoaded={handleDataLoaded} toolName="Call Detailing" />
+              <CSVUploader 
+                onDataLoaded={handleDataLoaded} 
+                storageKey={STORAGE_KEY} 
+                toolName="Call Detailing" 
+              />
               <div className="mt-6 text-center">
                  <button 
                    onClick={() => setIsUploadModalOpen(false)}
@@ -435,7 +441,7 @@ const CallDetailingAnalyzer = () => {
                                       r.InteractionType === 'HCP' ? 'border-l-blue-400' : ''
                                    }`}>
                                       <td className="px-6 py-4 font-black">{r.MrName}</td>
-                                      <td className="px-6 py-4 text-gray-500">{r.ReportDate.split("-").reverse().join("/")}</td>
+                                      <td className="px-6 py-4 text-gray-500">{safeFormatDate(r.ReportDate, { day: 'numeric', month: '2-digit', year: 'numeric' })}</td>
                                       <td className="px-6 py-4 font-black text-gray-900">{r.CustomerName}</td>
                                       <td className="px-6 py-4 text-gray-400 font-bold">{r.InteractionId}</td>
                                       <td className="px-6 py-4">

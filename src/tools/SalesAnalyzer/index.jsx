@@ -2,8 +2,17 @@ import React from 'react';
 import { BarChart3, TrendingUp, DollarSign, Globe } from 'lucide-react';
 import CSVUploader from '../../components/shared/CSVUploader';
 
+const STORAGE_KEY = 'datalens_csv_cache_sales_analyzer';
+
 const SalesAnalyzer = () => {
   const [data, setData] = React.useState([]);
+
+  const handleDataLoaded = (d) => {
+    setData(d);
+    if (!d || d.length === 0) {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  };
 
   if (data.length === 0) {
     return (
@@ -17,7 +26,7 @@ const SalesAnalyzer = () => {
            </h2>
            <p className="text-gray-400 text-xs font-bold uppercase tracking-[0.2em] mt-2">Deep Market Penetration & Sales Forecasting Node</p>
         </div>
-        <CSVUploader onDataLoaded={(d) => setData(d)} toolName="Sales Intelligence" />
+        <CSVUploader onDataLoaded={handleDataLoaded} storageKey={STORAGE_KEY} toolName="Sales Intelligence" />
       </div>
     );
   }
@@ -29,7 +38,7 @@ const SalesAnalyzer = () => {
             <h2 className="text-2xl font-black text-gray-900 uppercase">Sales Performance Summary</h2>
             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Global Target Achievement Tracking</p>
           </div>
-          <button onClick={() => setData([])} className="text-[10px] font-black uppercase tracking-widest bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-all shadow-sm">Reset Dataset</button>
+          <button onClick={() => handleDataLoaded([])} className="text-[10px] font-black uppercase tracking-widest bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-all shadow-sm">Reset Dataset</button>
        </div>
 
        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

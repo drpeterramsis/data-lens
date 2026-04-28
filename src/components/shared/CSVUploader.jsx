@@ -2,25 +2,26 @@ import { useState, useEffect } from "react";
 import Papa from "papaparse";
 import { cleanRows } from "../../utils/safeCSV";
 
-const CSVUploader = ({ onDataLoaded }) => {
+const CSVUploader = ({ onDataLoaded, storageKey = "datalens_last_report" }) => {
   const [status, setStatus]     = useState("idle");
   const [rowCount, setRowCount] = useState(0);
   const [cacheInfo, setCacheInfo] = useState(null);
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem("datalens_last_report");
+      const raw = localStorage.getItem(storageKey);
       if (raw) {
         const parsed = JSON.parse(raw);
         setCacheInfo(parsed);
-        setRowCount(parsed.rowCount || parsed.rows.length);
+        const rows = parsed.rows || [];
+        setRowCount(parsed.rowCount || rows.length);
         setStatus("done");
-        onDataLoaded(parsed.rows);
+        onDataLoaded(rows);
       }
     } catch (e) {
       console.warn("Failed to load cached report:", e);
     }
-  }, [onDataLoaded]);
+  }, [onDataLoaded, storageKey]);
 
   const saveToCache = (rows, fileName) => {
     try {
@@ -30,7 +31,7 @@ const CSVUploader = ({ onDataLoaded }) => {
         rowCount: rows.length,
         rows,
       };
-      localStorage.setItem("datalens_last_report", JSON.stringify(payload));
+      localStorage.setItem(storageKey, JSON.stringify(payload));
       setCacheInfo(payload);
     } catch (e) {
       console.warn("Data too large to cache:", e);
@@ -38,7 +39,7 @@ const CSVUploader = ({ onDataLoaded }) => {
   };
 
   const clearCache = () => {
-    localStorage.removeItem("datalens_last_report");
+    localStorage.removeItem(storageKey);
     setCacheInfo(null);
     setStatus("idle");
     setRowCount(0);
