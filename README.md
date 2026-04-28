@@ -42,6 +42,13 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 
 ## Version History
 
+- **v1.0.038:** Expanded the centralized `dateHelpers` system to core logic files, including `periodRules.js`, `forecastEngine.js`, and `insightGenerator.js`, eliminating all direct `toLocaleDateString` calls and manual date constructions that triggered `RangeError`.
+- **v1.0.037:** Fixed `Uncaught RangeError: Invalid time value` by implementing a centralized `safeFormatDate` utility with error boundaries for all date parsing and formatting operations; further hardened CSV date normalization to handle various input formats reliably.
+- **v1.0.036:** Critical fix for CSV data loading: implemented fuzzy header matching (removing spaces), relaxed ID length constraints, added multi-format date normalization (supporting YYYY-MM-DD, DD/MM/YYYY, MM/DD/YYYY), and enabled case-insensitive InteractionType validation.
+- **v1.0.035:** Data Lens v3.5: Implemented robust CSV data cleaning with deduplication by InteractionId, unified date filtering from a single allRows source, rebuilt MR statistics engine with detailed visit tracking for calendar intelligence, and launched a multi-view MR Activity Calendar with inline search and daily visit detail panels.
+- **v1.0.033:** Data Lens v3.4: Fixed "Full Period" button logic with all-rows derivation, implemented compact responsive KPI cards with individual accent borders, and updated MR Cards with clickable header expand/collapse and real-time date filtering.
+- **v1.0.032:** Resolved "Maximum update depth exceeded" infinite loop bug by stabilizing `onDataLoaded` dependencies via `useCallback` and hardening the `IntersectionObserver` scroll-tab synchronization with state update guards and fixed-height layout.
+- **v1.0.031:** Fixed `Uncaught RangeError: Invalid time value` by adding safety guards to date parsing utilities in `periodRules.js`, `forecastEngine.js`, and components.
 - **v1.0.030:** Fixed over-expanded UI scaling, implemented sticky navigation tabs below navbar, corrected 'Full Period' date range logic, and rebuilt forecast engine for total period accuracy.
 - **v1.0.029:** Fixed ReferenceError for working day utility functions in `csvAnalyzer.js` and `TeamOverviewTable.jsx`.
 - **v1.0.028:** Data Lens v3.2 Updates Phase 2: Added Collapsible MR Cards, updated the Forecast Calculator formula logic and styling, and implemented a newly rebuilt Full Calendar View for MR activities with inline detailing details.
@@ -61,4 +68,4 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 - **v1.0.001:** Initial release. Authentication, CSV parsing, Analysis tools, and Admin panel implemented.
 
 ---
-© 2026 data-lens Analytics | version 1.0.030
+© 2026 data-lens Analytics | version 1.0.038

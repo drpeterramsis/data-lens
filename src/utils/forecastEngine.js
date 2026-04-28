@@ -2,6 +2,7 @@
 
 import { getRemainingWorkingDays, isHCOWorkingDay,
          isHCPWorkingDay, isPHWorkingDay } from "./periodRules";
+import { safeParseDate } from "./dateHelpers";
 
 export const calculateForecast = ({
   mrStats,
@@ -37,9 +38,14 @@ export const calculateForecast = ({
     );
 
     // Remaining working days after adjustments (from day after lastReportDate)
-    const nextDay = new Date(lastReportDate + "T00:00:00");
-    nextDay.setDate(nextDay.getDate() + 1);
-    const nextDayStr = nextDay.toISOString().split('T')[0];
+    const dBase = safeParseDate(lastReportDate);
+    let nextDayStr = lastReportDate;
+    
+    if (dBase) {
+      const nextDay = new Date(dBase);
+      nextDay.setDate(nextDay.getDate() + 1);
+      nextDayStr = nextDay.toISOString().split('T')[0];
+    }
 
     const remHCO = getRemainingWorkingDays(
       nextDayStr, endDate, "HCO",

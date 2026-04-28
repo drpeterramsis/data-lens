@@ -19,7 +19,7 @@ const TeamOverviewTable = ({ data, targets }) => {
         };
       }
       
-      const type = safeStr(d.InteractionType);
+      const type = safeStr(d.InteractionType).toUpperCase();
       const date = safeDate(d.ReportDate);
       if (!date) return;
       
@@ -29,7 +29,7 @@ const TeamOverviewTable = ({ data, targets }) => {
       
       if (type === 'HCP') { rawMap[mr].totalHcp++; rawMap[mr].days[date].hcp++; }
       else if (type === 'HCO') { rawMap[mr].totalHco++; rawMap[mr].days[date].hco++; }
-      else if (type === 'Pharmacy') { rawMap[mr].totalPh++; rawMap[mr].days[date].ph++; }
+      else if (type === 'PHARMACY') { rawMap[mr].totalPh++; rawMap[mr].days[date].ph++; }
       
       rawMap[mr].total++;
       if (safeBool(d.IsMRCoachingSubmitted)) rawMap[mr].days[date].coached++;

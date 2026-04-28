@@ -3,6 +3,7 @@ import { TrendingUp, Trash2 } from 'lucide-react';
 import { safeStr } from '../../utils/safeCSV';
 import { getDatesInRange } from '../../utils/periodRules';
 import { calculateForecast } from '../../utils/forecastEngine';
+import { safeParseDate } from '../../utils/dateHelpers';
 
 const ForecastTool = ({ data, targets, mrStats }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -27,9 +28,11 @@ const ForecastTool = ({ data, targets, mrStats }) => {
       if (maxDate) {
          const tDate = maxDate.split('T')[0];
          setLastReportDate(tDate);
-         const endDm = new Date(tDate);
-         endDm.setMonth(endDm.getMonth() + 1, 0); // End of month
-         setEndDate(endDm.toISOString().split('T')[0]);
+         const endDm = safeParseDate(tDate);
+         if (endDm) {
+           endDm.setMonth(endDm.getMonth() + 1, 0); // End of month
+           setEndDate(endDm.toISOString().split('T')[0]);
+         }
       }
     }
   }, [data, lastReportDate]);

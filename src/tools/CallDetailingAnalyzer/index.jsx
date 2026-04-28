@@ -1,12 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import CSVUploader from '../../components/shared/CSVUploader';
-import SummaryCards from '../../components/shared/SummaryCards';
 import FilterBar from '../../components/shared/FilterBar';
-import DateRangeFilter from './DateRangeFilter';
 import VirtualTable from '../../components/shared/VirtualTable';
 import AutoInsights from '../../components/shared/AutoInsights.jsx';
 import { generateInsights } from '../../utils/insightGenerator';
-import { calculateMRStats, calculateKPICards } from '../../utils/csvAnalyzer';
+import { calculateMRStats, calculateKPICards } from '../../utils/mrCalculations';
+
+import { safeGetDayName } from '../../utils/dateHelpers';
 
 // Sub-components
 import TargetSettingsPanel from './TargetSettingsPanel';
@@ -16,11 +16,66 @@ import TeamOverviewTable from './TeamOverviewTable';
 import InteractionAnalysis from './InteractionAnalysis';
 import CoachingAnalysis from './CoachingAnalysis';
 
+const KPICard = ({ title, value, unit, sub, icon, color }) => (
+  <div
+    className="bg-white rounded-xl border shadow-sm p-3 flex flex-col gap-1 min-w-0 transition-transform hover:scale-[1.02]"
+    style={{ borderTop: `4px solid ${color}` }}
+  >
+    <div className="flex items-center justify-between gap-1">
+      <span className="text-[11px] font-black text-gray-500 uppercase tracking-widest truncate">
+        {title}
+      </span>
+      <span className="text-base shrink-0">
+        {icon}
+      </span>
+    </div>
+    <div className="flex items-baseline gap-1">
+      <span className="text-2xl font-black text-gray-900 leading-none">
+        {value}
+      </span>
+      {unit && (
+        <span className="text-[10px] font-black uppercase text-gray-400">
+          {unit}
+        </span>
+      )}
+    </div>
+    {sub && (
+      <p className="text-[10px] font-bold text-gray-400 leading-tight truncate uppercase tracking-tighter">
+        {sub}
+      </p>
+    )}
+  </div>
+);
+
 const CallDetailingAnalyzer = () => {
   const [rawData, setRawData] = useState([]);
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo,   setDateTo]   = useState("");
   const [targets, setTargets] = useState({ hcpPerDay: 0, hcoPerDay: 0, phPerDay: 0 });
+
+  // Deriving min/max from rawData
+  const { fullMinDate, fullMaxDate } = useMemo(() => {
+    if (!rawData.length)
+      return { fullMinDate: "", fullMaxDate: "" };
+
+    const dates = rawData
+      .map(r => (r.ReportDate || "").split("T")[0].trim())
+      .filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d))
+      .sort();
+
+    return {
+      fullMinDate: dates[0] ?? "",
+      fullMaxDate: dates[dates.length - 1] ?? "",
+    };
+  }, [rawData]);
+
+  // Set range ONCE when data first loads
+  useEffect(() => {
+    if (fullMinDate && fullMaxDate && !dateFrom && !dateTo) {
+      setDateFrom(fullMinDate);
+      setDateTo(fullMaxDate);
+    }
+  }, [fullMinDate, fullMaxDate, dateFrom, dateTo]);
 
   const [filters, setFilters] = useState({
     search: '',
@@ -31,9 +86,9 @@ const CallDetailingAnalyzer = () => {
     coaching: 'All',
   });
 
-  const handleDataLoaded = (data) => {
+  const handleDataLoaded = React.useCallback((data) => {
     setRawData(data);
-  };
+  }, []);
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));
@@ -50,8 +105,23 @@ const CallDetailingAnalyzer = () => {
     });
   };
 
+  const handleFullPeriod = React.useCallback(() => {
+    setDateFrom(fullMinDate);
+    setDateTo(fullMaxDate);
+  }, [fullMinDate, fullMaxDate]);
+
   const filteredData = useMemo(() => {
+    if (!rawData.length) return [];
+    
+    const from = dateFrom || fullMinDate;
+    const to = dateTo || fullMaxDate;
+
     return rawData.filter(d => {
+      // Date Range (LIVE)
+      const dateStr = (d.ReportDate || "").split("T")[0].trim();
+      if (from && dateStr < from) return false;
+      if (to && dateStr > to) return false;
+
       // Global Search
       if (filters.search) {
         const s = filters.search.toLowerCase();
@@ -66,13 +136,9 @@ const CallDetailingAnalyzer = () => {
       if (filters.specialty !== 'All' && d.Specialty !== filters.specialty) return false;
       if (filters.coaching !== 'All' && d.IsMRCoachingSubmitted !== filters.coaching) return false;
 
-      // Date Range
-      if (dateFrom && d.ReportDate && d.ReportDate < dateFrom) return false;
-      if (dateTo && d.ReportDate && d.ReportDate > dateTo) return false;
-
       return true;
     });
-  }, [rawData, filters, dateFrom, dateTo]);
+  }, [rawData, filters, dateFrom, dateTo, fullMinDate, fullMaxDate]);
 
   const filterOptions = useMemo(() => {
     return {
@@ -86,6 +152,54 @@ const CallDetailingAnalyzer = () => {
   const metrics = useMemo(() => calculateKPICards(mrStats), [mrStats]);
 
   const insights = useMemo(() => generateInsights(filteredData, targets), [filteredData, targets]);
+
+  const kpiCardsData = [
+    {
+      id: "coaching",
+      title: "Coaching Days",
+      value: metrics.coachingDays,
+      unit: "",
+      sub: `${metrics.coachingMRs || 0} MRs coached`,
+      icon: "🎓",
+      color: "#8B5CF6",
+    },
+    {
+      id: "hco-rate",
+      title: "Avg HCO Rate",
+      value: metrics.avgHCORate,
+      unit: "/d",
+      sub: `Across ${metrics.hcoMRCount} MRs`,
+      icon: "🏥",
+      color: "#10B981",
+    },
+    {
+      id: "hcp-rate",
+      title: "Avg HCP Rate",
+      value: metrics.avgHCPRate,
+      unit: "/d",
+      sub: `Across ${metrics.hcpMRCount} MRs`,
+      icon: "👨‍⚕️",
+      color: "#3B82F6",
+    },
+    {
+      id: "ph-rate",
+      title: "Avg PH Rate",
+      value: metrics.avgPHRate,
+      unit: "/d",
+      sub: `Across ${metrics.phMRCount} MRs`,
+      icon: "💊",
+      color: "#0891B2",
+    },
+    {
+      id: "active-mrs",
+      title: "Active MRs",
+      value: metrics.activeMRs,
+      unit: "",
+      sub: "Unique MRs this period",
+      icon: "👥",
+      color: "#F5C518",
+    },
+  ];
 
   const tableColumns = useMemo(() => [
     { header: 'ID', accessorKey: 'InteractionId', size: 100 },
@@ -106,10 +220,12 @@ const CallDetailingAnalyzer = () => {
     const observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
-          setActiveTab(entry.target.id);
+          // Guard against redundant updates
+          const newId = entry.target.id;
+          setActiveTab(prev => (prev === newId ? prev : newId));
         }
       });
-    }, { rootMargin: '-20% 0px -60% 0px' }); // bias towards top
+    }, { rootMargin: '-20% 0px -60% 0px', threshold: 0.1 }); 
 
     const sections = ['section-performance', 'section-insights', 'section-forecast', 'section-search', 'section-datatable'];
     sections.forEach((id) => {
@@ -167,17 +283,40 @@ const CallDetailingAnalyzer = () => {
            <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">Global Field Operations Metrics ● Environment Live</p>
         </div>
         <div className="flex flex-col items-end gap-2">
-           <CSVUploader onDataLoaded={(d) => { if(d && d.length>0) handleDataLoaded(d); }} />
+           <CSVUploader onDataLoaded={handleDataLoaded} />
         </div>
       </div>
 
-      <DateRangeFilter 
-        dateFrom={dateFrom} 
-        dateTo={dateTo} 
-        setDateFrom={setDateFrom} 
-        setDateTo={setDateTo} 
-        data={rawData} 
-      />
+      {/* MODIFIED DATE FILTER ROW */}
+      <div className="flex flex-wrap items-center gap-3 p-3 bg-white border border-gray-200 rounded-[1.25rem] shadow-sm mb-4">
+        <span className="text-sm font-medium text-gray-700 ml-2">📅 Period:</span>
+        <input
+          type="date"
+          value={dateFrom}
+          min={fullMinDate}
+          max={fullMaxDate}
+          onChange={e => setDateFrom(e.target.value)}
+          className="text-sm border rounded-lg px-2 py-1 outline-none focus:border-yellow-400"
+        />
+        <span className="text-gray-400 text-sm">→</span>
+        <input
+          type="date"
+          value={dateTo}
+          min={fullMinDate}
+          max={fullMaxDate}
+          onChange={e => setDateTo(e.target.value)}
+          className="text-sm border rounded-lg px-2 py-1 outline-none focus:border-yellow-400"
+        />
+        <button
+          onClick={handleFullPeriod}
+          className="text-xs px-3 py-1.5 rounded-lg bg-yellow-400 hover:bg-yellow-500 font-bold text-gray-900 shadow-sm transition-all"
+        >
+          Full Period
+        </button>
+        <span className="text-xs text-gray-500 ml-auto mr-2 font-bold uppercase tracking-widest bg-gray-50 px-2 py-1 rounded-md border border-gray-100">
+          {filteredData.length.toLocaleString()} rows · {dateFrom} → {dateTo}
+        </span>
+      </div>
 
       {/* STICKY TAB BAR */}
       <div className="sticky top-14 z-40 bg-white border-b-2 border-gray-200 shadow-sm mt-4 flex gap-4 overflow-x-auto p-1">
@@ -185,10 +324,10 @@ const CallDetailingAnalyzer = () => {
           <button
             key={tab.id}
             onClick={() => scrollToSection(tab.id)}
-            className={`flex items-center gap-2 whitespace-nowrap px-4 py-3 text-sm transition-colors ${
+            className={`flex items-center gap-2 whitespace-nowrap px-4 py-3 text-sm transition-colors border-b-4 ${
               activeTab === tab.id
-                ? 'text-gray-900 font-bold border-b-4 border-yellow-400 bg-white'
-                : 'text-gray-500 hover:bg-gray-50 font-medium'
+                ? 'text-gray-900 font-bold border-yellow-400 bg-white'
+                : 'text-gray-500 hover:bg-gray-50 font-medium border-transparent'
             }`}
           >
             <span>{tab.icon}</span> {tab.label}
@@ -196,7 +335,12 @@ const CallDetailingAnalyzer = () => {
         ))}
       </div>
 
-      <SummaryCards metrics={metrics} />
+      {/* COMPACT RESPONSIVE KPI CARDS */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+        {kpiCardsData.map(card => (
+          <KPICard key={card.id} {...card} />
+        ))}
+      </div>
       
       <TargetSettingsPanel 
         data={rawData} 
@@ -262,7 +406,7 @@ const CallDetailingAnalyzer = () => {
                        else if (type === 'HCO') bgClass = "bg-green-50/30 hover:bg-green-50";
                        else if (type === 'Pharmacy') bgClass = "bg-purple-50/30 hover:bg-purple-50";
 
-                       const dayName = row.ReportDate ? new Date(row.ReportDate).toLocaleDateString('en-US', { weekday: 'short' }) : '';
+                       const dayName = safeGetDayName(row.ReportDate);
 
                        return (
                          <tr key={idx} className={`transition-colors ${bgClass}`}>

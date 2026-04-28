@@ -1,21 +1,27 @@
 // src/utils/periodRules.js
 import { safeStr } from "./safeCSV";
+import { safeParseDate, safeGetDayName } from "./dateHelpers";
+
+const parseDateSafe = (dateStr) => {
+  return safeParseDate(dateStr);
+};
 
 export const getDayOfWeek = (dateStr) => {
-  return new Date(dateStr + "T00:00:00").getDay();
+  const d = parseDateSafe(dateStr);
+  return d ? d.getDay() : 0;
 };
 
 export const isHCPWorkingDay = (dateStr) => {
-  if (!dateStr) return false;
-  const d = new Date(dateStr + "T00:00:00");
+  const d = parseDateSafe(dateStr);
+  if (!d) return false;
   const day = d.getDay();
   // Sat=6, Sun=0, Mon=1, Tue=2, Wed=3
   return [6, 0, 1, 2, 3].includes(day);
 };
 
 export const isHCOWorkingDay = (dateStr) => {
-  if (!dateStr) return false;
-  const d = new Date(dateStr + "T00:00:00");
+  const d = parseDateSafe(dateStr);
+  if (!d) return false;
   const day = d.getDay();
   // Sat=6, Sun=0, Mon=1, Tue=2, Wed=3, Thu=4
   return [6, 0, 1, 2, 3, 4].includes(day);
@@ -26,15 +32,15 @@ export const isPHWorkingDay = (dateStr) => {
 };
 
 export const getDayLabel = (dateStr) => {
-  const d = new Date(dateStr + "T00:00:00");
+  const d = parseDateSafe(dateStr);
+  if (!d) return "--";
   const names = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
   return names[d.getDay()];
 };
 
 export const getDayName = (dateInput) => {
-  return new Date(dateInput).toLocaleDateString(
-    'en-US', { weekday: 'long' }
-  );
+  const name = safeGetDayName(dateInput, 'long');
+  return name || "Unknown";
 };
 
 export const isFriday = (dateStr) => {
@@ -47,13 +53,22 @@ export const isThursday = (dateStr) => {
 
 // Get all dates in range
 export const getDatesInRange = (from, to) => {
+  if (!from || !to) return [];
+  const start = parseDateSafe(from);
+  const end   = parseDateSafe(to);
+  
+  if (!start || !end) return [];
+  if (start > end) return [];
+
   const dates = [];
-  const start = new Date(from + "T00:00:00");
-  const end   = new Date(to   + "T00:00:00");
-  const cur   = new Date(start);
-  while (cur <= end) {
+  const cur = new Date(start);
+  
+  // Safety limit to prevent infinite loops (e.g. 1 year max)
+  let guard = 0;
+  while (cur <= end && guard < 1000) {
     dates.push(cur.toISOString().split("T")[0]);
     cur.setDate(cur.getDate() + 1);
+    guard++;
   }
   return dates;
 };

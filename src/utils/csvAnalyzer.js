@@ -14,6 +14,7 @@ export const calculateKPICards = (mrStats) => {
   };
 
   // Total coaching days = sum across all MRs
+  const coachingMRs = mrStats.filter(mr => mr.coachingDays > 0).length;
   const coachingDays = mrStats.reduce(
     (sum, mr) => sum + mr.coachingDays, 0
   );
@@ -47,6 +48,7 @@ export const calculateKPICards = (mrStats) => {
 
   return {
     coachingDays,
+    coachingMRs,
     avgHCORate,
     avgHCPRate,
     avgPHRate,

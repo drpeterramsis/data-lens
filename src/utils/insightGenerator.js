@@ -1,4 +1,5 @@
 import { safeStr } from "./safeCSV";
+import { safeParseDate } from "./dateHelpers";
 
 export const generateInsights = (rows, targets) => {
   const insights = [];
@@ -77,9 +78,14 @@ export const generateInsights = (rows, targets) => {
 
   // 7. FIELD COVERAGE
   if (dateArray.length > 0) {
-    const minDate = new Date(dateArray.reduce((min, d) => d.date < min ? d.date : min, dateArray[0].date));
-    const maxDate = new Date(dateArray.reduce((max, d) => d.date > max ? d.date : max, dateArray[0].date));
-    const calendarDays = Math.round((maxDate - minDate) / (1000 * 60 * 60 * 24)) + 1;
+    const minD = safeParseDate(dateArray.reduce((min, d) => d.date < min ? d.date : min, dateArray[0].date));
+    const maxD = safeParseDate(dateArray.reduce((max, d) => d.date > max ? d.date : max, dateArray[0].date));
+    
+    let calendarDays = 1;
+    if (minD && maxD) {
+      calendarDays = Math.round((maxD - minD) / (1000 * 60 * 60 * 24)) + 1;
+    }
+    
     const activeDays = dateArray.length;
     const callsPerActive = (total / activeDays).toFixed(1);
     insights.push({ id: 7, color: "border-l-blue-500", icon: "📆", title: "FIELD COVERAGE", text: `Team active ${activeDays} of ${calendarDays || 1} calendar days. Average ${callsPerActive} calls per active day.`, metric: `${activeDays}/${calendarDays}` });
