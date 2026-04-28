@@ -42,6 +42,7 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 
 ## Version History
 
+- **v1.0.029:** Fixed ReferenceError for working day utility functions in `csvAnalyzer.js` and `TeamOverviewTable.jsx`.
 - **v1.0.028:** Data Lens v3.2 Updates Phase 2: Added Collapsible MR Cards, updated the Forecast Calculator formula logic and styling, and implemented a newly rebuilt Full Calendar View for MR activities with inline detailing details.
 - **v1.0.027:** Data Lens v3.2 Update: Full rebuild of the Forecast Calculator including DM Meetings and MR Personal Vacations. Updated Daily Card Calendar Modals with full customer visit breakdown. Realigned KPI cards removing 'Total Interactions'. Upgraded period calculation logic correctly handling Thursday PM off states. Added custom CSS overrides to enforce Black & Yellow styling in the footer.
 - **v1.0.026:** Data Lens v3.1 Update: Implemented Vercel routing fix, complete redesign of KPI summary cards and CSV Uploader, advanced period rules logic (AM/PM, holidays, weekends), highly accurate Forecast Calculator, dense Team Overview data table, interactive Target configuration panel, and sticky Date Range Filter.
@@ -59,4 +60,4 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 - **v1.0.001:** Initial release. Authentication, CSV parsing, Analysis tools, and Admin panel implemented.
 
 ---
-© 2026 data-lens Analytics | version 1.0.028
+© 2026 data-lens Analytics | version 1.0.029

@@ -130,7 +130,9 @@ export const countWorkingDays = (dates, type, dmMeetings = [], holidays = []) =>
   }).length;
 };
 
-export const isWorkingDayHCP = isHCPWorkingDay;
-export const isWorkingDayHCO = isHCOWorkingDay;
-export const isWorkingDayPH = isPHWorkingDay;
+
+// Helper exports
+export const hasHCPActivity = isHCPWorkingDay;
+export const hasHCOActivity = isHCOWorkingDay;
+
 

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Users, ChevronUp, ChevronDown } from 'lucide-react';
 import { safeStr, safeDate, safeBool } from '../../utils/safeCSV';
-import { isWorkingDayHCP, isWorkingDayHCO, isWorkingDayPH } from '../../utils/periodRules';
+import { isHCPWorkingDay, isHCOWorkingDay, isPHWorkingDay } from '../../utils/periodRules';
 
 const TeamOverviewTable = ({ data, targets }) => {
   const [sortConfig, setSortConfig] = useState({ key: 'total', direction: 'desc' });
@@ -42,10 +42,9 @@ const TeamOverviewTable = ({ data, targets }) => {
       let coachingDays = 0;
       
       Object.entries(mrInfo.days).forEach(([dateStr, day]) => {
-         const dObj = new Date(dateStr);
-         if (day.hcp > 0 && isWorkingDayHCP(dObj)) hcpWorkingDaysCount++;
-         if (day.hco > 0 && isWorkingDayHCO(dObj)) hcoWorkingDaysCount++;
-         if (day.ph > 0 && isWorkingDayPH(dObj)) phWorkingDaysCount++;
+         if (day.hcp > 0 && isHCPWorkingDay(dateStr)) hcpWorkingDaysCount++;
+         if (day.hco > 0 && isHCOWorkingDay(dateStr)) hcoWorkingDaysCount++;
+         if (day.ph > 0 && isPHWorkingDay(dateStr)) phWorkingDaysCount++;
          if (day.coached >= 4) coachingDays++;
       });
 
