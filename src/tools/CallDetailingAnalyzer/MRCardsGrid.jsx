@@ -1,16 +1,25 @@
 import React, { useMemo, useState } from 'react';
 import { Calendar as CalendarIcon, X, ArrowDownWideNarrow } from 'lucide-react';
 import { safeStr } from '../../utils/safeCSV';
-import { getDayType, isWorkingDayHCP, isWorkingDayHCO, isWorkingDayPH } from '../../utils/periodRules';
+import { getDayName, isWorkingDayHCP, isWorkingDayHCO, isWorkingDayPH } from '../../utils/periodRules';
 
 // Calendar Modal Component
-const CalendarModal = ({ mr, data, onClose }) => {
+const CalendarModal = ({ mr, data, onClose, targets }) => {
+  const [selectedDayObj, setSelectedDayObj] = useState(null);
+
   const dailyData = useMemo(() => {
     const days = {};
-    data.filter(d => safeStr(d.MrName) === mr.name).forEach(d => {
+    const filteredData = data.filter(d => safeStr(d.MrName) === mr.name);
+    
+    filteredData.forEach(d => {
       const dateStr = safeStr(d.ReportDate);
       if (!dateStr) return;
-      if (!days[dateStr]) days[dateStr] = { date: dateStr, dateObj: new Date(dateStr), hcp: 0, hco: 0, ph: 0, total: 0, coached: 0 };
+      if (!days[dateStr]) days[dateStr] = { 
+         date: dateStr, 
+         dateObj: new Date(dateStr), 
+         hcp: 0, hco: 0, ph: 0, total: 0, coached: 0,
+         interactions: []
+      };
       
       const type = safeStr(d.InteractionType);
       if (type === 'HCP') days[dateStr].hcp++;
@@ -19,83 +28,228 @@ const CalendarModal = ({ mr, data, onClose }) => {
       
       days[dateStr].total++;
       if (safeStr(d.IsMRCoachingSubmitted) === 'True') days[dateStr].coached++;
+      days[dateStr].interactions.push(d);
     });
     return Object.values(days).sort((a, b) => a.date.localeCompare(b.date));
   }, [data, mr.name]);
 
   const getDayBg = (dayInfo) => {
-    const day = getDayType(dayInfo.dateObj);
-    if (day === 5) return 'bg-red-50/50 border-red-100'; // Friday off
-    if (day === 4) return 'bg-orange-50/50 border-orange-100'; // Thursday PM off
+    const day = dayInfo.dateObj.getDay();
+    if (day === 5) return 'bg-red-50 border-red-100'; // Friday off
+    if (day === 4) return 'bg-orange-50 border-orange-100'; // Thursday PM off
     if (dayInfo.coached >= 4) return 'bg-yellow-50 border-yellow-200 ring-1 ring-yellow-400/20'; // Coaching
     if (dayInfo.total === 0) return 'bg-gray-50 border-gray-100';
-    return 'bg-white border-gray-200';
+    return 'bg-white border-gray-200 hover:border-gray-300';
+  };
+
+  const calcDailyAch = (dayInfo) => {
+    if (!targets || (targets.hcpPerDay === 0 && targets.hcoPerDay === 0 && targets.phPerDay === 0)) {
+       return null;
+    }
+    const day = dayInfo.dateObj.getDay();
+    let totalTarget = 0;
+    
+    if (isWorkingDayHCO(dayInfo.dateObj)) totalTarget += targets.hcoPerDay || 0;
+    if (isWorkingDayPH(dayInfo.dateObj))  totalTarget += targets.phPerDay || 0;
+    if (isWorkingDayHCP(dayInfo.dateObj)) totalTarget += targets.hcpPerDay || 0;
+    
+    if (totalTarget === 0) return null;
+    return (dayInfo.total / totalTarget) * 100;
+  };
+  
+  const getAchColor = (ach) => {
+     if (ach === null) return '';
+     if (ach >= 100) return 'text-green-600';
+     if (ach >= 75) return 'text-yellow-600';
+     return 'text-red-600';
+  };
+
+  const renderDailyCell = (dayInfo) => {
+    const ach = calcDailyAch(dayInfo);
+    
+    const renderTypeAch = (count, targetKey, isWorking) => {
+      if (!targets || targets[targetKey] === 0 || !isWorking) return '';
+      const achTyp = (count / targets[targetKey]) * 100;
+      return <span className={`ml-1 ${getAchColor(achTyp)}`}>({achTyp.toFixed(0)}%)</span>;
+    };
+
+    return (
+      <div 
+         key={dayInfo.date} 
+         onClick={() => setSelectedDayObj(dayInfo)}
+         className={`border rounded-xl p-3 shadow-sm cursor-pointer transition-shadow hover:shadow-md ${getDayBg(dayInfo)}`}
+      >
+        <p className="text-[11px] font-bold text-gray-700 mb-2 border-b border-gray-100 pb-1 flex justify-between">
+           <span>{dayInfo.dateObj.getDate()} {getDayName(dayInfo.dateObj).slice(0,3)}</span>
+           {dayInfo.coached >= 4 && <span title="Coaching Day">🎓</span>}
+        </p>
+        <div className="space-y-1 mb-2">
+          <p className="text-[10px] font-bold text-green-700 flex justify-between">
+             <span>HCO: {dayInfo.hco}</span> 
+             {renderTypeAch(dayInfo.hco, 'hcoPerDay', isWorkingDayHCO(dayInfo.dateObj))}
+          </p>
+          <p className="text-[10px] font-bold text-teal-600 flex justify-between">
+             <span>PH: {dayInfo.ph}</span>
+             {renderTypeAch(dayInfo.ph, 'phPerDay', isWorkingDayPH(dayInfo.dateObj))}
+          </p>
+          <p className="text-[10px] font-bold text-blue-700 flex justify-between">
+             <span>HCP: {dayInfo.hcp}</span>
+             {renderTypeAch(dayInfo.hcp, 'hcpPerDay', isWorkingDayHCP(dayInfo.dateObj))}
+          </p>
+        </div>
+        <div className="pt-2 border-t border-gray-100/50 mt-2">
+           <p className="text-[10px] font-black text-gray-800 flex justify-between"><span>Total:</span> <span>{dayInfo.total}</span></p>
+           {ach !== null && (
+              <p className={`text-[10px] font-black flex justify-between mt-0.5 ${getAchColor(ach)}`}>
+                 <span>Ach:</span> <span>{ach.toFixed(0)}%</span>
+              </p>
+           )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderDayDetail = () => {
+    if (!selectedDayObj) return null;
+    
+    // Group interactions
+    const hcoRows = selectedDayObj.interactions.filter(d => safeStr(d.InteractionType) === 'HCO');
+    const phRows = selectedDayObj.interactions.filter(d => safeStr(d.InteractionType) === 'Pharmacy');
+    const hcpRows = selectedDayObj.interactions.filter(d => safeStr(d.InteractionType) === 'HCP');
+    
+    const ach = calcDailyAch(selectedDayObj);
+
+    return (
+      <div className="absolute inset-0 bg-white z-10 flex flex-col overflow-hidden rounded-2xl animate-in slide-in-from-right-8 fade-in duration-200">
+        <div className="flex items-center justify-between p-5 border-b border-gray-100 bg-gray-50/50 sticky top-0">
+          <h2 className="text-xl font-black text-gray-900 flex items-center gap-2">
+            📅 {mr.name} <span className="text-gray-400 font-medium">— {selectedDayObj.date} ({getDayName(selectedDayObj.dateObj)})</span>
+          </h2>
+          <button onClick={() => setSelectedDayObj(null)} className="px-3 py-1.5 text-xs font-bold text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-gray-200 rounded-lg shadow-sm transition-colors flex items-center gap-2">
+             <X size={14} /> Close Detail
+          </button>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto p-6 space-y-8">
+           
+           {/* Achievement & Coaching Summary */}
+           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="bg-yellow-50/50 border border-yellow-100 rounded-xl p-4">
+                 <h4 className="text-[10px] uppercase font-black tracking-widest text-yellow-800 mb-2">🎓 Coaching Summary</h4>
+                 <p className="text-sm font-bold text-gray-800">Total coached visits: <span className="text-yellow-700">{selectedDayObj.coached}</span></p>
+                 {selectedDayObj.coached >= 4 && <span className="inline-block mt-2 bg-yellow-400 text-yellow-900 text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded shadow-sm">🎓 Coaching Day</span>}
+              </div>
+              <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4">
+                 <h4 className="text-[10px] uppercase font-black tracking-widest text-blue-800 mb-2">📈 Daily Achievement</h4>
+                 {targets ? (
+                   <div className="grid grid-cols-2 gap-2 text-xs">
+                     <div className="flex justify-between border-b border-blue-100 pb-1"><span>HCO:</span> <span className="font-bold">{selectedDayObj.hco} / {targets.hcoPerDay}</span></div>
+                     <div className="flex justify-between border-b border-blue-100 pb-1"><span>PH:</span> <span className="font-bold">{selectedDayObj.ph} / {targets.phPerDay}</span></div>
+                     <div className="flex justify-between border-b border-blue-100 pb-1"><span>HCP:</span> <span className="font-bold">{selectedDayObj.hcp} / {targets.hcpPerDay}</span></div>
+                     <div className="flex justify-between border-b border-blue-100 pb-1"><span>Overall:</span> <span className={`font-black ${getAchColor(ach)}`}>{ach?.toFixed(1)}%</span></div>
+                   </div>
+                 ) : (
+                   <p className="text-xs text-gray-500 italic">No targets set.</p>
+                 )}
+              </div>
+           </div>
+
+           {/* HCO TABLE */}
+           <div>
+             <h3 className="font-black text-gray-900 mb-3 flex items-center gap-2">🏥 HCO VISITS (AM) <span className="text-xs font-medium text-gray-400 font-normal ml-2">Total: {hcoRows.length}</span></h3>
+             {hcoRows.length > 0 ? (
+                <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                   <table className="w-full text-left text-xs bg-white">
+                     <thead className="bg-gray-50 border-b border-gray-100 text-[9px] uppercase tracking-widest text-gray-500 font-bold">
+                       <tr><th className="px-4 py-2 text-gray-900 font-black">Customer Name</th><th className="px-4 py-2">Grade</th><th className="px-4 py-2">Coached?</th></tr>
+                     </thead>
+                     <tbody className="divide-y divide-gray-50">
+                       {hcoRows.map((r,i) => (
+                         <tr key={i} className="hover:bg-gray-50">
+                           <td className="px-4 py-2 font-bold text-gray-700">{safeStr(r.CustomerName)}</td>
+                           <td className="px-4 py-2">{safeStr(r.CustomerGrade) || '—'}</td>
+                           <td className="px-4 py-2">{safeStr(r.IsMRCoachingSubmitted) === 'True' ? <span className="text-purple-600 font-bold bg-purple-50 px-1.5 py-0.5 rounded">🎓 Yes</span> : '—'}</td>
+                         </tr>
+                       ))}
+                     </tbody>
+                   </table>
+                </div>
+             ) : <p className="text-xs text-gray-400 italic">No HCO visits on this day.</p>}
+           </div>
+
+           {/* PH TABLE */}
+           <div>
+             <h3 className="font-black text-gray-900 mb-3 flex items-center gap-2">💊 PHARMACY VISITS (AM) <span className="text-xs font-medium text-gray-400 font-normal ml-2">Total: {phRows.length}</span></h3>
+             {phRows.length > 0 ? (
+                <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                   <table className="w-full text-left text-xs bg-white">
+                     <thead className="bg-gray-50 border-b border-gray-100 text-[9px] uppercase tracking-widest text-gray-500 font-bold">
+                       <tr><th className="px-4 py-2 text-gray-900 font-black">Customer Name</th><th className="px-4 py-2">Grade</th><th className="px-4 py-2">Coached?</th></tr>
+                     </thead>
+                     <tbody className="divide-y divide-gray-50">
+                       {phRows.map((r,i) => (
+                         <tr key={i} className="hover:bg-gray-50">
+                           <td className="px-4 py-2 font-bold text-gray-700">{safeStr(r.CustomerName)}</td>
+                           <td className="px-4 py-2">{safeStr(r.CustomerGrade) || '—'}</td>
+                           <td className="px-4 py-2">{safeStr(r.IsMRCoachingSubmitted) === 'True' ? <span className="text-purple-600 font-bold bg-purple-50 px-1.5 py-0.5 rounded">🎓 Yes</span> : '—'}</td>
+                         </tr>
+                       ))}
+                     </tbody>
+                   </table>
+                </div>
+             ) : <p className="text-xs text-gray-400 italic">No Pharmacy visits on this day.</p>}
+           </div>
+
+           {/* HCP TABLE */}
+           <div>
+             <h3 className="font-black text-gray-900 mb-3 flex items-center gap-2">👨‍⚕️ HCP VISITS (PM) <span className="text-xs font-medium text-gray-400 font-normal ml-2">Total: {hcpRows.length}</span></h3>
+             {hcpRows.length > 0 ? (
+                <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                   <table className="w-full text-left text-xs bg-white whitespace-nowrap">
+                     <thead className="bg-gray-50 border-b border-gray-100 text-[9px] uppercase tracking-widest text-gray-500 font-bold">
+                       <tr><th className="px-4 py-2 text-gray-900 font-black">Customer Name</th><th className="px-4 py-2">Specialty</th><th className="px-4 py-2">Grade</th><th className="px-4 py-2">Coached?</th></tr>
+                     </thead>
+                     <tbody className="divide-y divide-gray-50">
+                       {hcpRows.map((r,i) => (
+                         <tr key={i} className="hover:bg-gray-50">
+                           <td className="px-4 py-2 font-bold text-gray-700">{safeStr(r.CustomerName)}</td>
+                           <td className="px-4 py-2 text-gray-500">{safeStr(r.Specialty) || '—'}</td>
+                           <td className="px-4 py-2">{safeStr(r.CustomerGrade) || '—'}</td>
+                           <td className="px-4 py-2">{safeStr(r.IsMRCoachingSubmitted) === 'True' ? <span className="text-purple-600 font-bold bg-purple-50 px-1.5 py-0.5 rounded">🎓 Yes</span> : '—'}</td>
+                         </tr>
+                       ))}
+                     </tbody>
+                   </table>
+                </div>
+             ) : <p className="text-xs text-gray-400 italic">No HCP visits on this day.</p>}
+           </div>
+
+        </div>
+      </div>
+    );
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between p-5 border-b border-gray-100">
-          <h2 className="text-xl font-black text-gray-900 flex items-center gap-2">📅 {mr.name} <span className="text-gray-400 font-medium">— Activity Calendar</span></h2>
-          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors"><X size={20} /></button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 lg:p-10 bg-gray-900/60 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden relative">
+        <div className="flex items-center justify-between p-5 border-b border-gray-100 bg-gray-50/50">
+           <div>
+             <h2 className="text-xl font-black text-gray-900 flex items-center gap-2">📅 {mr.name}</h2>
+             <p className="text-[10px] font-black tracking-widest text-gray-500 uppercase mt-1">Calendar & Daily Activity</p>
+           </div>
+           <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-900 hover:bg-gray-200 rounded-full transition-colors flex items-center shadow-sm bg-white"><X size={20} /></button>
         </div>
         
-        <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-7 gap-3 mb-8">
-            {dailyData.map(day => (
-              <div key={day.date} className={`border rounded-xl p-3 shadow-sm ${getDayBg(day)}`}>
-                <p className="text-[11px] font-bold text-gray-500 mb-2 border-b border-gray-100 pb-1">{day.date}</p>
-                <div className="space-y-1 mb-2">
-                  <p className="text-[10px] font-bold text-green-700 flex justify-between"><span>HCO:</span> <span>{day.hco} 🏥</span></p>
-                  <p className="text-[10px] font-bold text-teal-600 flex justify-between"><span>PH:</span> <span>{day.ph} 💊</span></p>
-                  <p className="text-[10px] font-bold text-blue-700 flex justify-between"><span>HCP:</span> <span>{day.hcp} 👨‍⚕️</span></p>
-                </div>
-                {day.coached >= 4 && <p className="text-[9px] uppercase tracking-widest font-black text-yellow-700 bg-yellow-100 rounded px-1 py-0.5 text-center mt-1">🎓 Coached</p>}
-              </div>
-            ))}
-          </div>
-
-          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-            <div className="px-4 py-3 bg-gray-50 flex justify-between items-center border-b border-gray-100">
-              <h3 className="font-bold text-gray-700 text-xs uppercase tracking-widest">Daily Detail Table</h3>
-            </div>
-            <table className="w-full text-left text-sm">
-              <thead className="bg-white border-b border-gray-100">
-                <tr className="text-[10px] font-black uppercase text-gray-400 tracking-widest bg-gray-50/50">
-                  <th className="px-4 py-3">Date</th>
-                  <th className="px-4 py-3 text-center">Day</th>
-                  <th className="px-4 py-3 text-center">AM (HCO)</th>
-                  <th className="px-4 py-3 text-center">AM (PH)</th>
-                  <th className="px-4 py-3 text-center">PM (HCP)</th>
-                  <th className="px-4 py-3 text-center border-l border-gray-100">Total</th>
-                  <th className="px-4 py-3 text-center">Coached</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50 text-xs">
-                {dailyData.map(day => (
-                  <tr key={day.date} className={`hover:bg-gray-50 transition-colors ${day.coached >= 4 ? 'bg-yellow-50/50' : ''}`}>
-                    <td className="px-4 py-2.5 font-bold text-gray-700">{day.date}</td>
-                    <td className="px-4 py-2.5 text-center text-gray-500">{['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][day.dateObj.getDay()]}</td>
-                    <td className="px-4 py-2.5 text-center font-medium text-green-700">{day.hco}</td>
-                    <td className="px-4 py-2.5 text-center font-medium text-teal-600">{day.ph}</td>
-                    <td className="px-4 py-2.5 text-center font-medium text-blue-700">{day.hcp}</td>
-                    <td className="px-4 py-2.5 text-center font-black border-l border-gray-100">{day.total}</td>
-                    <td className="px-4 py-2.5 text-center font-medium">
-                       {day.coached >= 4 ? <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded text-[9px] font-black uppercase">Yes</span> : day.coached > 0 ? <span className="text-gray-400">{day.coached}</span> : <span className="text-gray-300">—</span>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          
-          <div className="mt-6 flex flex-wrap gap-4 text-xs">
-             <div className="bg-white px-4 py-2 border border-gray-200 rounded-lg"><span className="text-gray-400 uppercase font-black tracking-widest text-[9px] block">HCO AM</span> <strong className="text-gray-900">{mr.hcoDays} days / {mr.totalHco} calls</strong></div>
-             <div className="bg-white px-4 py-2 border border-gray-200 rounded-lg"><span className="text-gray-400 uppercase font-black tracking-widest text-[9px] block">PH AM</span> <strong className="text-gray-900">{mr.phDays} days / {mr.totalPh} calls</strong></div>
-             <div className="bg-white px-4 py-2 border border-gray-200 rounded-lg"><span className="text-gray-400 uppercase font-black tracking-widest text-[9px] block">HCP PM</span> <strong className="text-gray-900">{mr.hcpDays} days / {mr.totalHcp} calls</strong></div>
-             <div className="bg-white px-4 py-2 border border-gray-200 rounded-lg"><span className="text-gray-400 uppercase font-black tracking-widest text-[9px] block">Coaching</span> <strong className="text-gray-900">{mr.coachingDays} days / {mr.totalCoached} visits</strong></div>
+        <div className="flex-1 overflow-y-auto p-6 bg-gray-50/30">
+          <p className="text-xs text-gray-500 mb-4 bg-blue-50/50 p-3 rounded-lg border border-blue-100 flex items-center gap-2">
+            <span className="text-blue-500">ℹ️</span> Click any day card to view the exact customer visits, grades, and coaching details for that day.
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-3 mb-8">
+            {dailyData.map(day => renderDailyCell(day))}
           </div>
         </div>
+        
+        {selectedDayObj && renderDayDetail()}
       </div>
     </div>
   );
@@ -318,7 +472,7 @@ const MRCardsGrid = ({ data, targets }) => {
         ))}
       </div>
 
-      {selectedMR && <CalendarModal mr={selectedMR} data={data} onClose={() => setSelectedMR(null)} />}
+      {selectedMR && <CalendarModal mr={selectedMR} data={data} targets={targets} onClose={() => setSelectedMR(null)} />}
     </div>
   );
 };

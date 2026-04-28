@@ -1,34 +1,28 @@
 // src/utils/csvAnalyzer.js
 import { safeStr, safeBool, safeDate } from "./safeCSV";
-import { getDayType, isWorkingDayHCP, isWorkingDayHCO, isWorkingDayPH } from "./periodRules";
+import { isWorkingDayHCP, isWorkingDayHCO, isWorkingDayPH } from "./periodRules";
 
 export const getKPISummary = (rows) => {
   if (!rows || !rows.length) return {
-    totalInteractions: 0,
-    uniqueCustomers: 0,
     uniqueMRs: 0,
     coachingDays: 0,
     dmHCORate: 0,
     dmHCPRate: 0,
-    dmPHRate: 0
+    dmPHRate: 0,
+    activeMRCountHCP: 0,
+    activeMRCountHCO: 0,
+    activeMRCountPH: 0
   };
 
-  const customers = new Set();
-  let totalInteractions = 0;
-  
   const mrData = {};
 
   rows.forEach((row) => {
     if (!row) return;
 
-    totalInteractions++;
-    const cid  = safeStr(row.CustomerId) || safeStr(row.CustomerName);
     const mr   = safeStr(row.MrName);
     const type = safeStr(row.InteractionType);
     const date = safeDate(row.ReportDate);
     const coached = safeBool(row.IsMRCoachingSubmitted);
-
-    if (cid) customers.add(cid);
 
     if (mr && date) {
       if (!mrData[mr]) {
@@ -46,6 +40,7 @@ export const getKPISummary = (rows) => {
   });
 
   let totalCoachingDays = 0;
+  let coachingMRsCount = 0;
   let sumHCORate = 0;
   let countHCORate = 0;
   let sumHCPRate = 0;
@@ -56,34 +51,24 @@ export const getKPISummary = (rows) => {
   const uniqueMRs = Object.keys(mrData).length;
 
   Object.values(mrData).forEach(mrInfo => {
-    let hcoCount = 0;
-    let phCount = 0;
-    let hcpCount = 0;
-    
     let hcoWorkingDaysCount = 0;
     let phWorkingDaysCount = 0;
     let hcpWorkingDaysCount = 0;
+
+    let totalHCO = 0;
+    let totalPH = 0;
+    let totalHCP = 0;
+    
+    let hasCoachingDay = false;
 
     Object.entries(mrInfo.days).forEach(([dateStr, dayData]) => {
       const dObj = new Date(dateStr);
       
       if (dayData.coached >= 4) {
         totalCoachingDays++;
+        hasCoachingDay = true;
       }
 
-      if (dayData.hco > 0) {
-        hcoCount += dayData.hco;
-      }
-      if (isWorkingDayHCO(dObj) && (dayData.hcp > 0 || dayData.hco > 0 || dayData.ph > 0)) {
-         // To avoid dividing by zero or assuming everyone works every day, we count working days 
-         // as days where the MR did SOME activity AND it's a valid working day for that type.
-         // Actually, the prompt says "dates where dateMap[d].hco > 0 AND not Friday".
-         // Let's stick strictly to what the prompt said for rate calculation for the grids:
-         // hcoDays = dates where dateMap[d].hco > 0 AND new Date(d).getDay() !== 5
-         // For team average, "Team average (DM Rate shown in KPI cards): dmHCORate = avg(hcoRate per MR)"
-         // Ok, let's strictly follow the MR card calc for the team average.
-      }
-      
       if (dayData.hco > 0 && isWorkingDayHCO(dObj)) {
         hcoWorkingDaysCount++;
       }
@@ -93,18 +78,13 @@ export const getKPISummary = (rows) => {
       if (dayData.hcp > 0 && isWorkingDayHCP(dObj)) {
         hcpWorkingDaysCount++;
       }
-      
-      // We will sum total calls over all valid working days.
-      if (isWorkingDayHCO(dObj)) {
-         // Should we use the totalHCO on those days? Yes
-      }
+
+      totalHCO += dayData.hco;
+      totalPH += dayData.ph;
+      totalHCP += dayData.hcp;
     });
 
-    // Count calls specifically on valid days, or all calls? "totalHCO / hcoDays"
-    // Prompt: hcoRate = totalHCO / count(dates with HCO, not Friday)
-    // Wait, totalHCO means all HCO calls, divided by dates with HCO that are not Friday.
-    let totalHCO = 0, totalPH = 0, totalHCP = 0;
-    Object.values(mrInfo.days).forEach(d => { totalHCO += d.hco; totalPH += d.ph; totalHCP += d.hcp; });
+    if (hasCoachingDay) coachingMRsCount++;
 
     let mrHCORate = hcoWorkingDaysCount > 0 ? (totalHCO / hcoWorkingDaysCount) : 0;
     let mrPHRate = phWorkingDaysCount > 0 ? (totalPH / phWorkingDaysCount) : 0;
@@ -116,10 +96,9 @@ export const getKPISummary = (rows) => {
   });
 
   return {
-    totalInteractions: totalInteractions,
-    uniqueCustomers: customers.size,
     uniqueMRs: uniqueMRs,
     coachingDays: totalCoachingDays,
+    coachingMRs: coachingMRsCount,
     dmHCORate: countHCORate > 0 ? (sumHCORate / countHCORate) : 0,
     dmHCPRate: countHCPRate > 0 ? (sumHCPRate / countHCPRate) : 0,
     dmPHRate: countPHRate > 0 ? (sumPHRate / countPHRate) : 0,

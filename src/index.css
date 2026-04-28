@@ -69,3 +69,21 @@
 .shadow-card {
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
 }
+
+/* Footer overrides */
+footer {
+  background-color: #000000 !important;
+  color: #FFFFFF !important;
+  border-top: 1px solid #333333 !important;
+}
+footer * {
+  color: #FFFFFF !important;
+}
+footer a {
+  color: #F5C518 !important;
+}
+footer .text-gray-400,
+footer .text-gray-500,
+footer .text-muted {
+  color: #FFFFFF !important;
+}
