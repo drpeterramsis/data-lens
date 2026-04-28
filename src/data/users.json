@@ -1,31 +1,34 @@
 {
   "users": [
     {
-      "id": 1,
+      "id": "1",
+      "username": "admin",
       "name": "Admin User",
+      "jobTitle": "General Manager",
       "email": "admin@datalens.com",
       "password": "admin123",
       "role": "admin",
-      "active": true,
-      "tools": ["call-detailing", "sales-analyzer"]
+      "active": true
     },
     {
-      "id": 2,
+      "id": "2",
+      "username": "sara_m",
       "name": "Sara Mohamed",
+      "jobTitle": "District Manager (DM)",
       "email": "sara@datalens.com",
       "password": "sara123",
-      "role": "user",
-      "active": true,
-      "tools": ["call-detailing"]
+      "role": "manager",
+      "active": true
     },
     {
-      "id": 3,
+      "id": "3",
+      "username": "omar_a",
       "name": "Omar Ali",
+      "jobTitle": "Medical Representative",
       "email": "omar@datalens.com",
       "password": "omar123",
-      "role": "user",
-      "active": true,
-      "tools": ["call-detailing", "sales-analyzer"]
+      "role": "viewer",
+      "active": true
     }
   ]
 }

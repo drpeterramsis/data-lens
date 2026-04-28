@@ -5,6 +5,36 @@ import {
 } from "./periodRules";
 import { isCoached, safeStr } from "./safeCSV";
 
+export const getRateStatus = (rate, target) => {
+  if (!target || target === 0) {
+    return {
+      color: "text-gray-600",
+      bg: "bg-gray-50",
+      icon: "",
+      status: "gray"
+    };
+  }
+  const pct = (rate / target) * 100;
+  if (pct >= 100) return {
+    color: "text-green-700",
+    bg: "bg-green-50",
+    icon: "✅",
+    status: "green"
+  };
+  if (pct >= 90) return {
+    color: "text-yellow-600",
+    bg: "bg-yellow-50",
+    icon: "🟡",
+    status: "yellow"
+  };
+  return {
+    color: "text-red-600",
+    bg: "bg-red-50",
+    icon: "🔴",
+    status: "red"
+  };
+};
+
 export const calculateMRStats = (filteredRows) => {
   if (!filteredRows?.length) return [];
 

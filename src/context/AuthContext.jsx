@@ -10,14 +10,14 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     // Load users and prioritize localStorage overrides
-    const storedUsers = localStorage.getItem('datalens_users_override');
+    const storedUsers = localStorage.getItem('pharmapulse_users_override');
     const mergedUsers = storedUsers 
       ? JSON.parse(storedUsers) 
       : initialUsers.users;
     setUsers(mergedUsers);
 
     // Check for existing session
-    const savedUser = sessionStorage.getItem('datalens_user');
+    const savedUser = localStorage.getItem('pharma_current_user');
     if (savedUser) {
       setUser(JSON.parse(savedUser));
     }
@@ -25,11 +25,12 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  const login = (email, password) => {
-    const foundUser = users.find(u => u.email === email && u.password === password);
+  const login = (username, password) => {
+    // case insensitive username check
+    const foundUser = users.find(u => u.username.toLowerCase() === username.toLowerCase() && u.password === password);
     
     if (!foundUser) {
-      return { success: false, message: 'Invalid email or password' };
+      return { success: false, message: 'Invalid username or password' };
     }
 
     if (!foundUser.active) {
@@ -37,18 +38,18 @@ export const AuthProvider = ({ children }) => {
     }
 
     setUser(foundUser);
-    sessionStorage.setItem('datalens_user', JSON.stringify(foundUser));
+    localStorage.setItem('pharma_current_user', JSON.stringify(foundUser));
     return { success: true };
   };
 
   const logout = () => {
     setUser(null);
-    sessionStorage.removeItem('datalens_user');
+    localStorage.removeItem('pharma_current_user');
   };
 
   const updateUsers = (newUsers) => {
     setUsers(newUsers);
-    localStorage.setItem('datalens_users_override', JSON.stringify(newUsers));
+    localStorage.setItem('pharmapulse_users_override', JSON.stringify(newUsers));
   };
 
   return (

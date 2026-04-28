@@ -10,15 +10,15 @@ const Sidebar = () => {
 
   const menuItems = [
     { title: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, role: 'all' },
-    { title: 'Call Detailing', path: '/tools/call-detailing', icon: Activity, role: 'user-access' },
-    { title: 'Sales Analyzer', path: '/tools/sales-analyzer', icon: BarChart3, role: 'user-access' },
+    { title: 'Call Detailing', path: '/tools/call-detailing', icon: Activity, role: 'user' },
+    { title: 'Sales Analyzer', path: '/tools/sales-analyzer', icon: BarChart3, role: 'user' },
     { title: 'User Management', path: '/admin/users', icon: Settings, role: 'admin' },
   ];
 
   const visibleItems = menuItems.filter(item => {
     if (item.role === 'all') return true;
     if (item.role === 'admin') return user?.role === 'admin';
-    if (item.role === 'user-access') return user?.tools?.includes(item.path?.split('/').pop() || '');
+    if (item.role === 'user') return user?.role === 'admin' || user?.role === 'manager' || user?.role === 'viewer';
     return false;
   });
 

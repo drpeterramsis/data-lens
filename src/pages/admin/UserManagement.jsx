@@ -132,7 +132,7 @@ const UserManagement = () => {
               <tr className="text-[10px] font-black uppercase text-gray-400 tracking-wider">
                 <th className="px-6 py-4">Supervisor Node</th>
                 <th className="px-6 py-4">Access Tier</th>
-                <th className="px-6 py-4">Pulse</th>
+                <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4">Provisioned Tools</th>
                 <th className="px-6 py-4 text-right">Operations</th>
               </tr>

@@ -37,11 +37,11 @@ const Navbar = () => {
           <Menu size={20} />
         </button>
         <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center shadow-[0_0_10px_rgba(245,197,24,0.3)]">
-          <span className="text-sm">🔍</span>
+          <span className="text-sm">💊</span>
         </div>
         <div className="flex flex-col">
-          <h1 className="text-sm font-bold tracking-tight text-black leading-tight">
-            Data Lens
+          <h1 className="text-sm font-black tracking-tight text-black leading-tight">
+            Data<span className="text-accent underline decoration-accent/20"> Lens</span>
           </h1>
           <span className="text-[10px] text-muted font-medium uppercase tracking-wider">
             Field Force Analytics Platform
@@ -51,7 +51,7 @@ const Navbar = () => {
 
       {/* CENTER: Breadcrumbs */}
       <div className="hidden md:block">
-        <p className="text-xs text-muted font-medium tracking-wide">
+        <p className="text-[10px] text-muted font-black uppercase tracking-[0.2em] opacity-40">
           {getBreadcrumb()}
         </p>
       </div>
@@ -59,17 +59,21 @@ const Navbar = () => {
       {/* RIGHT: User Profile */}
       <div className="flex items-center gap-3">
         <div className="flex flex-col items-end">
-          <span className="text-sm font-semibold text-gray-900 leading-tight">{user?.name}</span>
-          <div className="flex items-center gap-1 mt-0.5">
-            <span className={`text-[10px] uppercase font-black tracking-widest px-2 py-0.5 rounded-full border border-gray-100 shadow-inner ${
-              user?.role === 'admin' ? 'bg-accent/10 text-accent border-accent/20' : 'bg-gray-100 text-gray-400'
+          <span className="text-sm font-black text-gray-900 leading-tight tracking-tight">{user?.name}</span>
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter italic">{user?.jobTitle}</span>
+            <span className={`text-[8px] uppercase font-black tracking-widest px-2 py-0.5 rounded-full border shadow-inner ${
+              user?.role === 'admin' ? 'bg-accent/10 text-accent border-accent/20' : 'bg-gray-100 text-gray-400 border-gray-200'
             }`}>
-              {user?.role === 'admin' ? 'Admin' : 'User'}
+              {user?.role}
             </span>
           </div>
         </div>
         
-        <div className="w-9 h-9 rounded-full bg-accent flex items-center justify-center border-2 border-white shadow-lg">
+        <div 
+          className="w-10 h-10 rounded-xl bg-gray-900 flex items-center justify-center border-4 border-white shadow-xl"
+          style={{ backgroundColor: user?.username ? `hsl(${user.username.length * 40}, 60%, 40%)` : '#1A1A2E' }}
+        >
           <span className="text-xs font-black text-white">
             {getInitials(user?.name)}
           </span>

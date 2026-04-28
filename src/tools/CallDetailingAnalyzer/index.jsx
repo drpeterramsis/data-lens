@@ -14,6 +14,7 @@ import ForecastTool from './ForecastTool';
 import TeamOverviewTable from './TeamOverviewTable';
 import InteractionAnalysis from './InteractionAnalysis';
 import CoachingAnalysis from './CoachingAnalysis';
+import CoachingSection from './CoachingSection';
 import InlineCalendar from './InlineCalendar';
 
 const KPICard = ({ title, value, unit, sub, icon, color }) => (
@@ -524,6 +525,7 @@ const CallDetailingAnalyzer = () => {
              <TeamOverviewTable data={filteredData} targets={targets} mrStats={mrStats} />
              <InteractionAnalysis data={filteredData} />
              <CoachingAnalysis data={filteredData} />
+             <CoachingSection data={filteredData} />
 
              {/* Raw Data Table */}
              <details className="mt-12 bg-white border border-gray-200 shadow-sm rounded-[2.5rem] overflow-hidden group">

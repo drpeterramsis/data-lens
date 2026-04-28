@@ -1,19 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Mail, Lock, LogIn, Shield } from 'lucide-react';
+import { User, Lock, LogIn, Shield, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import Toast, { useToast } from '../components/Toast';
 
 const Login = () => {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const { login, user } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
-  const { toast, showToast, hideToast } = useToast();
 
   useEffect(() => {
     if (user) {
@@ -23,60 +21,68 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
     setIsSubmitting(true);
 
     setTimeout(() => {
-      const result = login(email, password);
+      const result = login(username, password);
       if (result.success) {
         navigate('/dashboard', { replace: true });
       } else {
-        showToast(result.message, 'error');
+        setError(result.message);
         setIsSubmitting(false);
       }
     }, 600);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA] px-4 py-12 font-sans">
-      <Toast toast={toast} onClose={hideToast} />
-      
+    <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA] px-4 py-12 font-sans bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-fixed">
       <div className="w-full max-w-md">
         <div className="text-center mb-10">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="w-12 h-12 bg-accent rounded-xl flex items-center justify-center shadow-lg transform rotate-3">
-               <span className="text-2xl">🔍</span>
+            <div className="w-16 h-16 bg-accent rounded-[1.5rem] flex items-center justify-center shadow-xl transform rotate-3 border-4 border-white">
+               <span className="text-3xl">💊</span>
             </div>
-            <h1 className="text-4xl font-black tracking-tighter text-gray-900 uppercase italic">
-              Data<span className="text-accent"> Lens</span>
-            </h1>
+            <div className="text-left">
+              <h1 className="text-3xl font-black tracking-tighter text-gray-900 uppercase">
+                Data<span className="text-accent underline decoration-accent/10"> Lens</span>
+              </h1>
+              <p className="text-[10px] text-gray-400 font-black uppercase tracking-[0.2em] leading-tight mt-0.5">Supervisor Analytics Portal</p>
+            </div>
           </div>
-          <p className="text-gray-400 font-black uppercase tracking-[0.2em] text-[10px]">Supervisor Analytics Portal</p>
         </div>
 
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.4 }}
-          className="bg-white border border-gray-200 rounded-3xl p-8 shadow-card relative overflow-hidden"
+          className="bg-white border border-gray-200 rounded-[2.5rem] p-10 shadow-2xl relative overflow-hidden"
         >
-          <div className="absolute top-0 right-0 w-24 h-24 bg-accent/5 rounded-full -mr-12 -mt-12" />
+          <div className="absolute top-0 right-0 w-32 h-32 bg-accent/5 rounded-full -mr-16 -mt-16" />
 
-          <h2 className="text-xl font-black text-gray-900 mb-8 uppercase tracking-widest border-b-2 border-accent w-fit pb-1">Authenticate</h2>
+          <h2 className="text-xl font-black text-gray-900 mb-8 uppercase tracking-[0.2em] border-b-4 border-accent w-fit pb-1">Authenticate</h2>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <div className="bg-red-50 border border-red-100 text-red-600 p-4 rounded-2xl flex items-center gap-3 animate-in shake duration-300">
+                <AlertCircle size={18} />
+                <p className="text-[10px] font-black uppercase">{error}</p>
+              </div>
+            )}
+
             <div>
-              <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-2 ml-1">Supervisor Node Email</label>
+              <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-2 ml-1">Username / ID Code</label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-300 group-focus-within:text-accent transition-colors">
-                  <Mail size={18} />
+                  <User size={18} />
                 </div>
                 <input
-                  type="email"
+                  type="text"
                   required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:border-accent focus:ring-4 focus:ring-accent/10 transition-all placeholder:text-gray-200 font-medium"
-                  placeholder="admin@datalens.com"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-50 rounded-2xl text-gray-900 focus:outline-none focus:border-accent focus:bg-white transition-all placeholder:text-gray-200 font-bold shadow-inner"
+                  placeholder="e.g. admin"
                 />
               </div>
             </div>
@@ -92,7 +98,7 @@ const Login = () => {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:border-accent focus:ring-4 focus:ring-accent/10 transition-all placeholder:text-gray-200 font-medium"
+                  className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-50 rounded-2xl text-gray-900 focus:outline-none focus:border-accent focus:bg-white transition-all placeholder:text-gray-200 font-bold shadow-inner"
                   placeholder="••••••••"
                 />
               </div>
@@ -101,28 +107,28 @@ const Login = () => {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full flex items-center justify-center gap-2 py-4 px-4 bg-accent hover:bg-accent-hover text-accent-dark font-black uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed mt-4"
+              className="w-full flex items-center justify-center gap-2 py-5 px-4 bg-gray-900 hover:bg-black text-white font-black uppercase tracking-[0.2em] rounded-2xl transition-all shadow-xl shadow-gray-100 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed mt-4 text-xs"
             >
               {isSubmitting ? (
-                <div className="w-6 h-6 border-2 border-accent-dark border-t-transparent animate-spin rounded-full" />
+                <div className="w-5 h-5 border-2 border-white border-t-transparent animate-spin rounded-full" />
               ) : (
                 <>
-                  <LogIn size={20} />
-                  <span>Portal Access</span>
+                  <LogIn size={18} />
+                  <span>Enter Portal</span>
                 </>
               )}
             </button>
           </form>
           
-          <div className="mt-8 pt-8 border-t border-gray-100 flex items-center justify-center">
-            <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest flex items-center gap-2">
-              <Shield size={12} className="text-success" /> End-to-End Encryption Active
+          <div className="mt-10 pt-8 border-t border-gray-50 flex flex-col items-center gap-4">
+            <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest flex items-center gap-2">
+              <Shield size={10} className="text-success" /> Secure 256-bit encrypted tunnel
             </p>
           </div>
         </motion.div>
         
-        <p className="mt-12 text-center text-[10px] text-gray-400 uppercase tracking-[0.3em] font-black">
-          Datalens Analytics Engine ● v1.0.025
+        <p className="mt-12 text-center text-[9px] text-gray-400 uppercase tracking-[0.4em] font-black opacity-40">
+          Data Lens Analytics Engine ● Pharmaceutical Portal
         </p>
       </div>
     </div>

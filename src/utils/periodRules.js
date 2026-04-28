@@ -16,6 +16,7 @@ export const isHCPWorkingDay = (dateStr) => {
   if (!d) return false;
   const day = d.getDay();
   // Sat=6, Sun=0, Mon=1, Tue=2, Wed=3
+  // NOT Thu=4, NOT Fri=5
   return [6, 0, 1, 2, 3].includes(day);
 };
 
@@ -24,6 +25,7 @@ export const isHCOWorkingDay = (dateStr) => {
   if (!d) return false;
   const day = d.getDay();
   // Sat=6, Sun=0, Mon=1, Tue=2, Wed=3, Thu=4
+  // NOT Fri=5
   return [6, 0, 1, 2, 3, 4].includes(day);
 };
 
