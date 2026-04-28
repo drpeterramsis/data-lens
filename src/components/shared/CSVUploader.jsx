@@ -103,66 +103,79 @@ const CSVUploader = ({ onDataLoaded }) => {
 
   return (
     <div className="w-full">
-      {cacheInfo ? (
-        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between">
+      {rowCount > 0 ? (
+        <div className="flex items-center justify-between bg-white border border-gray-200 shadow-sm rounded-lg p-3">
           <div>
-            <p className="text-sm font-semibold text-blue-900">📂 Showing last report: {cacheInfo.fileName}</p>
-            <p className="text-xs text-blue-700 mt-1">Uploaded {new Date(cacheInfo.uploadedAt).toLocaleString()} · {cacheInfo.rowCount.toLocaleString()} rows. Upload new file to refresh.</p>
+            <p className="text-xs font-bold text-gray-900 border-b border-transparent">
+              📂 {cacheInfo?.fileName || "report.csv"} · {rowCount.toLocaleString()} rows
+            </p>
+            {cacheInfo?.uploadedAt && (
+               <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
+                 Uploaded {new Date(cacheInfo.uploadedAt).toLocaleString()}
+               </p>
+            )}
           </div>
-          <button 
-            onClick={clearCache}
-            className="px-4 py-2 bg-white text-blue-700 hover:bg-blue-100 text-xs font-bold rounded-lg border border-blue-200 transition-colors"
-          >
-            Clear Data
-          </button>
+          <div className="flex gap-2">
+            <input
+              id="csv-input-hidden"
+              type="file"
+              accept=".csv"
+              className="hidden"
+              onChange={(e) => processFile(e.target.files[0])}
+            />
+            <button 
+              onClick={() => document.getElementById("csv-input-hidden").click()}
+              className="px-3 py-1.5 bg-white text-gray-600 hover:bg-gray-50 text-[10px] uppercase tracking-widest font-black rounded border border-gray-200 transition-colors"
+            >
+              Upload New File
+            </button>
+            <button 
+              onClick={clearCache}
+              className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 text-[10px] uppercase tracking-widest font-black rounded border border-red-100 transition-colors"
+            >
+              Clear Data
+            </button>
+          </div>
         </div>
-      ) : null}
-
-      <div
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => {
-          e.preventDefault();
-          processFile(e.dataTransfer.files[0]);
-        }}
-        onClick={() => document.getElementById("csv-input").click()}
-        className="border-2 border-dashed border-gray-300 rounded-xl
-                   p-10 text-center cursor-pointer
-                   hover:border-yellow-400 hover:bg-yellow-50
-                   transition-all"
-      >
-        <input
-          id="csv-input"
-          type="file"
-          accept=".csv"
-          className="hidden"
-          onChange={(e) => processFile(e.target.files[0])}
-        />
-        <div className="text-4xl mb-3">📂</div>
-        <p className="font-semibold text-gray-700 text-lg">
-          Drop CSV file here or click to browse
-        </p>
-        <p className="text-sm text-gray-400 mt-1">
-          Supports Comma ( , ) or Pipe ( | ) · Up to 50,000 rows
-        </p>
-      </div>
-
-      {status === "parsing" && (
-        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <span className="text-blue-700 text-sm">⏳ Parsing file...</span>
+      ) : (
+        <div
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            processFile(e.dataTransfer.files[0]);
+          }}
+          onClick={() => document.getElementById("csv-input").click()}
+          className="border-2 border-dashed border-gray-200 rounded-2xl
+                     p-12 text-center cursor-pointer bg-white mb-8
+                     hover:border-accent hover:bg-accent/5
+                     transition-all"
+        >
+          <input
+            id="csv-input"
+            type="file"
+            accept=".csv"
+            className="hidden"
+            onChange={(e) => processFile(e.target.files[0])}
+          />
+          <div className="text-5xl mb-4">📂</div>
+          <p className="font-bold text-gray-900 text-lg">
+            Drop CSV file here or click to browse
+          </p>
+          <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mt-2">
+            Supports Comma ( , ) or Pipe ( | ) · Up to 50,000 rows
+          </p>
         </div>
       )}
 
-      {status === "done" && (
-        <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-          <span className="text-green-700 font-medium text-sm">
-            ✅ {rowCount.toLocaleString()} rows loaded successfully
-          </span>
+      {status === "parsing" && (
+        <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-lg text-center">
+          <span className="text-blue-700 font-bold text-xs uppercase tracking-widest">⏳ Parsing file...</span>
         </div>
       )}
 
       {status === "error" && (
-        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-          <span className="text-red-700 text-sm">
+        <div className="mt-4 p-3 bg-red-50 border border-red-100 rounded-lg text-center">
+          <span className="text-red-700 font-bold text-xs uppercase tracking-widest">
             ❌ Failed to parse. Check file format.
           </span>
         </div>

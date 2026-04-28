@@ -20,7 +20,7 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 - **Framework:** React 18 + Vite
 - **Styling:** Tailwind CSS (Custom Black & Golden Yellow theme)
 - **Routing:** React Router v6
-- **Data Processing:** PapaParse
+  - **Data Processing:** PapaParse
 - **Tables:** TanStack Table v8
 - **Export:** FileSaver.js
 - **Animations:** Motion
@@ -42,6 +42,7 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 
 ## Version History
 
+- **v1.0.026:** Data Lens v3.1 Update: Implemented Vercel routing fix, complete redesign of KPI summary cards and CSV Uploader, advanced period rules logic (AM/PM, holidays, weekends), highly accurate Forecast Calculator, dense Team Overview data table, interactive Target configuration panel, and sticky Date Range Filter.
 - **v1.0.025:** Data Lens v3.0 Update: Collapsible Sidebar, Local Storage cache for recent CSVs, Target Call Rate Configuration, MRCards Grid with Popup Calendar, Forecast Tool, Team Overview, and re-structured automated AI insights.
 - **v1.0.024:** Critical stabilization of `VirtualTable`. Hardened `react-window` integration with robust import recovery and render-time safety guards. Fixed 'Element type is invalid' crash in high-volume data views.
 - **v1.0.023:** Implemented auto-detection for CSV delimiters (Comma and Pipe). Fixed "0 rows loaded" issue when uploading standard comma-delimited export files.
@@ -56,4 +57,4 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 - **v1.0.001:** Initial release. Authentication, CSV parsing, Analysis tools, and Admin panel implemented.
 
 ---
-© 2026 data-lens Analytics | version 1.0.025
+© 2026 data-lens Analytics | version 1.0.026

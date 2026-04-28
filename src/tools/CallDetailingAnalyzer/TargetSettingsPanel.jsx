@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, ChevronDown, ChevronUp } from 'lucide-react';
+import { Settings, Save, Trash2 } from 'lucide-react';
 
-const TargetSettingsPanel = ({ onTargetsChange, data, dateFrom, dateTo }) => {
+const TargetSettingsPanel = ({ onTargetsChange }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [hasTargets, setHasTargets] = useState(false);
   const [targets, setTargets] = useState({
-    hcpPerDay: 0,
-    hcoPerDay: 0,
-    phPerDay: 0,
+    hcpPerDay: 2,
+    hcoPerDay: 1,
+    phPerDay: 2,
   });
+  const [showSavedMsg, setShowSavedMsg] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem("datalens_targets");
@@ -15,30 +17,14 @@ const TargetSettingsPanel = ({ onTargetsChange, data, dateFrom, dateTo }) => {
       try {
         const parsed = JSON.parse(saved);
         setTargets(parsed);
-        // Call initially if needed
+        setHasTargets(true);
         if (onTargetsChange) onTargetsChange(parsed);
       } catch (e) {}
+    } else {
+       // if no saved targets, keep panel open initially
+       setIsOpen(true);
     }
   }, []);
-
-  // auto calc working days
-  const workingDays = React.useMemo(() => {
-    let start = new Date(dateFrom || data.reduce((min, d) => d.ReportDate < min ? d.ReportDate : min, data[0]?.ReportDate));
-    let end = new Date(dateTo || data.reduce((max, d) => d.ReportDate > max ? d.ReportDate : max, data[0]?.ReportDate));
-    
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) return 0;
-    
-    let days = 0;
-    let current = new Date(start);
-    while (current <= end) {
-      const day = current.getDay();
-      if (day !== 4 && day !== 5) {
-        days++;
-      }
-      current.setDate(current.getDate() + 1);
-    }
-    return days;
-  }, [data, dateFrom, dateTo]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -47,57 +33,84 @@ const TargetSettingsPanel = ({ onTargetsChange, data, dateFrom, dateTo }) => {
 
   const handleSave = () => {
     localStorage.setItem("datalens_targets", JSON.stringify(targets));
+    setHasTargets(true);
     if (onTargetsChange) onTargetsChange(targets);
-    setIsOpen(false);
+    setShowSavedMsg(true);
+    setTimeout(() => {
+       setShowSavedMsg(false);
+       setIsOpen(false);
+    }, 2000);
+  };
+
+  const handleClear = () => {
+    localStorage.removeItem("datalens_targets");
+    setHasTargets(false);
+    const defaults = { hcpPerDay: 2, hcoPerDay: 1, phPerDay: 2 };
+    setTargets(defaults);
+    if (onTargetsChange) onTargetsChange(defaults);
   };
 
   return (
-    <div className="bg-white border text-sm border-gray-200 rounded-2xl shadow-sm mb-8 overflow-hidden">
+    <div className="bg-white border text-sm border-gray-200 rounded-[1.25rem] shadow-sm mb-8 overflow-hidden">
       <div 
-        className="p-4 bg-gray-50/50 flex justify-between cursor-pointer hover:bg-gray-100 transition-colors"
+        className="p-5 bg-gray-50/50 flex justify-between items-center cursor-pointer hover:bg-gray-100 transition-colors"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <div className="flex items-center gap-2">
-          <Settings size={18} className="text-gray-600" />
-          <h3 className="font-bold text-gray-900 border-b-2 border-transparent hover:border-gray-200">
-            ⚙️ Target Call Rate Configuration
+        <div className="flex items-center gap-3">
+          <div className="bg-white p-2 border border-gray-200 rounded-lg shadow-sm">
+             <Settings size={20} className="text-gray-600" />
+          </div>
+          <h3 className="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
+            ⚙️ Daily Call Rate Targets
+            {hasTargets && !isOpen && <span className="text-[9px] bg-green-100 text-green-800 border border-green-200 px-2 py-0.5 rounded uppercase font-black tracking-widest ml-2 shadow-sm">Targets Active</span>}
           </h3>
         </div>
-        {isOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+        <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">{isOpen ? 'Collapse ▼' : 'Expand ▶'}</span>
       </div>
       
       {isOpen && (
         <div className="p-6 border-t border-gray-100 bg-white">
-           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-             <div>
-               <h4 className="font-bold text-gray-800 text-xs uppercase tracking-widest mb-4">Target Calls Per Day (Per MR)</h4>
-               <div className="space-y-4">
-                 <div className="flex items-center justify-between">
-                   <label className="text-gray-600 font-medium">HCP calls/day:</label>
-                   <input type="number" name="hcpPerDay" value={targets.hcpPerDay} onChange={handleChange} className="w-24 border rounded p-1 text-center" min="0" step="0.1" />
-                 </div>
-                 <div className="flex items-center justify-between">
-                   <label className="text-gray-600 font-medium">HCO calls/day:</label>
-                   <input type="number" name="hcoPerDay" value={targets.hcoPerDay} onChange={handleChange} className="w-24 border rounded p-1 text-center" min="0" step="0.1" />
-                 </div>
-                 <div className="flex items-center justify-between">
-                   <label className="text-gray-600 font-medium">PH calls/day:</label>
-                   <input type="number" name="phPerDay" value={targets.phPerDay} onChange={handleChange} className="w-24 border rounded p-1 text-center" min="0" step="0.1" />
-                 </div>
-               </div>
+           {showSavedMsg && (
+             <div className="mb-4 bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-xl shadow-sm text-xs font-bold flex items-center gap-2">
+                ✅ Targets saved and applied to performance grids.
+             </div>
+           )}
+           
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+             <div className="bg-blue-50/50 border border-blue-100 p-4 rounded-xl shadow-sm">
+                <label className="block text-[10px] font-black uppercase text-blue-800 tracking-widest mb-1 shadow-sm">HCP calls per PM day</label>
+                <div className="flex items-center gap-3 mt-2">
+                   <input type="number" name="hcpPerDay" value={targets.hcpPerDay} onChange={handleChange} className="w-20 border border-blue-200 rounded-lg shadow-inner py-1.5 px-3 text-center font-black text-gray-900 focus:ring-2 focus:ring-blue-400 outline-none" min="0" step="0.5" />
+                   <span className="text-[9px] text-blue-600/70 font-bold uppercase tracking-widest">Mon–Wed only<br/>(Thu PM off)</span>
+                </div>
              </div>
              
-             <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 flex flex-col justify-between">
-               <div>
-                 <p className="text-gray-500 font-medium mb-1">Working Days in Period:</p>
-                 <p className="text-3xl font-black text-gray-900">{workingDays}</p>
-                 <p className="text-[10px] text-gray-400 mt-2">(Excludes Thursdays & Fridays from date range)</p>
-               </div>
-               
-               <button onClick={handleSave} className="mt-4 w-full bg-gray-900 text-white font-bold py-2 rounded-lg hover:bg-gray-800 transition-colors">
-                 Save Targets
-               </button>
+             <div className="bg-green-50/50 border border-green-100 p-4 rounded-xl shadow-sm">
+                <label className="block text-[10px] font-black uppercase text-green-800 tracking-widest mb-1 shadow-sm">HCO calls per AM day</label>
+                <div className="flex items-center gap-3 mt-2">
+                   <input type="number" name="hcoPerDay" value={targets.hcoPerDay} onChange={handleChange} className="w-20 border border-green-200 rounded-lg shadow-inner py-1.5 px-3 text-center font-black text-gray-900 focus:ring-2 focus:ring-green-400 outline-none" min="0" step="0.5" />
+                   <span className="text-[9px] text-green-600/70 font-bold uppercase tracking-widest">Mon–Thu AM</span>
+                </div>
              </div>
+             
+             <div className="bg-teal-50/50 border border-teal-100 p-4 rounded-xl shadow-sm">
+                <label className="block text-[10px] font-black uppercase text-teal-800 tracking-widest mb-1 shadow-sm">PH calls per AM day</label>
+                <div className="flex items-center gap-3 mt-2">
+                   <input type="number" name="phPerDay" value={targets.phPerDay} onChange={handleChange} className="w-20 border border-teal-200 rounded-lg shadow-inner py-1.5 px-3 text-center font-black text-gray-900 focus:ring-2 focus:ring-teal-400 outline-none" min="0" step="0.5" />
+                   <span className="text-[9px] text-teal-600/70 font-bold uppercase tracking-widest">Mon–Thu AM</span>
+                </div>
+             </div>
+           </div>
+           
+           <div className="mt-6 flex items-center gap-4 border-t border-gray-100 pt-6">
+             <button onClick={handleSave} className="flex items-center gap-2 bg-yellow-400 hover:bg-yellow-300 text-yellow-900 font-black uppercase tracking-widest text-[10px] py-2.5 px-6 rounded-lg transition-colors shadow-sm">
+               <Save size={14} /> Save Targets
+             </button>
+             {hasTargets && (
+               <button onClick={handleClear} className="flex items-center gap-2 text-gray-400 hover:text-red-500 hover:bg-red-50 font-black uppercase tracking-widest text-[10px] py-2.5 px-4 rounded-lg transition-colors">
+                 <Trash2 size={14} /> Clear Targets
+               </button>
+             )}
            </div>
         </div>
       )}

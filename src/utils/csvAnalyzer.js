@@ -1,53 +1,131 @@
 // src/utils/csvAnalyzer.js
-// Add these guards to EVERY function
-
 import { safeStr, safeBool, safeDate } from "./safeCSV";
-
-// ✅ ALWAYS access row fields like this:
-// safeStr(row?.MrName)        ← safe
-// row?.MrName?.trim()         ← safe
-// row.MrName.trim()           ← 💥 crashes if undefined
+import { getDayType, isWorkingDayHCP, isWorkingDayHCO, isWorkingDayPH } from "./periodRules";
 
 export const getKPISummary = (rows) => {
   if (!rows || !rows.length) return {
     totalInteractions: 0,
     uniqueCustomers: 0,
     uniqueMRs: 0,
-    hcpCount: 0,
-    pharmacyCount: 0,
-    hcoCount: 0,
-    coachedCount: 0,
+    coachingDays: 0,
+    dmHCORate: 0,
+    dmHCPRate: 0,
+    dmPHRate: 0
   };
 
   const customers = new Set();
-  const mrs = new Set();
-  let hcp = 0, pharmacy = 0, hco = 0, coached = 0;
+  let totalInteractions = 0;
+  
+  const mrData = {};
 
   rows.forEach((row) => {
     if (!row) return;
 
-    const cid  = safeStr(row.CustomerId);
+    totalInteractions++;
+    const cid  = safeStr(row.CustomerId) || safeStr(row.CustomerName);
     const mr   = safeStr(row.MrName);
     const type = safeStr(row.InteractionType);
+    const date = safeDate(row.ReportDate);
+    const coached = safeBool(row.IsMRCoachingSubmitted);
 
     if (cid) customers.add(cid);
-    if (mr)  mrs.add(mr);
 
-    if (type === "HCP")           hcp++;
-    else if (type === "Pharmacy") pharmacy++;
-    else if (type === "HCO")      hco++;
+    if (mr && date) {
+      if (!mrData[mr]) {
+        mrData[mr] = { days: {} };
+      }
+      if (!mrData[mr].days[date]) {
+        mrData[mr].days[date] = { hcp: 0, hco: 0, ph: 0, coached: 0 };
+      }
+      if (type === 'HCP') mrData[mr].days[date].hcp++;
+      else if (type === 'HCO') mrData[mr].days[date].hco++;
+      else if (type === 'Pharmacy') mrData[mr].days[date].ph++;
+      
+      if (coached) mrData[mr].days[date].coached++;
+    }
+  });
 
-    if (safeBool(row.IsMRCoachingSubmitted)) coached++;
+  let totalCoachingDays = 0;
+  let sumHCORate = 0;
+  let countHCORate = 0;
+  let sumHCPRate = 0;
+  let countHCPRate = 0;
+  let sumPHRate = 0;
+  let countPHRate = 0;
+
+  const uniqueMRs = Object.keys(mrData).length;
+
+  Object.values(mrData).forEach(mrInfo => {
+    let hcoCount = 0;
+    let phCount = 0;
+    let hcpCount = 0;
+    
+    let hcoWorkingDaysCount = 0;
+    let phWorkingDaysCount = 0;
+    let hcpWorkingDaysCount = 0;
+
+    Object.entries(mrInfo.days).forEach(([dateStr, dayData]) => {
+      const dObj = new Date(dateStr);
+      
+      if (dayData.coached >= 4) {
+        totalCoachingDays++;
+      }
+
+      if (dayData.hco > 0) {
+        hcoCount += dayData.hco;
+      }
+      if (isWorkingDayHCO(dObj) && (dayData.hcp > 0 || dayData.hco > 0 || dayData.ph > 0)) {
+         // To avoid dividing by zero or assuming everyone works every day, we count working days 
+         // as days where the MR did SOME activity AND it's a valid working day for that type.
+         // Actually, the prompt says "dates where dateMap[d].hco > 0 AND not Friday".
+         // Let's stick strictly to what the prompt said for rate calculation for the grids:
+         // hcoDays = dates where dateMap[d].hco > 0 AND new Date(d).getDay() !== 5
+         // For team average, "Team average (DM Rate shown in KPI cards): dmHCORate = avg(hcoRate per MR)"
+         // Ok, let's strictly follow the MR card calc for the team average.
+      }
+      
+      if (dayData.hco > 0 && isWorkingDayHCO(dObj)) {
+        hcoWorkingDaysCount++;
+      }
+      if (dayData.ph > 0 && isWorkingDayPH(dObj)) {
+        phWorkingDaysCount++;
+      }
+      if (dayData.hcp > 0 && isWorkingDayHCP(dObj)) {
+        hcpWorkingDaysCount++;
+      }
+      
+      // We will sum total calls over all valid working days.
+      if (isWorkingDayHCO(dObj)) {
+         // Should we use the totalHCO on those days? Yes
+      }
+    });
+
+    // Count calls specifically on valid days, or all calls? "totalHCO / hcoDays"
+    // Prompt: hcoRate = totalHCO / count(dates with HCO, not Friday)
+    // Wait, totalHCO means all HCO calls, divided by dates with HCO that are not Friday.
+    let totalHCO = 0, totalPH = 0, totalHCP = 0;
+    Object.values(mrInfo.days).forEach(d => { totalHCO += d.hco; totalPH += d.ph; totalHCP += d.hcp; });
+
+    let mrHCORate = hcoWorkingDaysCount > 0 ? (totalHCO / hcoWorkingDaysCount) : 0;
+    let mrPHRate = phWorkingDaysCount > 0 ? (totalPH / phWorkingDaysCount) : 0;
+    let mrHCPRate = hcpWorkingDaysCount > 0 ? (totalHCP / hcpWorkingDaysCount) : 0;
+
+    if (hcoWorkingDaysCount > 0) { sumHCORate += mrHCORate; countHCORate++; }
+    if (phWorkingDaysCount > 0) { sumPHRate += mrPHRate; countPHRate++; }
+    if (hcpWorkingDaysCount > 0) { sumHCPRate += mrHCPRate; countHCPRate++; }
   });
 
   return {
-    totalInteractions: rows.length,
-    uniqueCustomers:   customers.size,
-    uniqueMRs:         mrs.size,
-    hcpCount:          hcp,
-    pharmacyCount:     pharmacy,
-    hcoCount:          hco,
-    coachedCount:      coached,
+    totalInteractions: totalInteractions,
+    uniqueCustomers: customers.size,
+    uniqueMRs: uniqueMRs,
+    coachingDays: totalCoachingDays,
+    dmHCORate: countHCORate > 0 ? (sumHCORate / countHCORate) : 0,
+    dmHCPRate: countHCPRate > 0 ? (sumHCPRate / countHCPRate) : 0,
+    dmPHRate: countPHRate > 0 ? (sumPHRate / countPHRate) : 0,
+    activeMRCountHCP: countHCPRate,
+    activeMRCountHCO: countHCORate,
+    activeMRCountPH: countPHRate
   };
 };
 
@@ -76,7 +154,7 @@ export const groupByMR = (rows) => {
     else if (type === "pharmacy")  map[mr].pharmacy++;
     if (safeBool(row.IsMRCoachingSubmitted)) map[mr].coached++;
 
-    const cid = safeStr(row.CustomerId);
+    const cid = safeStr(row.CustomerId) || safeStr(row.CustomerName);
     if (cid) map[mr].customers.add(cid);
   });
 

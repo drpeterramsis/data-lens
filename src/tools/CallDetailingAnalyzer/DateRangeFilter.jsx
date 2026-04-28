@@ -20,14 +20,6 @@ const DateRangeFilter = ({ dateFrom, dateTo, setDateFrom, setDateTo, data }) => 
     return days.size;
   }, [data, dateFrom, dateTo]);
 
-  const handleApply = () => {
-    // Actually the state is updated on change since we use controlled inputs
-    // but the prompt has an "Apply" pattern. We can just keep it auto-updating or keep the button purely cosmetic if it's already bound to states. 
-    // Wait, the prompt says "All cards, tables update on Apply". It's easier to just let it auto-apply since React state changes immediately. 
-    // Or we keep local state and only push on Apply. 
-    // We already hooked the parent state up! Let's just use it directly, standard react pattern.
-  };
-
   const handleClear = () => {
     setDateFrom('');
     setDateTo('');
@@ -39,43 +31,51 @@ const DateRangeFilter = ({ dateFrom, dateTo, setDateFrom, setDateTo, data }) => 
   };
 
   return (
-    <div className="bg-white border text-sm border-gray-200 rounded-xl shadow-sm mb-6 p-5">
-      <div className="flex flex-col md:flex-row items-center gap-6 justify-between">
+    <div className="sticky top-14 z-40 bg-white/95 backdrop-blur border text-sm border-gray-200 rounded-[1.25rem] shadow-sm mb-8 overflow-hidden transition-all shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+      <div className="p-4 flex flex-col xl:flex-row items-center gap-6 justify-between">
         
-        <div className="flex items-center gap-4">
-           <span className="p-2 bg-blue-50 text-blue-600 rounded-lg">📅</span>
+        <div className="flex items-center gap-3 w-full xl:w-auto shrink-0">
+           <div className="bg-blue-50 p-2 border border-blue-100 rounded-lg shadow-sm">
+             <span className="text-xl">📅</span>
+           </div>
            <div>
-             <h3 className="font-bold text-gray-900 border-b-2 border-transparent">Report Period</h3>
-             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Filter all data by date</p>
+             <h3 className="text-lg font-bold text-gray-900 tracking-tight">Report Period</h3>
+             <p className="text-[9px] text-blue-600/80 font-black uppercase tracking-widest mt-0.5">Filter all data by date</p>
            </div>
         </div>
 
-        <div className="flex-1 max-w-2xl flex flex-col md:flex-row items-end gap-4">
-          <div className="flex-1 w-full">
-            <label className="text-[10px] uppercase font-black text-gray-400 tracking-widest mb-1 block">From</label>
-            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 bg-gray-50 text-sm focus:border-accent outline-none" />
+        <div className="flex-1 w-full max-w-3xl flex flex-col sm:flex-row items-end gap-4">
+          <div className="flex-1 w-full relative">
+            <label className="text-[9px] uppercase font-black text-gray-400 tracking-widest mb-1.5 block">From</label>
+            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 bg-gray-50 text-sm font-medium focus:ring-2 focus:ring-blue-400 focus:bg-white focus:border-blue-400 outline-none transition-all shadow-inner" />
           </div>
-          <div className="flex-1 w-full">
-            <label className="text-[10px] uppercase font-black text-gray-400 tracking-widest mb-1 block">To</label>
-            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 bg-gray-50 text-sm focus:border-accent outline-none" />
+          <div className="flex-1 w-full relative">
+            <label className="text-[9px] uppercase font-black text-gray-400 tracking-widest mb-1.5 block">To</label>
+            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 bg-gray-50 text-sm font-medium focus:ring-2 focus:ring-blue-400 focus:bg-white focus:border-blue-400 outline-none transition-all shadow-inner" />
           </div>
           
-          <div className="flex gap-2">
-            <button onClick={handleClear} className="w-full md:w-auto px-4 py-2 text-xs font-bold bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 transition-colors auto whitespace-nowrap rounded-lg">
+          <div className="flex w-full sm:w-auto gap-2">
+            <button onClick={handleClear} className="flex-1 sm:w-auto px-5 py-2.5 text-[10px] uppercase tracking-widest font-black bg-white text-gray-500 border border-gray-200 hover:bg-gray-50 hover:text-gray-900 transition-colors rounded-lg shadow-sm">
               Clear
             </button>
-            <button onClick={handleFullPeriod} className="w-full md:w-auto px-4 py-2 text-xs font-bold bg-gray-100 text-gray-800 hover:bg-gray-200 transition-colors whitespace-nowrap rounded-lg shadow-sm">
+            <button onClick={handleFullPeriod} className="flex-1 sm:w-auto px-5 py-2.5 text-[10px] uppercase tracking-widest font-black bg-gray-900 text-white hover:bg-gray-800 transition-colors rounded-lg shadow-sm whitespace-nowrap">
               Full Period
             </button>
           </div>
         </div>
       </div>
       
-      <div className="mt-4 pt-3 border-t border-gray-100">
-         <p className="text-xs text-gray-500 font-medium">
-           Active Range: <span className="text-gray-900 font-bold">{displayFrom || 'N/A'} → {displayTo || 'N/A'}</span> 
-           <span className="ml-2 text-blue-600 font-bold">({activeDaysCount} active days)</span>
+      <div className="bg-gray-50/80 px-5 py-2.5 border-t border-gray-100 flex items-center justify-between">
+         <p className="text-xs text-gray-500 font-medium flex items-center gap-2">
+           <span className="text-[9px] uppercase font-black tracking-widest text-gray-400">Active Range:</span> 
+           <span className="bg-white border border-gray-200 px-2 py-0.5 rounded shadow-sm text-gray-900 font-bold">{displayFrom || 'N/A'}</span> 
+           → 
+           <span className="bg-white border border-gray-200 px-2 py-0.5 rounded shadow-sm text-gray-900 font-bold">{displayTo || 'N/A'}</span>
          </p>
+         <span className="text-[10px] bg-blue-100 text-blue-800 border border-blue-200 px-2.5 py-1 rounded-md font-black uppercase tracking-widest flex items-center gap-1 shadow-sm">
+           <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+           {activeDaysCount} active days
+         </span>
       </div>
     </div>
   );

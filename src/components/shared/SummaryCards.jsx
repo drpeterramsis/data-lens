@@ -6,37 +6,85 @@ import {
   GraduationCap, 
   Hospital, 
   Pill,
-  TrendingUp,
-  TrendingDown
+  TrendingUp
 } from 'lucide-react';
 
 const SummaryCards = ({ metrics }) => {
   const cards = [
-    { label: 'Total Interactions', value: metrics.totalInteractions, icon: ClipboardList, accent: 'bg-blue-500', text: 'text-blue-500' },
-    { label: 'Unique Customers', value: metrics.uniqueCustomers, icon: Users, accent: 'bg-green-500', text: 'text-green-500' },
-    { label: 'Active MRs', value: metrics.uniqueMRs, icon: UserRound, accent: 'bg-yellow-500', text: 'text-yellow-500' },
-    { label: 'Coaching Sessions', value: metrics.coachingSessions, icon: GraduationCap, accent: 'bg-purple-500', text: 'text-purple-500' },
-    { label: 'HCP Visits', value: metrics.hcpVisits, icon: Hospital, accent: 'bg-red-500', text: 'text-red-500' },
-    { label: 'Pharmacy Visits', value: metrics.pharmacyVisits, icon: Pill, accent: 'bg-teal-500', text: 'text-teal-500' },
+    { 
+      label: 'Coaching Days', 
+      value: metrics.coachingDays, 
+      icon: GraduationCap, 
+      accent: 'border-purple-500', 
+      text: 'text-purple-500', 
+      bg: 'bg-purple-50',
+      subtext: 'Team-wide total sessions' 
+    },
+    { 
+      label: 'Avg HCO Call Rate', 
+      value: metrics.dmHCORate ? metrics.dmHCORate.toFixed(1) : 0, 
+      icon: Hospital, 
+      accent: 'border-green-500', 
+      text: 'text-green-500', 
+      bg: 'bg-green-50',
+      subtext: `Team average across ${metrics.activeMRCountHCO || 0} MRs` 
+    },
+    { 
+      label: 'Avg HCP Call Rate', 
+      value: metrics.dmHCPRate ? metrics.dmHCPRate.toFixed(1) : 0, 
+      icon: UserRound, 
+      accent: 'border-blue-500', 
+      text: 'text-blue-500', 
+      bg: 'bg-blue-50',
+      subtext: `Team average across ${metrics.activeMRCountHCP || 0} MRs` 
+    },
+    { 
+      label: 'Avg PH Call Rate', 
+      value: metrics.dmPHRate ? metrics.dmPHRate.toFixed(1) : 0, 
+      icon: Pill, 
+      accent: 'border-teal-500', 
+      text: 'text-teal-500', 
+      bg: 'bg-teal-50',
+      subtext: `Team average across ${metrics.activeMRCountPH || 0} MRs` 
+    },
+    { 
+      label: 'Total Interactions', 
+      value: metrics.totalInteractions?.toLocaleString() || 0, 
+      icon: ClipboardList, 
+      accent: 'border-gray-500', 
+      text: 'text-gray-500', 
+      bg: 'bg-gray-50',
+      subtext: 'All visits this period' 
+    },
+    { 
+      label: 'Active MRs', 
+      value: metrics.uniqueMRs || 0, 
+      icon: Users, 
+      accent: 'border-yellow-500', 
+      text: 'text-yellow-500', 
+      bg: 'bg-yellow-50',
+      subtext: 'Unique MRs visited' 
+    },
   ];
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
       {cards.map((card, idx) => (
-        <div key={idx} className="bg-white border border-gray-200 rounded-xl p-4 shadow-soft relative overflow-hidden group hover:shadow-card transition-shadow">
-          <div className={`absolute top-0 left-0 w-full h-1 ${card.accent}`} />
-          <div className="flex flex-col gap-2">
-            <div className={`p-2 rounded-lg ${card.accent}/10 w-fit`}>
-              <card.icon size={18} className={card.text} />
-            </div>
+        <div key={idx} className={`bg-white border-t-4 border-l border-r border-b border-gray-200 rounded-xl p-4 shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow ${card.accent}`}>
+          <div className="flex justify-between items-start mb-2">
             <div>
-              <h4 className="text-xl font-black text-gray-900 tracking-tight">{card.value.toLocaleString()}</h4>
-              <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest mt-0.5">{card.label}</p>
+               <h4 className="text-xl font-black text-gray-900 tracking-tight">
+                 {card.value}
+                 {card.label.includes('Rate') && <span className="text-[10px] text-gray-400 font-bold ml-1">/d</span>}
+               </h4>
             </div>
-            <div className="flex items-center gap-1 text-[9px] font-bold text-success mt-1">
-               <TrendingUp size={10} />
-               <span>Synced</span>
+            <div className={`p-1.5 rounded-lg ${card.bg}`}>
+              <card.icon size={16} className={card.text} />
             </div>
+          </div>
+          <div>
+            <p className="text-[10px] font-black uppercase text-gray-500 tracking-widest">{card.label}</p>
+            <p className="text-[9px] text-gray-400 font-bold mt-1 tracking-wider">{card.subtext}</p>
           </div>
         </div>
       ))}
