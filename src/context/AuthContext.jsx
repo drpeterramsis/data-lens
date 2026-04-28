@@ -3,8 +3,17 @@ import initialUsers from '../data/users.json';
 
 const AuthContext = createContext();
 
+const AUTO_USER = {
+  name: "Admin User",
+  role: "admin",
+  initials: "AU",
+  email: "admin@datalens.com",
+  active: true,
+  tools: ["call-detailing", "sales-analyzer"],
+};
+
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(AUTO_USER); // Auto-login on state init
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState([]);
 
@@ -16,9 +25,11 @@ export const AuthProvider = ({ children }) => {
       : initialUsers.users;
     setUsers(mergedUsers);
 
-    // Initial session check
-    const savedUser = sessionStorage.getItem('datalens_user');
-    if (savedUser) {
+    // Ensure session reflects auto-login
+    if (!sessionStorage.getItem('datalens_user')) {
+      sessionStorage.setItem('datalens_user', JSON.stringify(AUTO_USER));
+    } else {
+      const savedUser = sessionStorage.getItem('datalens_user');
       setUser(JSON.parse(savedUser));
     }
     setLoading(false);

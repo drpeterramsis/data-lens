@@ -1,5 +1,5 @@
 const appVersion = {
-  version: "1.0.038"
+  version: "1.0.380"
 };
 
 export default appVersion;

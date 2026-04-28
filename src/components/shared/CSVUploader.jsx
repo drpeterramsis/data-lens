@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import Papa from "papaparse";
+import { cleanRows } from "../../utils/safeCSV";
 
 const CSVUploader = ({ onDataLoaded }) => {
   const [status, setStatus]     = useState("idle");
@@ -33,7 +34,6 @@ const CSVUploader = ({ onDataLoaded }) => {
       setCacheInfo(payload);
     } catch (e) {
       console.warn("Data too large to cache:", e);
-      alert("Data too large to cache. Will reload on refresh.");
     }
   };
 
@@ -50,114 +50,17 @@ const CSVUploader = ({ onDataLoaded }) => {
     setStatus("parsing");
 
     Papa.parse(file, {
+      delimiter: "|",
       header: true,
       skipEmptyLines: true,
-      delimiter: "",      // ← Auto-detect (supports | and ,)
-      worker: false,
-      chunk: false,
-      dynamicTyping: false,
-
-      // ✅ This handles quoted cells with newlines correctly
-      newline: "",        // auto-detect
-
+      transformHeader: h => h.replace(/^\uFEFF/, "").trim(),
       complete: (results) => {
-        const cleanRows = (raw) => {
-          return raw
-            .map(row => {
-              // Clean every field and key first to ensure we can find columns reliably
-              const clean = {};
-              Object.keys(row).forEach(k => {
-                const key = k
-                  .replace(/^\uFEFF/, "")
-                  .replace(/\s+/g, "") // Remove all spaces from keys for matching
-                  .trim();
-                const val = row[k];
-                clean[key] = (val === null || val === undefined)
-                  ? ""
-                  : String(val).replace(/\r/g, "").trim();
-              });
-              return clean;
-            })
-            .filter(row => {
-              // Be lenient with InteractionId (any non-empty value)
-              const id = row["InteractionId"];
-              if (!id) return false;
-
-              // Must have a valid MrName (any non-empty value)
-              const mr = row["MrName"];
-              if (!mr) return false;
-
-              // Try to normalize ReportDate to YYYY-MM-DD
-              let dt = String(row["ReportDate"] || "").trim();
-              if (dt.includes("T")) dt = dt.split("T")[0];
-              
-              // Handle DD/MM/YYYY or MM/DD/YYYY or DD-MM-YYYY
-              const separator = dt.includes("/") ? "/" : dt.includes("-") ? "-" : null;
-              if (separator && dt.split(separator).length === 3) {
-                const parts = dt.split(separator);
-                // Case: YYYY-MM-DD
-                if (parts[0].length === 4) {
-                  dt = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
-                } 
-                // Case: DD/MM/YYYY or MM/DD/YYYY
-                else if (parts[2].length === 4) {
-                   // Clean parts to ensure they are numeric
-                   const p0 = parts[0].replace(/\D/g, "");
-                   const p1 = parts[1].replace(/\D/g, "");
-                   const p2 = parts[2].replace(/\D/g, "");
-                   
-                   if (p0 && p1 && p2) {
-                     // Assume DD/MM/YYYY if p0 > 12
-                     if (parseInt(p0) > 12) {
-                       dt = `${p2}-${p1.padStart(2, '0')}-${p0.padStart(2, '0')}`;
-                     } else {
-                       // Ambiguous case, but we stick to DD/MM/YYYY as primary or whatever matches
-                       dt = `${p2}-${p1.padStart(2, '0')}-${p0.padStart(2, '0')}`;
-                     }
-                   }
-                }
-              }
-              
-              const isDateValid = (s) => {
-                const d = new Date(s);
-                return !isNaN(d.getTime());
-              };
-
-              if (!dt || !dt.match(/^\d{4}-\d{2}-\d{2}$/) || !isDateValid(dt)) return false;
-              row["ReportDate"] = dt; // Save normalized date back
-
-              // Must have valid InteractionType (normalized, case-insensitive)
-              const type = row["InteractionType"] || "";
-              const validTypes = ["HCP", "HCO", "Pharmacy"];
-              if (!validTypes.some(t => t.toLowerCase() === type.toLowerCase())) return false;
-
-              return true;
-            });
-        };
-
-        const valid = cleanRows(results.data);
-
-        // Deduplicate by InteractionId
-        const seen = new Set();
-        const deduped = valid.filter(row => {
-          const id = row["InteractionId"];
-          if (seen.has(id)) return false;
-          seen.add(id);
-          return true;
-        });
-
-        if (deduped.length === 0) {
-          console.warn("⚠️ All rows were filtered out. check columns: InteractionId, MrName, ReportDate, InteractionType.");
-          alert("No valid rows found. Please check if your CSV has the required columns: InteractionId, MrName, ReportDate, InteractionType.");
-        }
-
-        setRowCount(deduped.length);
+        const cleaned = cleanRows(results.data);
+        setRowCount(cleaned.length);
         setStatus("done");
-        saveToCache(deduped, file.name);
-        console.log("✅ Loaded:", deduped.length, "rows");
-        onDataLoaded(deduped);
+        saveToCache(cleaned, file.name);
+        onDataLoaded(cleaned);
       },
-
       error: (err) => {
         console.error("CSV Error:", err);
         setStatus("error");

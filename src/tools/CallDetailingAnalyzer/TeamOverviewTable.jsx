@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Users, ChevronUp, ChevronDown } from 'lucide-react';
-import { safeStr, safeDate, safeBool } from '../../utils/safeCSV';
+import { safeStr, parseReportDate, isCoached } from '../../utils/safeCSV';
 import { isHCPWorkingDay, isHCOWorkingDay, isPHWorkingDay } from '../../utils/periodRules';
 
 const TeamOverviewTable = ({ data, targets }) => {
@@ -20,7 +20,7 @@ const TeamOverviewTable = ({ data, targets }) => {
       }
       
       const type = safeStr(d.InteractionType).toUpperCase();
-      const date = safeDate(d.ReportDate);
+      const date = parseReportDate(d.ReportDate);
       if (!date) return;
       
       if (!rawMap[mr].days[date]) {
@@ -32,7 +32,7 @@ const TeamOverviewTable = ({ data, targets }) => {
       else if (type === 'PHARMACY') { rawMap[mr].totalPh++; rawMap[mr].days[date].ph++; }
       
       rawMap[mr].total++;
-      if (safeBool(d.IsMRCoachingSubmitted)) rawMap[mr].days[date].coached++;
+      if (isCoached(d.IsMRCoachingSubmitted)) rawMap[mr].days[date].coached++;
     });
 
     const parsed = Object.values(rawMap).map(mrInfo => {

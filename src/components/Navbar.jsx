@@ -59,18 +59,18 @@ const Navbar = () => {
       {/* RIGHT: User Profile */}
       <div className="flex items-center gap-3">
         <div className="flex flex-col items-end">
-          <span className="text-sm font-semibold text-white leading-tight">{user?.name}</span>
+          <span className="text-sm font-semibold text-gray-900 leading-tight">{user?.name}</span>
           <div className="flex items-center gap-1 mt-0.5">
-            <span className={`text-[10px] uppercase font-black tracking-widest px-2 py-0.5 rounded-full border border-white/5 shadow-inner ${
-              user?.role === 'admin' ? 'bg-accent/10 text-accent border-accent/20' : 'bg-border text-muted'
+            <span className={`text-[10px] uppercase font-black tracking-widest px-2 py-0.5 rounded-full border border-gray-100 shadow-inner ${
+              user?.role === 'admin' ? 'bg-accent/10 text-accent border-accent/20' : 'bg-gray-100 text-gray-400'
             }`}>
               {user?.role === 'admin' ? 'Admin' : 'User'}
             </span>
           </div>
         </div>
         
-        <div className="w-9 h-9 rounded-full bg-accent flex items-center justify-center border-2 border-surface shadow-lg">
-          <span className="text-xs font-black text-bg">
+        <div className="w-9 h-9 rounded-full bg-accent flex items-center justify-center border-2 border-white shadow-lg">
+          <span className="text-xs font-black text-white">
             {getInitials(user?.name)}
           </span>
         </div>

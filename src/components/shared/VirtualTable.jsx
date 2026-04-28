@@ -1,11 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import * as ReactWindow from 'react-window';
+import { List } from 'react-window';
 import { useReactTable, getCoreRowModel, flexRender } from '@tanstack/react-table';
-
-// Robust FixedSizeList recovery
-const FixedSizeList = ReactWindow.FixedSizeList || 
-                     (ReactWindow.default && ReactWindow.default.FixedSizeList) ||
-                     null;
 
 const VirtualTable = ({ data, columns }) => {
   const table = useReactTable({
@@ -16,8 +11,8 @@ const VirtualTable = ({ data, columns }) => {
 
   const { rows } = table.getRowModel();
 
-  // Define Row component inside useMemo to preserve identity but avoid re-creation
-  const Row = useMemo(() => ({ index, style }) => {
+  // Define Row component according to react-window v2.2.7 API
+  const RowComponent = useCallback(({ index, style }) => {
     const row = rows[index];
     if (!row) return null;
     
@@ -25,13 +20,13 @@ const VirtualTable = ({ data, columns }) => {
       <div 
         style={style} 
         className={`flex border-b border-gray-100 hover:bg-accent/5 transition-colors ${
-          row.original.IsMRCoachingSubmitted === 'True' ? 'bg-accent/5 font-medium' : ''
+          row.original.IsMRCoachingSubmitted?.toUpperCase() === 'TRUE' ? 'bg-yellow-50 font-medium' : ''
         }`}
       >
         {row.getVisibleCells().map(cell => (
           <div 
             key={cell.id} 
-            className="px-4 py-3 text-xs overflow-hidden text-ellipsis whitespace-nowrap border-r border-gray-100 last:border-r-0"
+            className="px-4 py-3 text-xs overflow-hidden text-ellipsis whitespace-nowrap border-r border-gray-100 last:border-r-0 flex items-center"
             style={{ width: cell.column.getSize() }}
           >
             {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -40,15 +35,6 @@ const VirtualTable = ({ data, columns }) => {
       </div>
     );
   }, [rows]);
-
-  if (!FixedSizeList) {
-    return (
-      <div className="p-12 text-center bg-red-50 border border-red-100 rounded-2xl">
-        <p className="text-red-500 font-black uppercase tracking-widest text-xs">Table Engine Failure</p>
-        <p className="text-gray-500 text-[10px] mt-2 font-bold uppercase">Contacting core systems... (react-window undefined)</p>
-      </div>
-    );
-  }
 
   const totalWidth = table.getTotalSize();
 
@@ -74,15 +60,15 @@ const VirtualTable = ({ data, columns }) => {
           </div>
 
           {/* Body */}
-          <FixedSizeList
+          <List
             height={600}
-            itemCount={rows.length}
-            itemSize={45}
+            rowCount={rows.length}
+            rowHeight={45}
             width={totalWidth || 800}
+            rowComponent={RowComponent}
+            rowProps={{}}
             className="scrollbar-hide"
-          >
-            {Row}
-          </FixedSizeList>
+          />
         </div>
       </div>
     </div>

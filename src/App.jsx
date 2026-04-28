@@ -34,50 +34,33 @@ const AppLayout = ({ children }) => {
 };
 
 const AppRoutes = () => {
-  const { user } = useAuth();
-  const location = useLocation();
-
   return (
     <Routes>
-      {/* Public Routes */}
-      <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <Login />} />
+      {/* Auto-redirect root to dashboard as user is always logged in */}
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
       
-      {/* Protected Routes */}
+      {/* Main App Routes */}
       <Route path="/dashboard" element={
-        <ProtectedRoute>
-          <AppLayout>
-            <Dashboard />
-          </AppLayout>
-        </ProtectedRoute>
+        <AppLayout><Dashboard /></AppLayout>
       } />
 
       <Route path="/tools/call-detailing" element={
-        <ProtectedRoute>
-          <AppLayout>
-            <CallDetailingAnalyzer />
-          </AppLayout>
-        </ProtectedRoute>
+        <AppLayout><CallDetailingAnalyzer /></AppLayout>
       } />
 
       <Route path="/tools/sales-analyzer" element={
-        <ProtectedRoute>
-          <AppLayout>
-            <SalesAnalyzer />
-          </AppLayout>
-        </ProtectedRoute>
+        <AppLayout><SalesAnalyzer /></AppLayout>
       } />
 
-      {/* Admin Routes */}
+      {/* Admin Route still protected for adminOnly check */}
       <Route path="/admin/users" element={
         <ProtectedRoute adminOnly={true}>
-          <AppLayout>
-            <UserManagement />
-          </AppLayout>
+          <AppLayout><UserManagement /></AppLayout>
         </ProtectedRoute>
       } />
 
-      {/* Catch-all redirect */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      {/* Catch-all redirect to dash */}
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
 };
