@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { TrendingUp, Plus, X, Calendar as CalendarIcon, Trash2 } from 'lucide-react';
+import { TrendingUp, Trash2 } from 'lucide-react';
 import { safeStr } from '../../utils/safeCSV';
-import { isHCPWorkingDay, isHCOWorkingDay, isPHWorkingDay, getDayName, countWorkingDays, getDatesInRange } from '../../utils/periodRules';
+import { getDatesInRange } from '../../utils/periodRules';
+import { calculateForecast } from '../../utils/forecastEngine';
 
-const ForecastTool = ({ data, targets }) => {
+const ForecastTool = ({ data, targets, mrStats }) => {
   const [isOpen, setIsOpen] = useState(false);
   
   // Base period state
@@ -24,22 +25,16 @@ const ForecastTool = ({ data, targets }) => {
         if (dt && dt > maxDate) maxDate = dt;
       });
       if (maxDate) {
-         setLastReportDate(maxDate);
-         const endDm = new Date(maxDate);
+         const tDate = maxDate.split('T')[0];
+         setLastReportDate(tDate);
+         const endDm = new Date(tDate);
          endDm.setMonth(endDm.getMonth() + 1, 0); // End of month
          setEndDate(endDm.toISOString().split('T')[0]);
       }
     }
   }, [data, lastReportDate]);
 
-  const uniqueMrNames = useMemo(() => {
-    const s = new Set();
-    data.forEach(d => {
-       const m = safeStr(d.MrName);
-       if (m) s.add(m);
-    });
-    return Array.from(s).sort();
-  }, [data]);
+  const uniqueMrNames = useMemo(() => mrStats?.map(m => m.mrName) || [], [mrStats]);
 
   const addDmMeeting = () => setDmMeetings([...dmMeetings, { date: '', phOff: false }]);
   const updateDmMeeting = (index, field, val) => {
@@ -65,182 +60,45 @@ const ForecastTool = ({ data, targets }) => {
   };
   const removeMrVacation = (index) => setMrVacations(mrVacations.filter((_, i) => i !== index));
 
-  // Determine full past period dates
-  const pastDates = useMemo(() => {
-      let minDate = '9999-99-99';
+  const dataFromDate = useMemo(() => {
+     let minDate = '9999-99-99';
       data.forEach(d => {
          const dt = safeStr(d.ReportDate);
          if (dt && dt < minDate) minDate = dt;
       });
-      if (!lastReportDate || minDate === '9999-99-99') return [];
-      return getDatesInRange(minDate, lastReportDate);
-  }, [data, lastReportDate]);
-
-  const remainingDates = useMemo(() => {
-      if (!lastReportDate || !endDate) return [];
-      const start = new Date(lastReportDate);
-      start.setDate(start.getDate() + 1);
-      const startStr = start.toISOString().split('T')[0];
-      if (startStr > endDate) return [];
-      return getDatesInRange(startStr, endDate);
-  }, [lastReportDate, endDate]);
-
-  const allDates = [...pastDates, ...remainingDates];
-
-  const periodAnalysis = useMemo(() => {
-    if (remainingDates.length === 0) return null;
-    
-    const hcoWorking = countWorkingDays(remainingDates, 'HCO', dmMeetings, holidays);
-    const phWorking = countWorkingDays(remainingDates, 'PH', dmMeetings, holidays);
-    const hcpWorking = countWorkingDays(remainingDates, 'HCP', dmMeetings, holidays);
-    
-    let fridays = 0; let thursdays = 0;
-    remainingDates.forEach(d => {
-       const cd = new Date(d);
-       const day = cd.getDay();
-       if (day === 5) fridays++;
-       if (day === 4) thursdays++;
-    });
-
-    const dayCells = remainingDates.map(dStr => {
-      let bg = 'bg-green-50 border-green-200 text-green-700';
-      const d = new Date(dStr);
-      const day = d.getDay();
-      
-      const hol = holidays.find(h => h.date === dStr);
-      const dm = dmMeetings.find(m => m.date === dStr);
-      
-      if (day === 5) bg = 'bg-red-100 border-red-200 text-red-800';
-      else if (hol && hol.type === 'full') bg = 'bg-purple-100 border-purple-200 text-purple-800';
-      else if (hol) bg = 'bg-yellow-100 border-yellow-200 text-yellow-800'; // half day
-      else if (dm) bg = 'bg-blue-100 border-blue-200 text-blue-800';
-      else if (day === 4) bg = 'bg-orange-100 border-orange-200 text-orange-800';
-
-      return { str: dStr, d: d.getDate(), bg };
-    });
-
-    return { 
-      total: remainingDates.length, hcoWorking, phWorking, hcpWorking, 
-      fridays, thursdays, dmCount: dmMeetings.length, holCount: holidays.length,
-      dayCells
-    };
-  }, [remainingDates, dmMeetings, holidays]);
+      if (minDate === '9999-99-99') return null;
+      return minDate.split('T')[0];
+  }, [data]);
 
   const forecastData = useMemo(() => {
-    if (remainingDates.length === 0 || !targets) return [];
-    
-    const mrMap = {};
-    uniqueMrNames.forEach(name => {
-       mrMap[name] = { name, doneHco: 0, donePh: 0, doneHcp: 0, vacDaysLost: { hco: 0, ph: 0, hcp: 0 } };
+    return calculateForecast({
+       mrStats, targets, lastReportDate, endDate, dmMeetings, holidays, mrVacations, dataFromDate
     });
+  }, [mrStats, targets, lastReportDate, endDate, dmMeetings, holidays, mrVacations, dataFromDate]);
 
-    data.forEach(d => {
-       const mr = safeStr(d.MrName);
-       if (!mr || !mrMap[mr]) return;
-       const t = safeStr(d.InteractionType);
-       if (t === 'HCO') mrMap[mr].doneHco++;
-       if (t === 'Pharmacy') mrMap[mr].donePh++;
-       if (t === 'HCP') mrMap[mr].doneHcp++;
-    });
+  const renderStatus = (status) => {
+     if (status === 'achieved') return <span className="bg-green-100 text-green-800 border-green-200 px-2 py-1 rounded-[4px] text-[9px] font-black uppercase tracking-widest border">✅ Achieved</span>;
+     if (status === 'ontrack') return <span className="bg-emerald-100 text-emerald-800 border-emerald-200 px-2 py-1 rounded-[4px] text-[9px] font-black uppercase tracking-widest border">🟢 On Track</span>;
+     if (status === 'atrisk') return <span className="bg-yellow-100 text-yellow-800 border-yellow-200 px-2 py-1 rounded-[4px] text-[9px] font-black uppercase tracking-widest border">🟡 At Risk</span>;
+     if (status === 'critical') return <span className="bg-red-100 text-red-800 border-red-200 px-2 py-1 rounded-[4px] text-[9px] font-black uppercase tracking-widest border">🔴 Critical</span>;
+     if (status === 'impossible') return <span className="bg-gray-100 text-gray-800 border-gray-200 px-2 py-1 rounded-[4px] text-[9px] font-black uppercase tracking-widest border">❌ Impossible</span>;
+     return null;
+  };
 
-    // Calculate MR specific past+future days considering their vacations
-    const baseHcoAll = countWorkingDays(allDates, 'HCO', dmMeetings, holidays);
-    const basePhAll  = countWorkingDays(allDates, 'PH', dmMeetings, holidays);
-    const baseHcpAll = countWorkingDays(allDates, 'HCP', dmMeetings, holidays);
-
-    Object.values(mrMap).forEach(mr => {
-       let mrHcoVacLost = 0; let mrPhVacLost = 0; let mrHcpVacLost = 0;
-       
-       const myVacs = mrVacations.filter(v => v.mrName === mr.name && v.from && v.to);
-       myVacs.forEach(vac => {
-          const vacDays = getDatesInRange(vac.from, vac.to);
-          mrHcoVacLost += vacDays.filter(d => allDates.includes(d)).filter(d => {
-             // check if it was a working day before vacation
-             return countWorkingDays([d], 'HCO', dmMeetings, holidays) === 1 && 
-                    (vac.type === 'full' || vac.type === 'am');
-          }).length;
-          
-          mrPhVacLost += vacDays.filter(d => allDates.includes(d)).filter(d => {
-             return countWorkingDays([d], 'PH', dmMeetings, holidays) === 1 && 
-                    (vac.type === 'full' || vac.type === 'am');
-          }).length;
-          
-          mrHcpVacLost += vacDays.filter(d => allDates.includes(d)).filter(d => {
-             return countWorkingDays([d], 'HCP', dmMeetings, holidays) === 1 && 
-                    (vac.type === 'full' || vac.type === 'pm');
-          }).length;
-       });
-
-       mr.fullTargetHco = Math.max(0, baseHcoAll - mrHcoVacLost) * (targets.hcoPerDay || 0);
-       mr.fullTargetPh  = Math.max(0, basePhAll - mrPhVacLost) * (targets.phPerDay || 0);
-       mr.fullTargetHcp = Math.max(0, baseHcpAll - mrHcpVacLost) * (targets.hcpPerDay || 0);
-
-       mr.neededHco = mr.fullTargetHco - mr.doneHco;
-       mr.neededPh  = mr.fullTargetPh - mr.donePh;
-       mr.neededHcp = mr.fullTargetHcp - mr.doneHcp;
-
-       // Remaining days for this MR
-       const remBaseHco = countWorkingDays(remainingDates, 'HCO', dmMeetings, holidays);
-       const remBasePh  = countWorkingDays(remainingDates, 'PH', dmMeetings, holidays);
-       const remBaseHcp = countWorkingDays(remainingDates, 'HCP', dmMeetings, holidays);
-
-       // Vacations in remaining period
-       let remHcoVacLost = 0; let remPhVacLost = 0; let remHcpVacLost = 0;
-       myVacs.forEach(vac => {
-          const vacDays = getDatesInRange(vac.from, vac.to);
-          remHcoVacLost += vacDays.filter(d => remainingDates.includes(d)).filter(d => countWorkingDays([d], 'HCO', dmMeetings, holidays) === 1 && (vac.type === 'full' || vac.type === 'am')).length;
-          remPhVacLost += vacDays.filter(d => remainingDates.includes(d)).filter(d => countWorkingDays([d], 'PH', dmMeetings, holidays) === 1 && (vac.type === 'full' || vac.type === 'am')).length;
-          remHcpVacLost += vacDays.filter(d => remainingDates.includes(d)).filter(d => countWorkingDays([d], 'HCP', dmMeetings, holidays) === 1 && (vac.type === 'full' || vac.type === 'pm')).length;
-       });
-
-       mr.remHcoDays = Math.max(0, remBaseHco - remHcoVacLost);
-       mr.remPhDays  = Math.max(0, remBasePh - remPhVacLost);
-       mr.remHcpDays = Math.max(0, remBaseHcp - remHcpVacLost);
-
-       mr.reqRateHco = mr.remHcoDays > 0 ? (mr.neededHco / mr.remHcoDays) : 0;
-       mr.reqRatePh  = mr.remPhDays > 0  ? (mr.neededPh / mr.remPhDays) : 0;
-       mr.reqRateHcp = mr.remHcpDays > 0 ? (mr.neededHcp / mr.remHcpDays) : 0;
-
-       mr.vacDaysLost = { hco: mrHcoVacLost, ph: mrPhVacLost, hcp: mrHcpVacLost };
-
-       // Status determination
-       let statStr = '✅ Achieved';
-       let statClass = 'bg-green-100 text-green-800 border-green-200';
-       
-       const hcoTgtDay = targets.hcoPerDay || 0;
-       const phTgtDay = targets.phPerDay || 0;
-       const hcpTgtDay = targets.hcpPerDay || 0;
-
-       if (mr.neededHco > 0 || mr.neededPh > 0 || mr.neededHcp > 0) {
-          const maxRatio = Math.max(
-            hcoTgtDay > 0 ? mr.reqRateHco / hcoTgtDay : 0,
-            phTgtDay > 0 ? mr.reqRatePh / phTgtDay : 0,
-            hcpTgtDay > 0 ? mr.reqRateHcp / hcpTgtDay : 0
-          );
-          if (maxRatio <= 1.0) { statStr = '🟢 On Track'; statClass = 'bg-emerald-100 text-emerald-800 border-emerald-200'; }
-          else if (maxRatio <= 1.5) { statStr = '🟡 At Risk'; statClass = 'bg-yellow-100 text-yellow-800 border-yellow-200'; }
-          else { statStr = '🔴 Critical'; statClass = 'bg-red-100 text-red-800 border-red-200'; }
-       }
-       mr.status = statStr;
-       mr.statClass = statClass;
-    });
-
-    return Object.values(mrMap).sort((a,b) => b.reqRateHco - a.reqRateHco);
-  }, [allDates, remainingDates, dmMeetings, holidays, mrVacations, data, targets, uniqueMrNames]);
-
-  const renderCellRate = (needed, reqRate, targetRate) => {
-     if (needed <= 0) return <span className="text-green-600 font-black">✅ Done</span>;
+  const renderCellRate = (achieved, impossible, reqRate, targetRate) => {
+     if (achieved) return <span className="text-green-600 font-black text-xs">✅ Achieved</span>;
+     if (impossible) return <span className="text-red-600 font-black text-[10px]">No Days Left</span>;
      
      let bg = 'bg-gray-50'; let txt = 'text-gray-900';
-     if (targetRate > 0) {
+     if (targetRate > 0 && reqRate !== null) {
         if (reqRate <= targetRate) { bg = 'bg-emerald-100'; txt = 'text-emerald-900'; }
         else if (reqRate <= targetRate * 1.5) { bg = 'bg-yellow-100'; txt = 'text-yellow-900'; }
         else { bg = 'bg-red-100'; txt = 'text-red-900'; }
      }
      
      return (
-       <div className={`px-2 py-1 rounded font-black border border-black/5 ${bg} ${txt}`}>
-          {reqRate.toFixed(1)} <span className="text-[9px] font-bold opacity-60">/d</span>
+       <div className={`px-2 py-1 rounded font-black border border-black/5 ${bg} ${txt} text-xs`}>
+          {reqRate?.toFixed(2) || '0.00'} <span className="text-[9px] font-bold opacity-60">/d</span>
        </div>
      );
   };
@@ -306,9 +164,9 @@ const ForecastTool = ({ data, targets }) => {
                 </div>
                 <div className="space-y-2">
                    {holidays.map((h, i) => (
-                     <div key={i} className="flex gap-2 bg-purple-50/50 p-2 rounded-lg border border-purple-100 items-center">
-                        <input type="date" className="border-gray-200 rounded px-2 py-1 text-xs w-28" value={h.date} onChange={e=>updateHoliday(i, 'date', e.target.value)} />
-                        <select className="border-gray-200 rounded px-2 py-1 text-xs flex-1" value={h.type} onChange={e=>updateHoliday(i, 'type', e.target.value)}>
+                     <div key={i} className="flex flex-wrap lg:flex-nowrap gap-2 bg-purple-50/50 p-2 rounded-lg border border-purple-100 items-center">
+                        <input type="date" className="border-gray-200 rounded px-2 py-1 text-xs w-full lg:w-32" value={h.date} onChange={e=>updateHoliday(i, 'date', e.target.value)} />
+                        <select className="border-gray-200 rounded px-2 py-1 text-xs flex-1 min-w-[130px]" value={h.type} onChange={e=>updateHoliday(i, 'type', e.target.value)}>
                            <option value="full">Full Day</option>
                            <option value="am">Half Day AM (HCO+PH)</option>
                            <option value="pm">Half Day PM (HCP)</option>
@@ -357,136 +215,104 @@ const ForecastTool = ({ data, targets }) => {
              <div className="text-[9px] uppercase tracking-widest font-black text-gray-500">Edit in Target Settings</div>
           </div>
 
-          {periodAnalysis && (
-            <div className="mt-8 grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
-               {/* Calendar display */}
-               <div className="lg:col-span-1 bg-white border border-gray-200 rounded-2xl shadow-sm p-4">
-                  <h4 className="text-[10px] uppercase font-black text-gray-400 tracking-widest mb-4">Remaining Calendar</h4>
-                  <div className="grid grid-cols-7 gap-1.5 mb-4">
-                    {['S','M','T','W','T','F','S'].map((d, i) => <div key={i} className="text-[9px] text-center font-black text-gray-400">{d}</div>)}
-                    {periodAnalysis.dayCells.map((c, i) => (
-                      <div key={i} title={c.str} className={`h-8 rounded-md flex items-center justify-center text-[10px] font-black shadow-sm ${c.bg}`}>
-                        {c.d}
-                      </div>
-                    ))}
+          {forecastData?.length > 0 && (
+             <div className="mt-8 bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
+                <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+                  <h4 className="font-black text-gray-900 tracking-tight flex gap-2 items-center">🎯 Required Call Rate per MR</h4>
+                  <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">
+                    Hover for formula tooltip
                   </div>
-                  <div className="space-y-1.5 text-[9px] font-black uppercase tracking-widest text-gray-500">
-                     <div className="flex items-center justify-between"><div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded bg-green-100"></div> Work</div> <span>{periodAnalysis.total}d</span></div>
-                     <div className="flex items-center justify-between"><div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded bg-red-100"></div> Friday</div> <span>{periodAnalysis.fridays}d</span></div>
-                     <div className="flex items-center justify-between"><div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded bg-orange-100"></div> Thu PM Off</div> <span>{periodAnalysis.thursdays}d</span></div>
-                     <div className="flex items-center justify-between"><div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded bg-blue-100"></div> DM Meet</div> <span>{periodAnalysis.dmCount}d</span></div>
-                     <div className="flex items-center justify-between"><div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded bg-purple-100"></div> Holiday</div> <span>{periodAnalysis.holCount}d</span></div>
+                </div>
+                <div className="overflow-x-auto p-4 bg-blue-50/50 border-b border-blue-100 flex items-start text-xs text-blue-800">
+                  <span className="mr-2">ℹ️</span>
+                  <div>
+                     <b>Forecast Formula:</b> <code>Required Rate = (Deficit ÷ Remaining Days) + Target Rate</code>
                   </div>
-                  <div className="mt-4 pt-4 border-t border-gray-100 space-y-1 text-xs">
-                     <div className="flex justify-between font-bold"><span className="text-gray-500">HCO Net:</span> <span className="text-gray-900">{periodAnalysis.hcoWorking}d</span></div>
-                     <div className="flex justify-between font-bold"><span className="text-gray-500">PH Net:</span> <span className="text-gray-900">{periodAnalysis.phWorking}d</span></div>
-                     <div className="flex justify-between font-bold"><span className="text-gray-500">HCP Net:</span> <span className="text-gray-900">{periodAnalysis.hcpWorking}d</span></div>
-                  </div>
-               </div>
-               
-               {/* Table display */}
-               <div className="lg:col-span-3 bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
-                  <div className="p-4 border-b border-gray-200 bg-gray-50">
-                    <h4 className="font-black text-gray-900 tracking-tight">🎯 Required Call Rate per MR</h4>
-                  </div>
-                  <div className="overflow-x-auto flex-1">
-                     <table className="w-full text-left text-xs whitespace-nowrap">
-                       <thead className="bg-white border-b border-gray-200">
-                         <tr className="text-[9px] uppercase font-black text-gray-400 bg-gray-50 tracking-widest">
-                            <th className="px-4 py-2 border-r border-gray-200">MR Name</th>
-                            <th className="px-2 py-2 text-center border-r border-gray-200 bg-green-50/30 text-green-700" colSpan="3">HCO (AM)</th>
-                            <th className="px-2 py-2 text-center border-r border-gray-200 bg-teal-50/30 text-teal-700" colSpan="3">PH (AM)</th>
-                            <th className="px-2 py-2 text-center border-r border-gray-200 bg-blue-50/30 text-blue-700" colSpan="3">HCP (PM)</th>
-                            <th className="px-4 py-2 text-center bg-gray-50">Status</th>
-                         </tr>
-                         <tr className="text-[9px] uppercase font-bold text-gray-500 border-b border-gray-200">
-                            <th className="px-4 py-1.5 border-r border-gray-200"></th>
-                            <th className="px-1 py-1.5 text-center text-[8px]" title="Done / Full Target">D/Tar</th>
-                            <th className="px-1 py-1.5 text-center text-[8px]" title="Remaining Net Days">Rem Days</th>
-                            <th className="px-1 py-1.5 text-center border-r border-gray-200">Req/d</th>
-                            
-                            <th className="px-1 py-1.5 text-center text-[8px]" title="Done / Full Target">D/Tar</th>
-                            <th className="px-1 py-1.5 text-center text-[8px]" title="Remaining Net Days">Rem Days</th>
-                            <th className="px-1 py-1.5 text-center border-r border-gray-200">Req/d</th>
-                            
-                            <th className="px-1 py-1.5 text-center text-[8px]" title="Done / Full Target">D/Tar</th>
-                            <th className="px-1 py-1.5 text-center text-[8px]" title="Remaining Net Days">Rem Days</th>
-                            <th className="px-1 py-1.5 text-center border-r border-gray-200">Req/d</th>
-                            <th className="px-4 py-1.5 bg-gray-50"></th>
-                         </tr>
-                       </thead>
-                       <tbody className="divide-y divide-gray-100">
-                          {forecastData.map(mr => (
-                            <tr key={mr.name} className="hover:bg-gray-50 outline-none hover:shadow-inner transition-shadow group">
-                               <td className="px-4 py-2 font-black text-gray-700 border-r border-gray-200 group-hover:bg-gray-100">{mr.name}</td>
-                               {/* HCO */}
-                               <td className="px-2 py-2 text-center font-mono">
-                                 <span className="text-gray-900 font-bold">{mr.doneHco}</span><span className="text-gray-400">/</span><span className="text-gray-500 opacity-60">{mr.fullTargetHco.toFixed(0)}</span>
-                               </td>
-                               <td className="px-2 py-2 text-center text-gray-400 font-bold">{mr.remHcoDays}</td>
-                               <td className="px-2 py-2 text-center border-r border-gray-200">{renderCellRate(mr.neededHco, mr.reqRateHco, targets.hcoPerDay)}</td>
-                               {/* PH */}
-                               <td className="px-2 py-2 text-center font-mono">
-                                 <span className="text-gray-900 font-bold">{mr.donePh}</span><span className="text-gray-400">/</span><span className="text-gray-500 opacity-60">{mr.fullTargetPh.toFixed(0)}</span>
-                               </td>
-                               <td className="px-2 py-2 text-center text-gray-400 font-bold">{mr.remPhDays}</td>
-                               <td className="px-2 py-2 text-center border-r border-gray-200">{renderCellRate(mr.neededPh, mr.reqRatePh, targets.phPerDay)}</td>
-                               {/* HCP */}
-                               <td className="px-2 py-2 text-center font-mono">
-                                 <span className="text-gray-900 font-bold">{mr.doneHcp}</span><span className="text-gray-400">/</span><span className="text-gray-500 opacity-60">{mr.fullTargetHcp.toFixed(0)}</span>
-                               </td>
-                               <td className="px-2 py-2 text-center text-gray-400 font-bold">{mr.remHcpDays}</td>
-                               <td className="px-2 py-2 text-center border-r border-gray-200">{renderCellRate(mr.neededHcp, mr.reqRateHcp, targets.hcpPerDay)}</td>
-                               
-                               <td className="px-4 py-2 text-center bg-gray-50 group-hover:bg-gray-100">
-                                  <span className={`px-2 py-1 rounded-[4px] text-[9px] font-black uppercase tracking-widest border transition-shadow ${mr.statClass}`}>
-                                    {mr.status}
-                                  </span>
-                               </td>
-                            </tr>
-                          ))}
-                       </tbody>
-                     </table>
-                  </div>
-                  <div className="bg-blue-50/50 p-3 text-center border-t border-blue-100">
-                     <p className="text-[10px] font-medium text-blue-800">
-                       ℹ️ Required rate = (Full Period Target − Done) ÷ Remaining Working Days.
-                     </p>
-                  </div>
-               </div>
-            </div>
+                </div>
+                <div className="overflow-x-auto max-h-[800px]">
+                   <table className="w-full text-left text-[11px] whitespace-nowrap">
+                     <thead className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
+                       <tr className="text-[9px] uppercase font-black text-gray-400 bg-gray-50 tracking-widest">
+                          <th className="px-3 py-2 border-r border-gray-200">MR Name</th>
+                          <th className="px-2 py-2 text-center border-r border-gray-200 bg-green-50/80 text-green-700" colSpan="3">HCO (AM)</th>
+                          <th className="px-2 py-2 text-center border-r border-gray-200 bg-teal-50/80 text-teal-700" colSpan="3">PH (AM)</th>
+                          <th className="px-2 py-2 text-center border-r border-gray-200 bg-blue-50/80 text-blue-700" colSpan="3">HCP (PM)</th>
+                          <th className="px-3 py-2 text-center bg-gray-50">Status</th>
+                       </tr>
+                       <tr className="text-[9px] uppercase font-bold text-gray-500 border-b border-gray-200 bg-gray-50/80">
+                          <th className="px-3 py-1.5 border-r border-gray-200"></th>
+                          
+                          {/* HCO */}
+                          <th className="px-1 py-1.5 text-center" title="Done / Full Target">D/Tar</th>
+                          <th className="px-1 py-1.5 text-center" title="Remaining Net Days for this MR">Days Left</th>
+                          <th className="px-1 py-1.5 text-center border-r border-gray-200" title="Required = (Deficit ÷ Remaining Days) + Target">Req/d</th>
+                          
+                          {/* PH */}
+                          <th className="px-1 py-1.5 text-center" title="Done / Full Target">D/Tar</th>
+                          <th className="px-1 py-1.5 text-center" title="Remaining Net Days for this MR">Days Left</th>
+                          <th className="px-1 py-1.5 text-center border-r border-gray-200" title="Required = (Deficit ÷ Remaining Days) + Target">Req/d</th>
+                          
+                          {/* HCP */}
+                          <th className="px-1 py-1.5 text-center" title="Done / Full Target">D/Tar</th>
+                          <th className="px-1 py-1.5 text-center" title="Remaining Net Days for this MR">Days Left</th>
+                          <th className="px-1 py-1.5 text-center border-r border-gray-200" title="Required = (Deficit ÷ Remaining Days) + Target">Req/d</th>
+                          <th className="px-3 py-1.5"></th>
+                       </tr>
+                     </thead>
+                     <tbody className="divide-y divide-gray-100">
+                        {forecastData.map(mr => (
+                          <tr key={mr.mrName} className="hover:bg-gray-50 outline-none hover:shadow-inner transition-shadow group">
+                             <td className="px-3 py-2 border-r border-gray-200 group-hover:bg-gray-100">
+                               <div className="font-black text-gray-800 text-xs">{mr.mrName}</div>
+                               <div className="text-[9px] uppercase tracking-widest text-gray-400 mt-0.5">{mr.lineName}</div>
+                             </td>
+                             
+                             {/* HCO */}
+                             <td className="px-2 py-2 text-center font-mono">
+                               <span className="text-gray-900 font-bold">{mr.hcoDone}</span><span className="text-gray-400">/</span><span className="text-gray-500 opacity-60 text-[10px]">{mr.hcoFullTarget}</span>
+                             </td>
+                             <td className="px-2 py-2 text-center text-gray-500 font-bold">{mr.hcoRemDays}</td>
+                             <td className="px-2 py-2 text-center border-r border-gray-200 relative group/cell">
+                                {renderCellRate(mr.hcoAchieved, mr.hcoRemDays === 0 && mr.hcoDeficit > 0, mr.hcoRequired, targets.hcoPerDay)}
+                                <div className="absolute opacity-0 group-hover/cell:opacity-100 bg-gray-900 text-white text-[9px] rounded p-1.5 bottom-full left-1/2 -translate-x-1/2 mb-1 pointer-events-none whitespace-nowrap z-10 transition-opacity whitespace-pre">
+                                  Deficit: {mr.hcoDeficit > 0 ? mr.hcoDeficit : 0} calls
+                                </div>
+                             </td>
+                             
+                             {/* PH */}
+                             <td className="px-2 py-2 text-center font-mono">
+                               <span className="text-gray-900 font-bold">{mr.phDone}</span><span className="text-gray-400">/</span><span className="text-gray-500 opacity-60 text-[10px]">{mr.phFullTarget}</span>
+                             </td>
+                             <td className="px-2 py-2 text-center text-gray-500 font-bold">{mr.phRemDays}</td>
+                             <td className="px-2 py-2 text-center border-r border-gray-200 relative group/cell">
+                               {renderCellRate(mr.phAchieved, mr.phRemDays === 0 && mr.phDeficit > 0, mr.phRequired, targets.phPerDay)}
+                               <div className="absolute opacity-0 group-hover/cell:opacity-100 bg-gray-900 text-white text-[9px] rounded p-1.5 bottom-full left-1/2 -translate-x-1/2 mb-1 pointer-events-none whitespace-nowrap z-10 transition-opacity whitespace-pre">
+                                  Deficit: {mr.phDeficit > 0 ? mr.phDeficit : 0} calls
+                                </div>
+                             </td>
+                             
+                             {/* HCP */}
+                             <td className="px-2 py-2 text-center font-mono">
+                               <span className="text-gray-900 font-bold">{mr.hcpDone}</span><span className="text-gray-400">/</span><span className="text-gray-500 opacity-60 text-[10px]">{mr.hcpFullTarget}</span>
+                             </td>
+                             <td className="px-2 py-2 text-center text-gray-500 font-bold">{mr.hcpRemDays}</td>
+                             <td className="px-2 py-2 text-center border-r border-gray-200 relative group/cell">
+                               {renderCellRate(mr.hcpAchieved, mr.hcpRemDays === 0 && mr.hcpDeficit > 0, mr.hcpRequired, targets.hcpPerDay)}
+                               <div className="absolute opacity-0 group-hover/cell:opacity-100 bg-gray-900 text-white text-[9px] rounded p-1.5 bottom-full left-1/2 -translate-x-1/2 mb-1 pointer-events-none whitespace-nowrap z-10 transition-opacity whitespace-pre">
+                                  Deficit: {mr.hcpDeficit > 0 ? mr.hcpDeficit : 0} calls
+                                </div>
+                             </td>
+                             
+                             <td className="px-3 py-2 text-center bg-gray-50 group-hover:bg-gray-100">
+                                {renderStatus(mr.overallStatus)}
+                             </td>
+                          </tr>
+                        ))}
+                     </tbody>
+                   </table>
+                </div>
+             </div>
           )}
-
-          {mrVacations.length > 0 && periodAnalysis && (
-            <div className="mt-8 border border-gray-200 rounded-2xl shadow-sm overflow-hidden bg-white">
-               <div className="p-4 border-b border-gray-200 bg-yellow-50">
-                  <h4 className="font-black text-yellow-900 tracking-tight flex items-center gap-2">🏖 MR Vacation Impact</h4>
-               </div>
-               <div className="overflow-x-auto">
-                 <table className="w-full text-left text-xs whitespace-nowrap">
-                   <thead className="bg-white border-b border-gray-100 text-[10px] font-black uppercase text-gray-500 tracking-widest">
-                     <tr>
-                        <th className="px-4 py-3 border-r border-gray-100">MR Name</th>
-                        <th className="px-4 py-3">Total HCO Lost</th>
-                        <th className="px-4 py-3">Total PH Lost</th>
-                        <th className="px-4 py-3">Total HCP Lost</th>
-                     </tr>
-                   </thead>
-                   <tbody className="divide-y divide-gray-50">
-                     {forecastData.filter(m => m.vacDaysLost.hco > 0 || m.vacDaysLost.ph > 0 || m.vacDaysLost.hcp > 0).map(mr => (
-                        <tr key={mr.name}>
-                          <td className="px-4 py-3 font-bold text-gray-800 border-r border-gray-100">{mr.name}</td>
-                          <td className="px-4 py-3 text-red-600 font-bold">{mr.vacDaysLost.hco} days</td>
-                          <td className="px-4 py-3 text-red-600 font-bold">{mr.vacDaysLost.ph} days</td>
-                          <td className="px-4 py-3 text-red-600 font-bold">{mr.vacDaysLost.hcp} days</td>
-                        </tr>
-                     ))}
-                   </tbody>
-                 </table>
-               </div>
-            </div>
-          )}
-          
         </div>
       )}
     </div>

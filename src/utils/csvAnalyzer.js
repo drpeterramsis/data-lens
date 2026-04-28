@@ -2,111 +2,230 @@
 import { safeStr, safeBool, safeDate } from "./safeCSV";
 import { isWorkingDayHCP, isWorkingDayHCO, isWorkingDayPH } from "./periodRules";
 
-export const getKPISummary = (rows) => {
-  if (!rows || !rows.length) return {
-    uniqueMRs: 0,
+// ── KPI Card calculations ──────────────────────
+
+export const calculateKPICards = (mrStats) => {
+  if (!mrStats || mrStats.length === 0) return {
     coachingDays: 0,
-    dmHCORate: 0,
-    dmHCPRate: 0,
-    dmPHRate: 0,
-    activeMRCountHCP: 0,
-    activeMRCountHCO: 0,
-    activeMRCountPH: 0
+    avgHCORate: 0,
+    avgHCPRate: 0,
+    avgPHRate:  0,
+    activeMRs:  0,
   };
 
-  const mrData = {};
+  // Total coaching days = sum across all MRs
+  const coachingDays = mrStats.reduce(
+    (sum, mr) => sum + mr.coachingDays, 0
+  );
+
+  // Average rates = sum of rates / count of MRs
+  // Only include MRs who have working days for that type
+  const hcoMRs  = mrStats.filter(mr => mr.hcoDays > 0);
+  const hcpMRs  = mrStats.filter(mr => mr.hcpDays > 0);
+  const phMRs   = mrStats.filter(mr => mr.phDays  > 0);
+
+  const avgHCORate = hcoMRs.length > 0
+    ? parseFloat((
+        hcoMRs.reduce((s, mr) => s + mr.hcoRate, 0)
+        / hcoMRs.length
+      ).toFixed(1))
+    : 0;
+
+  const avgHCPRate = hcpMRs.length > 0
+    ? parseFloat((
+        hcpMRs.reduce((s, mr) => s + mr.hcpRate, 0)
+        / hcpMRs.length
+      ).toFixed(1))
+    : 0;
+
+  const avgPHRate = phMRs.length > 0
+    ? parseFloat((
+        phMRs.reduce((s, mr) => s + mr.phRate, 0)
+        / phMRs.length
+      ).toFixed(1))
+    : 0;
+
+  return {
+    coachingDays,
+    avgHCORate,
+    avgHCPRate,
+    avgPHRate,
+    activeMRs: mrStats.length,
+    hcoMRCount: hcoMRs.length,
+    hcpMRCount: hcpMRs.length,
+    phMRCount:  phMRs.length,
+  };
+};
+
+export const calculateMRStats = (rows) => {
+  if (!rows || rows.length === 0) return [];
+
+  // Group rows by MR
+  const mrMap = {};
 
   rows.forEach((row) => {
     if (!row) return;
+    
+    const mr = (row.MrName || "").trim();
+    if (!mr) return;
 
-    const mr   = safeStr(row.MrName);
-    const type = safeStr(row.InteractionType);
-    const date = safeDate(row.ReportDate);
-    const coached = safeBool(row.IsMRCoachingSubmitted);
-
-    if (mr && date) {
-      if (!mrData[mr]) {
-        mrData[mr] = { days: {} };
-      }
-      if (!mrData[mr].days[date]) {
-        mrData[mr].days[date] = { hcp: 0, hco: 0, ph: 0, coached: 0 };
-      }
-      if (type === 'HCP') mrData[mr].days[date].hcp++;
-      else if (type === 'HCO') mrData[mr].days[date].hco++;
-      else if (type === 'Pharmacy') mrData[mr].days[date].ph++;
-      
-      if (coached) mrData[mr].days[date].coached++;
+    if (!mrMap[mr]) {
+      mrMap[mr] = {
+        mrName: mr,
+        lineName: (row.LineName || "").trim(),
+        rows: [],
+      };
     }
+    mrMap[mr].rows.push(row);
   });
 
-  let totalCoachingDays = 0;
-  let coachingMRsCount = 0;
-  let sumHCORate = 0;
-  let countHCORate = 0;
-  let sumHCPRate = 0;
-  let countHCPRate = 0;
-  let sumPHRate = 0;
-  let countPHRate = 0;
+  // Calculate stats per MR
+  return Object.values(mrMap).map((mrData) => {
+    const { mrName, lineName, rows: mrRows } = mrData;
 
-  const uniqueMRs = Object.keys(mrData).length;
+    // ── Group by date ──────────────────────────
+    const dateMap = {};
 
-  Object.values(mrData).forEach(mrInfo => {
-    let hcoWorkingDaysCount = 0;
-    let phWorkingDaysCount = 0;
-    let hcpWorkingDaysCount = 0;
+    mrRows.forEach((row) => {
+      const date = (row.ReportDate || "").split("T")[0].trim();
+      if (!date) return;
 
-    let totalHCO = 0;
-    let totalPH = 0;
-    let totalHCP = 0;
-    
-    let hasCoachingDay = false;
-
-    Object.entries(mrInfo.days).forEach(([dateStr, dayData]) => {
-      const dObj = new Date(dateStr);
-      
-      if (dayData.coached >= 4) {
-        totalCoachingDays++;
-        hasCoachingDay = true;
+      if (!dateMap[date]) {
+        dateMap[date] = {
+          hco: 0, ph: 0, hcp: 0,
+          coached: 0,
+          hcoCoached: 0,
+          phCoached:  0,
+          hcpCoached: 0,
+          customers: [],
+        };
       }
 
-      if (dayData.hco > 0 && isWorkingDayHCO(dObj)) {
-        hcoWorkingDaysCount++;
+      const type = (row.InteractionType || "").trim();
+      const isCoached = 
+        (row.IsMRCoachingSubmitted || "")
+          .trim().toLowerCase() === "true";
+
+      if (type === "HCO")      { 
+        dateMap[date].hco++;
+        if (isCoached) {
+          dateMap[date].coached++;
+          dateMap[date].hcoCoached++;
+        }
       }
-      if (dayData.ph > 0 && isWorkingDayPH(dObj)) {
-        phWorkingDaysCount++;
+      else if (type === "Pharmacy") {
+        dateMap[date].ph++;
+        if (isCoached) {
+          dateMap[date].coached++;
+          dateMap[date].phCoached++;
+        }
       }
-      if (dayData.hcp > 0 && isWorkingDayHCP(dObj)) {
-        hcpWorkingDaysCount++;
+      else if (type === "HCP") {
+        dateMap[date].hcp++;
+        if (isCoached) {
+          dateMap[date].coached++;
+          dateMap[date].hcpCoached++;
+        }
       }
 
-      totalHCO += dayData.hco;
-      totalPH += dayData.ph;
-      totalHCP += dayData.hcp;
+      // Store customer detail
+      dateMap[date].customers.push({
+        name:    (row.CustomerName || "").trim(),
+        id:      (row.CustomerId   || "").trim(),
+        type,
+        grade:   (row.CustomerGrade || "").trim(),
+        specialty: (row.Specialty  || "").trim(),
+        coached: isCoached,
+        coachingType: (row.CoachingType || "").trim(),
+        site:    (row.InteractionVisitedSite || "").trim(),
+        comment: (row.Comment || "").trim(),
+      });
     });
 
-    if (hasCoachingDay) coachingMRsCount++;
+    // ── Working days (Sat–Wed for HCP, Sat–Thu for HCO/PH)
+    const allDates = Object.keys(dateMap);
+    
+    const hcoDates = allDates.filter(d => 
+      dateMap[d].hco > 0 && isHCOWorkingDay(d)
+    );
+    const phDates = allDates.filter(d =>
+      dateMap[d].ph > 0 && isPHWorkingDay(d)
+    );
+    const hcpDates = allDates.filter(d =>
+      dateMap[d].hcp > 0 && isHCPWorkingDay(d)
+    );
 
-    let mrHCORate = hcoWorkingDaysCount > 0 ? (totalHCO / hcoWorkingDaysCount) : 0;
-    let mrPHRate = phWorkingDaysCount > 0 ? (totalPH / phWorkingDaysCount) : 0;
-    let mrHCPRate = hcpWorkingDaysCount > 0 ? (totalHCP / hcpWorkingDaysCount) : 0;
+    // ── Totals ─────────────────────────────────
+    const totalHCO = mrRows.filter(r => 
+      (r.InteractionType||"").trim() === "HCO"
+    ).length;
+    const totalPH = mrRows.filter(r =>
+      (r.InteractionType||"").trim() === "Pharmacy"
+    ).length;
+    const totalHCP = mrRows.filter(r =>
+      (r.InteractionType||"").trim() === "HCP"
+    ).length;
 
-    if (hcoWorkingDaysCount > 0) { sumHCORate += mrHCORate; countHCORate++; }
-    if (phWorkingDaysCount > 0) { sumPHRate += mrPHRate; countPHRate++; }
-    if (hcpWorkingDaysCount > 0) { sumHCPRate += mrHCPRate; countHCPRate++; }
+    // ── Call rates ─────────────────────────────
+    const hcoRate = hcoDates.length > 0
+      ? parseFloat((totalHCO / hcoDates.length).toFixed(1))
+      : 0;
+    const phRate = phDates.length > 0
+      ? parseFloat((totalPH / phDates.length).toFixed(1))
+      : 0;
+    const hcpRate = hcpDates.length > 0
+      ? parseFloat((totalHCP / hcpDates.length).toFixed(1))
+      : 0;
+
+    // ── COACHING DAYS ──────────────────────────
+    // A coaching day = date where coached >= 4
+    const coachingDays = allDates.filter(d =>
+      dateMap[d].coached >= 4
+    ).length;
+
+    // ── Total coached visits ───────────────────
+    const totalCoached = mrRows.filter(r =>
+      (r.IsMRCoachingSubmitted || "")
+        .trim().toLowerCase() === "true"
+    ).length;
+    
+    const hcoCoached = mrRows.filter(r =>
+      (r.InteractionType||"").trim() === "HCO" &&
+      (r.IsMRCoachingSubmitted||"")
+        .trim().toLowerCase() === "true"
+    ).length;
+    const phCoached = mrRows.filter(r =>
+      (r.InteractionType||"").trim() === "Pharmacy" &&
+      (r.IsMRCoachingSubmitted||"")
+        .trim().toLowerCase() === "true"
+    ).length;
+    const hcpCoached = mrRows.filter(r =>
+      (r.InteractionType||"").trim() === "HCP" &&
+      (r.IsMRCoachingSubmitted||"")
+        .trim().toLowerCase() === "true"
+    ).length;
+
+    // ── Last report date ───────────────────────
+    const lastDate = allDates.sort().reverse()[0] || "";
+
+    return {
+      mrName,
+      lineName,
+      totalHCO, totalPH, totalHCP,
+      hcoRate, phRate, hcpRate,
+      hcoDays: hcoDates.length,
+      phDays:  phDates.length,
+      hcpDays: hcpDates.length,
+      coachingDays,
+      totalCoached,
+      hcoCoached, phCoached, hcpCoached,
+      lastDate,
+      dateMap,
+      totalCalls: totalHCO + totalPH + totalHCP,
+    };
   });
-
-  return {
-    uniqueMRs: uniqueMRs,
-    coachingDays: totalCoachingDays,
-    coachingMRs: coachingMRsCount,
-    dmHCORate: countHCORate > 0 ? (sumHCORate / countHCORate) : 0,
-    dmHCPRate: countHCPRate > 0 ? (sumHCPRate / countHCPRate) : 0,
-    dmPHRate: countPHRate > 0 ? (sumPHRate / countPHRate) : 0,
-    activeMRCountHCP: countHCPRate,
-    activeMRCountHCO: countHCORate,
-    activeMRCountPH: countPHRate
-  };
 };
+
 
 export const groupByMR = (rows) => {
   if (!rows?.length) return [];
