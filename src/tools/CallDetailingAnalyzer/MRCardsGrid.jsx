@@ -118,53 +118,54 @@ const MRCard = ({ mr, isExpanded, onToggle, targets, onOpenCalendar }) => {
       <button
         type="button"
         onClick={() => onToggle(mr.mrName)}
-        className="w-full text-left p-5 focus:outline-none"
+        className="w-full text-left p-4 focus:outline-none"
       >
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
-             <div className="flex items-center gap-2">
-                <span className="text-xl">🧑‍⚕️</span>
-                <div className="font-black text-lg text-gray-900 truncate uppercase tracking-tight">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1 flex items-center gap-3">
+             <div className="w-10 h-10 rounded-2xl bg-yellow-400 flex items-center justify-center text-sm font-black text-gray-900 shadow-sm shrink-0 uppercase">
+                {mr.mrName.charAt(0)}
+             </div>
+             <div className="min-w-0">
+                <div className="font-black text-base text-gray-900 truncate uppercase tracking-tight leading-tight">
                    {mr.mrName}
                 </div>
-             </div>
-             <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest truncate mt-0.5 ml-8">
-                {mr.lineName || "—"}
+                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest truncate mt-0.5">
+                   {mr.lineName || "—"}
+                </div>
              </div>
           </div>
-          <div className={`text-gray-300 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}>
+          <div className={`mt-2 text-gray-300 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}>
              ▼
           </div>
         </div>
 
         {!isExpanded && (
-          <div className="mt-4 space-y-2">
-             <div className="flex justify-between items-end">
-                <div className="flex gap-2 text-[11px] font-black">
-                   <div className="flex items-center gap-1">
-                      <span className="text-gray-400 uppercase">HCO:</span>
-                      <span className="text-green-600">{mr.totalHCO}</span>
-                      <span className="text-gray-900">{mr.hcoRate}/d {rateIcon(mr.hcoRate, targets?.hcoPerDay)}</span>
+          <div className="mt-4">
+             <div className="flex flex-wrap gap-2 mb-3">
+               {[
+                 { label: "HCO", rate: mr.hcoRate, target: targets?.hcoPerDay },
+                 { label: "PH",  rate: mr.phRate,  target: targets?.phPerDay },
+                 { label: "HCP", rate: mr.hcpRate, target: targets?.hcpPerDay },
+               ].map(({ label, rate, target }) => {
+                 const pct = target ? (rate / target) * 100 : 0;
+                 const icon = rateIcon(rate, target);
+                 const colorClass = pct >= 90 ? "text-green-700 bg-green-50 border-green-100" : pct >= 70 ? "text-yellow-700 bg-yellow-50 border-yellow-100" : "text-red-700 bg-red-50 border-red-100";
+                 
+                 return (
+                   <div key={label} className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[11px] font-black ${colorClass}`}>
+                      <span className="opacity-50">{label}:</span>
+                      <span>{rate}/d</span>
+                      <span>{icon}</span>
                    </div>
-                   <div className="flex items-center gap-1 border-l border-gray-100 pl-2">
-                      <span className="text-gray-400 uppercase">PH:</span>
-                      <span className="text-purple-600">{mr.totalPH}</span>
-                      <span className="text-gray-900">{mr.phRate}/d {rateIcon(mr.phRate, targets?.phPerDay)}</span>
-                   </div>
-                </div>
+                 );
+               })}
              </div>
-             <div className="flex justify-between items-center bg-blue-50/50 rounded-xl p-2 border border-blue-50">
-                <div className="text-[11px] font-black flex items-center gap-1">
-                   <span className="text-gray-400 uppercase">HCP:</span>
-                   <span className="text-blue-600 font-black">{mr.totalHCP}</span>
-                   <span className="text-gray-900">{mr.hcpRate}/d {rateIcon(mr.hcpRate, targets?.hcpPerDay)}</span>
-                </div>
-             </div>
-             <div className="flex items-center justify-between text-[11px] pt-1">
-                <span className="font-black text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-100">
+             
+             <div className="flex items-center justify-between text-[10px] pt-1 border-t border-gray-50 mt-1">
+                <span className="font-black text-gray-500 uppercase tracking-widest">
                    🎓 {mr.coachingDays} coaching days
                 </span>
-                <span className="font-bold text-gray-400">
+                <span className="font-bold text-gray-400 uppercase tracking-tighter">
                    Last: <span className="text-gray-700">{formatDateLabel(mr.lastDate)}</span>
                 </span>
              </div>

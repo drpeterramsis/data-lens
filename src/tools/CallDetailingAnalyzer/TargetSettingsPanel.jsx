@@ -5,9 +5,9 @@ const TargetSettingsPanel = ({ onTargetsChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [hasTargets, setHasTargets] = useState(false);
   const [targets, setTargets] = useState({
-    hcpPerDay: 2,
-    hcoPerDay: 1,
-    phPerDay: 2,
+    hcpPerDay: 9,
+    hcoPerDay: 2,
+    phPerDay: 10,
   });
   const [showSavedMsg, setShowSavedMsg] = useState(false);
 
@@ -23,6 +23,7 @@ const TargetSettingsPanel = ({ onTargetsChange }) => {
     } else {
        // if no saved targets, keep panel open initially
        setIsOpen(true);
+       if (onTargetsChange) onTargetsChange({ hcpPerDay: 9, hcoPerDay: 2, phPerDay: 10 });
     }
   }, []);
 
@@ -45,7 +46,7 @@ const TargetSettingsPanel = ({ onTargetsChange }) => {
   const handleClear = () => {
     localStorage.removeItem("datalens_targets");
     setHasTargets(false);
-    const defaults = { hcpPerDay: 2, hcoPerDay: 1, phPerDay: 2 };
+    const defaults = { hcpPerDay: 9, hcoPerDay: 2, phPerDay: 10 };
     setTargets(defaults);
     if (onTargetsChange) onTargetsChange(defaults);
   };

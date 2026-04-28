@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { X, Search } from 'lucide-react';
+import { X, Search, GraduationCap, Hospital, Pill, Users, TrendingUp, SearchIcon } from 'lucide-react';
 import CSVUploader from '../../components/shared/CSVUploader';
 import AutoInsights from '../../components/shared/AutoInsights.jsx';
 import VirtualTable from '../../components/shared/VirtualTable';
@@ -86,14 +86,48 @@ const CallDetailingAnalyzer = () => {
   }, [minDate, maxDate]);
 
   const handleDataLoaded = useCallback((data) => {
-    setRawData(data);
-    setIsUploadModalOpen(false);
     if (data.length === 0) {
+       // Manual clear
+       setRawData([]);
+       setDateFrom("");
+       setDateTo("");
        setSelectedMRForCalendar(null);
-       // Clear tool cache specifically
        localStorage.removeItem(STORAGE_KEY);
+       return;
     }
+
+    // When loading new file, we MUST clear old state first to avoid weird artifacts
+    setRawData([]);
+    setTimeout(() => {
+      setRawData(data);
+      setIsUploadModalOpen(false);
+      // Clear tool cache specifically
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        data,
+        timestamp: new Date().toISOString()
+      }));
+    }, 10);
   }, []);
+
+  const handleOpenCalendar = (mr) => {
+    setSelectedMRForCalendar(mr);
+    setTimeout(() => {
+      const el = document.getElementById("mr-calendar-section");
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
+  };
+
+  const handleCloseCalendar = () => {
+    setSelectedMRForCalendar(null);
+    setTimeout(() => {
+      const el = document.getElementById("section-performance");
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
+  };
 
   const handleFullPeriod = () => {
     setDateFrom(minDate);
@@ -216,6 +250,9 @@ const CallDetailingAnalyzer = () => {
               <div className="mb-8">
                  <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tight">Upload <span className="text-accent underline decoration-accent/20">Interactions</span></h2>
                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] mt-1">Select a new CSV export to analyze</p>
+                 <div className="mt-4 p-3 bg-red-50 border border-red-100 rounded-2xl text-[10px] font-bold text-red-600 uppercase tracking-wide">
+                    ⚠️ Warning: Uploading a new file will clear all current session data.
+                 </div>
               </div>
               <CSVUploader 
                 onDataLoaded={handleDataLoaded} 
@@ -308,13 +345,12 @@ const CallDetailingAnalyzer = () => {
              </div>
           </div>
 
-          {/* 6. KPI CARDS */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            <KPICard title="Coaching Days" value={metrics.coachingDays} sub={`${metrics.coachingMRs} active coaches`} icon="🎓" color="#F5C518" />
-            <KPICard title="HCO Rate" value={metrics.avgHCORate} unit="/d" sub={`Across ${metrics.hcoMRCount} MRs`} icon="🏥" color="#10B981" />
-            <KPICard title="HCP Rate" value={metrics.avgHCPRate} unit="/d" sub={`Across ${metrics.hcpMRCount} MRs`} icon="👨‍⚕️" color="#3B82F6" />
-            <KPICard title="PH Rate" value={metrics.avgPHRate} unit="/d" sub={`Across ${metrics.phMRCount} MRs`} icon="💊" color="#8B5CF6" />
-            <KPICard title="Active MRs" value={metrics.activeMRs} sub="Unique field force" icon="👥" color="#F59E0B" />
+            <KPICard title="Coaching Days" value={metrics.coachingDays} sub={`${metrics.coachingMRs} active coaches`} icon={<GraduationCap size={20}/>} color="#F5C518" />
+            <KPICard title="HCO Rate" value={metrics.avgHCORate} unit="/d" sub={`Across ${metrics.hcoMRCount} MRs`} icon={<Hospital size={20}/>} color="#10B981" />
+            <KPICard title="HCP Rate" value={metrics.avgHCPRate} unit="/d" sub={`Across ${metrics.hcpMRCount} MRs`} icon={<Users size={20}/>} color="#3B82F6" />
+            <KPICard title="PH Rate" value={metrics.avgPHRate} unit="/d" sub={`Across ${metrics.phMRCount} MRs`} icon={<Pill size={20}/>} color="#8B5CF6" />
+            <KPICard title="Active MRs" value={metrics.activeMRs} sub="Unique field force" icon={<Users size={20}/>} color="#F59E0B" />
           </div>
 
           {/* 7. TARGET PANEL */}
@@ -328,19 +364,24 @@ const CallDetailingAnalyzer = () => {
                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] mt-1">Field force efficiency & call rates</p>
                 </div>
              </div>
-             <MRCardsGrid mrStats={mrStats} targets={targets} onSelectMRForCalendar={setSelectedMRForCalendar} />
+             <MRCardsGrid 
+                mrStats={mrStats} 
+                targets={targets} 
+                onSelectMRForCalendar={handleOpenCalendar} 
+             />
           </div>
 
-          {/* 10. INLINE CALENDAR */}
-          {selectedMRForCalendar && (
-            <div className="animate-in zoom-in-95 duration-300">
-               <InlineCalendar 
-                  mr={selectedMRForCalendar} 
-                  targets={targets} 
-                  onClose={() => setSelectedMRForCalendar(null)} 
-               />
-            </div>
-          )}
+          <div id="mr-calendar-section" className="scroll-mt-24">
+             {selectedMRForCalendar && (
+               <div className="animate-in zoom-in-95 duration-300">
+                  <InlineCalendar 
+                     mr={selectedMRForCalendar} 
+                     targets={targets} 
+                     onClose={handleCloseCalendar} 
+                  />
+               </div>
+             )}
+          </div>
 
           {/* 11. INSIGHTS SECTION */}
           <div id="section-insights" className="scroll-mt-24 pt-8">
@@ -370,7 +411,9 @@ const CallDetailingAnalyzer = () => {
 
                 <div className="flex flex-col gap-6">
                    <div className="relative">
-                      <div className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400">🔍</div>
+                      <div className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400">
+                         <SearchIcon size={24} />
+                      </div>
                       <input 
                          type="text"
                          placeholder="Search any customer, ID, or HCO..."

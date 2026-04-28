@@ -1,171 +1,195 @@
-// src/utils/forecastEngine.js
 
-import { getRemainingWorkingDays, isHCOWorkingDay,
-         isHCPWorkingDay, isPHWorkingDay } from "./periodRules";
-import { safeParseDate } from "./dateHelpers";
+export const TARGETS = {
+  hco: 2,   // visits per HCO working day
+  ph:  10,  // visits per PH working day
+  hcp: 9,   // visits per HCP working day
+};
+
+export const isHCODay = (d) => {
+  const dow = new Date(d + "T00:00:00").getDay();
+  return [0, 1, 2, 3, 4, 6].includes(dow); // Sat-Thu
+};
+
+export const isPHDay = isHCODay; // Same as HCO base schedule
+
+export const isHCPDay = (d) => {
+  const dow = new Date(d + "T00:00:00").getDay();
+  return [0, 1, 2, 3, 6].includes(dow); // Sat-Wed (NOT Thu, NOT Fri)
+};
+
+const getDatesInRange = (from, to) => {
+  const dates = [];
+  const cur = new Date(from + "T00:00:00");
+  const end = new Date(to + "T00:00:00");
+  let guard = 0;
+  while (cur <= end && guard < 400) {
+    dates.push(cur.toISOString().split("T")[0]);
+    cur.setDate(cur.getDate() + 1);
+    guard++;
+  }
+  return dates;
+};
 
 export const calculateForecast = ({
   mrStats,
-  targets,
-  lastReportDate,
-  endDate,
-  dmMeetings,
-  holidays,
-  mrVacations,
-  dataFromDate,   // start of data period
+  periodEndDate,
+  dmMeetings = [], // [{date, hcoOff:true, phOff, hcpOff}]
+  holidays = [], // [{date, type:"full"|"am"|"pm"}]
+  mrVacations = [], // [{mrName, from, to, type:"full"|"am"|"pm"}]
+  targets = TARGETS,
 }) => {
-  if (!mrStats?.length || !lastReportDate || !endDate)
-    return [];
+  if (!mrStats?.length || !periodEndDate) return [];
 
-  return mrStats.map((mr) => {
-    const mrVacs = mrVacations.filter(
-      v => v.mrName === mr.mrName
-    );
+  const isAvailableForType = (date, type, mrName) => {
+    const dow = new Date(date + "T00:00:00").getDay();
 
-    // CALCULATE NET WORKING DAYS FOR THE PAST PERIOD
-    // (from dataFromDate to lastReportDate)
-    const pastHCO = getRemainingWorkingDays(
-      dataFromDate, lastReportDate, "HCO",
-      dmMeetings, holidays, mrVacs
-    );
-    const pastPH = getRemainingWorkingDays(
-      dataFromDate, lastReportDate, "PH",
-      dmMeetings, holidays, mrVacs
-    );
-    const pastHCP = getRemainingWorkingDays(
-      dataFromDate, lastReportDate, "HCP",
-      dmMeetings, holidays, mrVacs
-    );
-
-    // Remaining working days after adjustments (from day after lastReportDate)
-    const dBase = safeParseDate(lastReportDate);
-    let nextDayStr = lastReportDate;
-    
-    if (dBase) {
-      const nextDay = new Date(dBase);
-      nextDay.setDate(nextDay.getDate() + 1);
-      nextDayStr = nextDay.toISOString().split('T')[0];
+    // Base schedule
+    if (type === "HCO" || type === "PH") {
+      if (dow === 5) return false; // Friday off
+    }
+    if (type === "HCP") {
+      if (dow === 5 || dow === 4) return false; // Friday and Thursday off
     }
 
-    const remHCO = getRemainingWorkingDays(
-      nextDayStr, endDate, "HCO",
-      dmMeetings, holidays, mrVacs
+    // Public holidays
+    const hol = holidays.find(h => h.date === date);
+    if (hol) {
+      if (hol.type === "full") return false;
+      if (hol.type === "am" && (type === "HCO" || type === "PH")) return false;
+      if (hol.type === "pm" && type === "HCP") return false;
+    }
+
+    // DM Meetings
+    const dm = dmMeetings.find(m => m.date === date);
+    if (dm) {
+      if (type === "HCO") return false; // always off
+      if (type === "PH" && dm.phOff) return false;
+      if (type === "HCP" && dm.hcpOff) return false;
+    }
+
+    // MR personal vacations
+    const vac = mrVacations.filter(
+      v => v.mrName === mrName && date >= v.from && date <= v.to
     );
-    const remPH = getRemainingWorkingDays(
-      nextDayStr, endDate, "PH",
-      dmMeetings, holidays, mrVacs
-    );
-    const remHCP = getRemainingWorkingDays(
-      nextDayStr, endDate, "HCP",
-      dmMeetings, holidays, mrVacs
-    );
+    for (const v of vac) {
+      if (v.type === "full") return false;
+      if (v.type === "am" && (type === "HCO" || type === "PH")) return false;
+      if (v.type === "pm" && type === "HCP") return false;
+    }
 
-    // Total working days entire period (Past Potential + Future Remaining)
-    const totalHCODays = pastHCO + remHCO;
-    const totalPHDays  = pastPH  + remPH;
-    const totalHCPDays = pastHCP + remHCP;
+    return true;
+  };
 
-    // Full period targets
-    const fullHCOTarget = targets.hcoPerDay * totalHCODays;
-    const fullPHTarget  = targets.phPerDay  * totalPHDays;
-    const fullHCPTarget = targets.hcpPerDay * totalHCPDays;
+  return mrStats.map(mr => {
+    const lastDate = mr.lastDate;
+    if (!lastDate || lastDate >= periodEndDate) {
+      return { mrName: mr.mrName, skipped: true };
+    }
 
-    // Deficit (how many calls behind)
-    const hcoDeficit = fullHCOTarget - mr.totalHCO;
-    const phDeficit  = fullPHTarget  - mr.totalPH;
-    const hcpDeficit = fullHCPTarget - mr.totalHCP;
+    // Build remaining dates
+    const nextDay = new Date(lastDate + "T00:00:00");
+    nextDay.setDate(nextDay.getDate() + 1);
+    const fromDate = nextDay.toISOString().split("T")[0];
 
-    // Required rate formula:
-    // requiredRate = (deficit + target × remaining) / remaining
-    // = deficit/remaining + target
-    const calcRequired = (deficit, remaining, target) => {
-      if (deficit <= 0) return { rate: 0, achieved: true };
-      if (remaining <= 0) return { 
-        rate: null, achieved: false, impossible: true 
-      };
-      const rate = parseFloat(
-        ((deficit / remaining) + target).toFixed(2)
-      );
-      return { rate, achieved: false };
+    const remainingDates = getDatesInRange(fromDate, periodEndDate);
+
+    // Count remaining working days per type
+    const remHCO = remainingDates.filter(d => isAvailableForType(d, "HCO", mr.mrName)).length;
+    const remPH = remainingDates.filter(d => isAvailableForType(d, "PH", mr.mrName)).length;
+    const remHCP = remainingDates.filter(d => isAvailableForType(d, "HCP", mr.mrName)).length;
+
+    // Worked days from CSV
+    const workedHCO = mr.hcoDays || 0;
+    const workedPH = mr.phDays || 0;
+    const workedHCP = mr.hcpDays || 0;
+
+    // Total working days (entire period)
+    const totalHCODays = workedHCO + remHCO;
+    const totalPHDays = workedPH + remPH;
+    const totalHCPDays = workedHCP + remHCP;
+
+    // Full period targets (total visits)
+    const hcoTotalTarget = (targets.hcoPerDay || targets.hco || 0) * totalHCODays;
+    const phTotalTarget = (targets.phPerDay || targets.ph || 0) * totalPHDays;
+    const hcpTotalTarget = (targets.hcpPerDay || targets.hcp || 0) * totalHCPDays;
+
+    // Deficit
+    const hcoDeficit = hcoTotalTarget - mr.totalHCO;
+    const phDeficit = phTotalTarget - mr.totalPH;
+    const hcpDeficit = hcpTotalTarget - mr.totalHCP;
+
+    const calcRequired = (deficit, remDays, targetVal) => {
+      if (deficit <= 0) return { rate: 0, status: "achieved" };
+      if (remDays <= 0) return { rate: null, status: "impossible" };
+      const rate = +(deficit / remDays).toFixed(2);
+      let status;
+      if (rate <= targetVal) status = "on_track";
+      else if (rate <= targetVal * 1.25) status = "warning";
+      else if (rate <= targetVal * 1.5) status = "at_risk";
+      else status = "critical";
+      return { rate, status };
     };
 
-    const hcoForecast = calcRequired(
-      hcoDeficit, remHCO, targets.hcoPerDay
-    );
-    const phForecast  = calcRequired(
-      phDeficit,  remPH,  targets.phPerDay
-    );
-    const hcpForecast = calcRequired(
-      hcpDeficit, remHCP, targets.hcpPerDay
-    );
+    const hcoForecast = calcRequired(hcoDeficit, remHCO, (targets.hcoPerDay || targets.hco || 0));
+    const phForecast = calcRequired(phDeficit, remPH, (targets.phPerDay || targets.ph || 0));
+    const hcpForecast = calcRequired(hcpDeficit, remHCP, (targets.hcpPerDay || targets.hcp || 0));
 
-    // Status per type
-    const getStatus = (forecast, target) => {
-      if (forecast.achieved) return "achieved";
-      if (forecast.impossible) return "impossible";
-      if (forecast.rate <= target) return "ontrack";
-      if (forecast.rate <= target * 1.5) return "atrisk";
-      return "critical";
-    };
-
-    const overallStatus = (() => {
-      const statuses = [
-        getStatus(hcoForecast, targets.hcoPerDay),
-        getStatus(phForecast,  targets.phPerDay),
-        getStatus(hcpForecast, targets.hcpPerDay),
-      ];
-      if (statuses.some(s => s === "impossible")) 
-        return "impossible";
-      if (statuses.some(s => s === "critical"))   
-        return "critical";
-      if (statuses.some(s => s === "atrisk"))     
-        return "atrisk";
-      if (statuses.every(s => s === "achieved" || 
-          s === "ontrack")) return "ontrack";
-      return "ontrack";
-    })();
+    // Overall status (worst case)
+    const statusOrder = ["achieved", "on_track", "warning", "at_risk", "critical", "impossible"];
+    const worstStatus = [hcoForecast.status, phForecast.status, hcpForecast.status].reduce((worst, s) =>
+      statusOrder.indexOf(s) > statusOrder.indexOf(worst) ? s : worst
+      , "achieved");
 
     return {
-      mrName:       mr.mrName,
-      lineName:     mr.lineName,
+      mrName: mr.mrName,
+      lineName: mr.lineName,
+      lastDate,
+      fromDate,
 
       // HCO
-      hcoDone:      mr.totalHCO,
-      hcoWorkedDays: mr.hcoDays,
-      hcoPastPot:   pastHCO,
+      hcoDone: mr.totalHCO,
+      hcoWorkedDays: workedHCO,
       hcoActualRate: mr.hcoRate,
-      hcoFullTarget: parseFloat(fullHCOTarget.toFixed(1)),
-      hcoDeficit:   parseFloat(hcoDeficit.toFixed(1)),
-      hcoRemDays:   remHCO,
-      hcoRequired:  hcoForecast.rate,
-      hcoAchieved:  hcoForecast.achieved,
-      hcoStatus:    getStatus(hcoForecast, targets.hcoPerDay),
+      hcoTotalDays: totalHCODays,
+      hcoTotalTarget: +hcoTotalTarget.toFixed(0),
+      hcoDeficit: +hcoDeficit.toFixed(0),
+      hcoRemDays: remHCO,
+      hcoRequired: hcoForecast.rate,
+      hcoStatus: hcoForecast.status,
 
       // PH
-      phDone:       mr.totalPH,
-      phWorkedDays:  mr.phDays,
-      phPastPot:    pastPH,
-      phActualRate:  mr.phRate,
-      phFullTarget:  parseFloat(fullPHTarget.toFixed(1)),
-      phDeficit:    parseFloat(phDeficit.toFixed(1)),
-      phRemDays:    remPH,
-      phRequired:   phForecast.rate,
-      phAchieved:   phForecast.achieved,
-      phStatus:     getStatus(phForecast, targets.phPerDay),
+      phDone: mr.totalPH,
+      phWorkedDays: workedPH,
+      phActualRate: mr.phRate,
+      phTotalDays: totalPHDays,
+      phTotalTarget: +phTotalTarget.toFixed(0),
+      phDeficit: +phDeficit.toFixed(0),
+      phRemDays: remPH,
+      phRequired: phForecast.rate,
+      phStatus: phForecast.status,
 
       // HCP
-      hcpDone:      mr.totalHCP,
-      hcpWorkedDays: mr.hcpDays,
-      hcpPastPot:   pastHCP,
+      hcpDone: mr.totalHCP,
+      hcpWorkedDays: workedHCP,
       hcpActualRate: mr.hcpRate,
-      hcpFullTarget: parseFloat(fullHCPTarget.toFixed(1)),
-      hcpDeficit:   parseFloat(hcpDeficit.toFixed(1)),
-      hcpRemDays:   remHCP,
-      hcpRequired:  hcpForecast.rate,
-      hcpAchieved:  hcpForecast.achieved,
-      hcpStatus:    getStatus(hcpForecast, targets.hcpPerDay),
+      hcpTotalDays: totalHCPDays,
+      hcpTotalTarget: +hcpTotalTarget.toFixed(0),
+      hcpDeficit: +hcpDeficit.toFixed(0),
+      hcpRemDays: remHCP,
+      hcpRequired: hcpForecast.rate,
+      hcpStatus: hcpForecast.status,
 
-      overallStatus,
+      overallStatus: worstStatus,
+      remainingDates,
     };
   });
+};
+
+export const STATUS_CONFIG = {
+  achieved: { label: "✅ Achieved", bg: "#D1FAE5", text: "#065F46" },
+  on_track: { label: "🟢 On Track", bg: "#D1FAE5", text: "#065F46" },
+  warning: { label: "🟡 Warning", bg: "#FEF9C3", text: "#854D0E" },
+  at_risk: { label: "🟠 At Risk", bg: "#FED7AA", text: "#9A3412" },
+  critical: { label: "🔴 Critical", bg: "#FEE2E2", text: "#991B1B" },
+  impossible: { label: "❌ No Days", bg: "#F3F4F6", text: "#6B7280" },
 };

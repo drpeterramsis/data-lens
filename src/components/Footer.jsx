@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from "react-router-dom";
 import { useAuth } from '../context/AuthContext';
-import appVersion from "../config/version";
+import { APP_VERSION } from "../config/version";
 
 export default function Footer() {
   const navigate = useNavigate();
@@ -13,42 +13,42 @@ export default function Footer() {
   };
 
   return (
-    <footer className="fixed bottom-0 left-0 right-0 z-[100] bg-black border-t border-gray-800 py-2 px-6 shadow-2xl">
+    <footer className="fixed bottom-0 left-0 right-0 z-[100] bg-[#000000] border-t border-gray-900 py-3 px-6 shadow-2xl">
       <div className="flex items-center justify-between">
         {/* LEFT */}
-        <p className="text-[10px] sm:text-xs text-white/70 flex items-center gap-1 font-medium">
+        <p className="text-[10px] sm:text-xs text-white flex items-center gap-1 font-medium">
           Developed by{" "}
-          <span className="text-accent font-black uppercase tracking-tighter">
+          <span className="text-[#F5C518] font-black uppercase tracking-tighter">
             Dr. Peter Ramsis
           </span>{" "}
-          <span className="hidden sm:inline text-white/50">| Area Supervisor</span>
+          <span className="hidden sm:inline text-white/50 lowercase tracking-widest">| Area Supervisor</span>
         </p>
 
         {/* CENTER */}
-        <p className="text-[10px] sm:text-xs text-white/40 font-medium hidden md:block">
-          Copyright © 2026 Data Lens. All rights reserved.
+        <p className="text-[10px] sm:text-xs text-white/40 font-medium hidden md:block uppercase tracking-[0.2em]">
+          Data Lens Analytics v3.9
         </p>
 
         {/* RIGHT */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition-all cursor-default">
-            <span className="w-1.5 h-1.5 rounded-full bg-success"></span>
-            <span className="text-[10px] text-white/60 font-black uppercase tracking-widest leading-none">System Live</span>
+          <div className="flex items-center gap-1.5 opacity-80 hover:opacity-100 transition-all cursor-default">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"></span>
+            <span className="text-[10px] text-white font-black uppercase tracking-widest leading-none">System Live</span>
           </div>
           <div className="h-4 w-[1px] bg-white/10 mx-1 hidden sm:block" />
-          <span className="text-[10px] sm:text-xs text-white/70 font-medium">
+          <span className="text-[10px] sm:text-xs text-white font-medium">
             Version{" "}
-            <span className="text-accent font-black">
-              {appVersion.version}
+            <span className="text-[#F5C518] font-black">
+              {APP_VERSION}
             </span>
           </span>
           <span className="text-white/20 hidden sm:block">|</span>
           <button
             onClick={handleLogout}
-            className="text-[10px] sm:text-xs border border-accent/50 
-                       text-accent bg-accent/10 rounded-md px-2.5 py-1
-                       hover:bg-accent hover:text-black
-                       transition-all duration-150 font-black uppercase tracking-widest shadow-sm"
+            className="text-[10px] sm:text-xs border border-[#F5C518]/50 
+                       text-[#F5C518] bg-[#F5C518]/5 white font-black px-3 py-1.5
+                       hover:bg-[#F5C518] hover:text-black rounded-xl
+                       transition-all duration-300 uppercase tracking-widest shadow-lg"
           >
             Logout
           </button>

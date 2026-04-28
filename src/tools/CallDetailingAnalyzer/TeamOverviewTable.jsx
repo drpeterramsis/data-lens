@@ -101,12 +101,12 @@ const TeamOverviewTable = ({ data, targets }) => {
     <div className="bg-white border text-sm border-gray-200 rounded-[1.25rem] shadow-sm overflow-hidden mb-8">
       <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50 hover:bg-gray-50 transition-colors">
         <div className="flex items-center gap-3">
-           <div className="bg-white p-2 border border-gray-200 rounded-lg shadow-sm">
-             <Users size={20} className="text-indigo-600" />
+           <div className="bg-white p-2 border border-gray-200 rounded-lg shadow-sm text-indigo-600">
+             <Users size={20} />
            </div>
            <div>
-             <h3 className="text-xl font-bold text-gray-900 tracking-tight">👥 Team Overview</h3>
-             <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest mt-0.5">Performance Table</p>
+             <h3 className="text-xl font-bold text-gray-900 tracking-tight uppercase">Team Statistics Overview</h3>
+             <p className="text-[10px] text-gray-500 font-black uppercase tracking-[0.2em] mt-0.5">Performance tracking across all lines</p>
            </div>
         </div>
       </div>
