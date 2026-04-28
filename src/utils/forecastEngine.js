@@ -21,30 +21,43 @@ export const calculateForecast = ({
       v => v.mrName === mr.mrName
     );
 
-    // Working days already worked in data period
+    // CALCULATE NET WORKING DAYS FOR THE PAST PERIOD
     // (from dataFromDate to lastReportDate)
-    const workedHCODays = mr.hcoDays;
-    const workedPHDays  = mr.phDays;
-    const workedHCPDays = mr.hcpDays;
+    const pastHCO = getRemainingWorkingDays(
+      dataFromDate, lastReportDate, "HCO",
+      dmMeetings, holidays, mrVacs
+    );
+    const pastPH = getRemainingWorkingDays(
+      dataFromDate, lastReportDate, "PH",
+      dmMeetings, holidays, mrVacs
+    );
+    const pastHCP = getRemainingWorkingDays(
+      dataFromDate, lastReportDate, "HCP",
+      dmMeetings, holidays, mrVacs
+    );
 
-    // Remaining working days after adjustments
+    // Remaining working days after adjustments (from day after lastReportDate)
+    const nextDay = new Date(lastReportDate + "T00:00:00");
+    nextDay.setDate(nextDay.getDate() + 1);
+    const nextDayStr = nextDay.toISOString().split('T')[0];
+
     const remHCO = getRemainingWorkingDays(
-      lastReportDate, endDate, "HCO",
+      nextDayStr, endDate, "HCO",
       dmMeetings, holidays, mrVacs
     );
     const remPH = getRemainingWorkingDays(
-      lastReportDate, endDate, "PH",
+      nextDayStr, endDate, "PH",
       dmMeetings, holidays, mrVacs
     );
     const remHCP = getRemainingWorkingDays(
-      lastReportDate, endDate, "HCP",
+      nextDayStr, endDate, "HCP",
       dmMeetings, holidays, mrVacs
     );
 
-    // Total working days entire period
-    const totalHCODays = workedHCODays + remHCO;
-    const totalPHDays  = workedPHDays  + remPH;
-    const totalHCPDays = workedHCPDays + remHCP;
+    // Total working days entire period (Past Potential + Future Remaining)
+    const totalHCODays = pastHCO + remHCO;
+    const totalPHDays  = pastPH  + remPH;
+    const totalHCPDays = pastHCP + remHCP;
 
     // Full period targets
     const fullHCOTarget = targets.hcoPerDay * totalHCODays;
@@ -112,7 +125,8 @@ export const calculateForecast = ({
 
       // HCO
       hcoDone:      mr.totalHCO,
-      hcoWorkedDays: workedHCODays,
+      hcoWorkedDays: mr.hcoDays,
+      hcoPastPot:   pastHCO,
       hcoActualRate: mr.hcoRate,
       hcoFullTarget: parseFloat(fullHCOTarget.toFixed(1)),
       hcoDeficit:   parseFloat(hcoDeficit.toFixed(1)),
@@ -123,7 +137,8 @@ export const calculateForecast = ({
 
       // PH
       phDone:       mr.totalPH,
-      phWorkedDays:  workedPHDays,
+      phWorkedDays:  mr.phDays,
+      phPastPot:    pastPH,
       phActualRate:  mr.phRate,
       phFullTarget:  parseFloat(fullPHTarget.toFixed(1)),
       phDeficit:    parseFloat(phDeficit.toFixed(1)),
@@ -134,7 +149,8 @@ export const calculateForecast = ({
 
       // HCP
       hcpDone:      mr.totalHCP,
-      hcpWorkedDays: workedHCPDays,
+      hcpWorkedDays: mr.hcpDays,
+      hcpPastPot:   pastHCP,
       hcpActualRate: mr.hcpRate,
       hcpFullTarget: parseFloat(fullHCPTarget.toFixed(1)),
       hcpDeficit:   parseFloat(hcpDeficit.toFixed(1)),

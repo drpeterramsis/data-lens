@@ -22,39 +22,39 @@ const SummaryCards = ({ metrics }) => {
     },
     { 
       label: 'Avg HCO Call Rate', 
-      value: metrics.dmHCORate ? metrics.dmHCORate.toFixed(1) : "0.0", 
+      value: metrics.avgHCORate ? metrics.avgHCORate.toFixed(1) : "0.0", 
       icon: Hospital, 
       accent: 'border-green-500', 
       text: 'text-green-500', 
       bg: 'bg-green-50',
-      subtext: `Team average across ${metrics.activeMRCountHCO || 0} MRs` 
+      subtext: `Team average across ${metrics.hcoMRCount || 0} MRs` 
     },
     { 
       label: 'Avg HCP Call Rate', 
-      value: metrics.dmHCPRate ? metrics.dmHCPRate.toFixed(1) : "0.0", 
+      value: metrics.avgHCPRate ? metrics.avgHCPRate.toFixed(1) : "0.0", 
       icon: UserRound, 
       accent: 'border-blue-500', 
       text: 'text-blue-500', 
       bg: 'bg-blue-50',
-      subtext: `Team average across ${metrics.activeMRCountHCP || 0} MRs` 
+      subtext: `Team average across ${metrics.hcpMRCount || 0} MRs` 
     },
     { 
       label: 'Avg PH Call Rate', 
-      value: metrics.dmPHRate ? metrics.dmPHRate.toFixed(1) : "0.0", 
+      value: metrics.avgPHRate ? metrics.avgPHRate.toFixed(1) : "0.0", 
       icon: Pill, 
       accent: 'border-teal-500', 
       text: 'text-teal-500', 
       bg: 'bg-teal-50',
-      subtext: `Team average across ${metrics.activeMRCountPH || 0} MRs` 
+      subtext: `Team average across ${metrics.phMRCount || 0} MRs` 
     },
     { 
       label: 'Active MRs', 
-      value: metrics.uniqueMRs || 0, 
+      value: metrics.activeMRs || 0, 
       icon: Users, 
       accent: 'border-yellow-500', 
       text: 'text-yellow-500', 
       bg: 'bg-yellow-50',
-      subtext: 'Unique MRs visited' 
+      subtext: 'Unique MRs in report' 
     },
   ];
 

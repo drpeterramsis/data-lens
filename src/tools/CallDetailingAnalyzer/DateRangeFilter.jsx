@@ -1,8 +1,21 @@
 import React from 'react';
 
 const DateRangeFilter = ({ dateFrom, dateTo, setDateFrom, setDateTo, data }) => {
-  const minDate = React.useMemo(() => data?.reduce((min, d) => d.ReportDate && d.ReportDate < min ? d.ReportDate : min, data[0]?.ReportDate) || '', [data]);
-  const maxDate = React.useMemo(() => data?.reduce((max, d) => d.ReportDate && d.ReportDate > max ? d.ReportDate : max, data[0]?.ReportDate) || '', [data]);
+  const minDate = React.useMemo(() => {
+    if (!data || data.length === 0) return '';
+    const dates = data.map(d => d.ReportDate).filter(Boolean);
+    if (dates.length === 0) return '';
+    const min = dates.reduce((m, d) => d < m ? d : m, dates[0]);
+    return min.split('T')[0];
+  }, [data]);
+  
+  const maxDate = React.useMemo(() => {
+    if (!data || data.length === 0) return '';
+    const dates = data.map(d => d.ReportDate).filter(Boolean);
+    if (dates.length === 0) return '';
+    const max = dates.reduce((m, d) => d > m ? d : m, dates[0]);
+    return max.split('T')[0];
+  }, [data]);
 
   const displayFrom = dateFrom ? dateFrom : minDate;
   const displayTo = dateTo ? dateTo : maxDate;
@@ -31,7 +44,7 @@ const DateRangeFilter = ({ dateFrom, dateTo, setDateFrom, setDateTo, data }) => 
   };
 
   return (
-    <div className="sticky top-14 z-40 bg-white/95 backdrop-blur border text-sm border-gray-200 rounded-[1.25rem] shadow-sm mb-8 overflow-hidden transition-all shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+    <div className="bg-white/95 backdrop-blur border text-sm border-gray-200 rounded-[1.25rem] shadow-sm mb-8 overflow-hidden transition-all shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
       <div className="p-4 flex flex-col xl:flex-row items-center gap-6 justify-between">
         
         <div className="flex items-center gap-3 w-full xl:w-auto shrink-0">

@@ -23,7 +23,7 @@ const AppLayout = ({ children }) => {
         <main 
           className={`pt-14 flex-1 flex flex-col transition-all duration-300 ${isOpen ? 'pl-60' : 'pl-0'}`}
         >
-          <div className="p-8 pb-32 max-w-[1600px] mx-auto w-full flex flex-col flex-1">
+          <div className="p-8 pb-32 max-w-7xl mx-auto w-full flex flex-col flex-1">
             {children}
           </div>
         </main>

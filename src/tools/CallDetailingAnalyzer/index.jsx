@@ -180,7 +180,7 @@ const CallDetailingAnalyzer = () => {
       />
 
       {/* STICKY TAB BAR */}
-      <div className="sticky top-0 z-40 bg-white border-b-2 border-gray-200 shadow-sm mt-4 flex gap-4 overflow-x-auto p-1">
+      <div className="sticky top-14 z-40 bg-white border-b-2 border-gray-200 shadow-sm mt-4 flex gap-4 overflow-x-auto p-1">
         {tabs.map((tab) => (
           <button
             key={tab.id}
