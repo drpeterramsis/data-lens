@@ -199,33 +199,7 @@ const MRCard = ({ mr, isExpanded, onToggle, targets, onOpenCalendar }) => {
             </div>
 
             {/* Status badge — top right */}
-            <StatusTooltip
-              title={tooltipInfo.title}
-              lines={tooltipInfo.lines}
-              color={tooltipInfo.color}>
-              <span className={`flex-shrink-0 text-[10px] font-bold px-2 py-1 rounded-full cursor-help
-                ${mr.overallStatus === "on_track"
-                  ? "bg-green-100 text-green-800"
-                  : mr.overallStatus === "warning"
-                    ? "bg-yellow-100 text-yellow-800"
-                    : mr.overallStatus === "at_risk"
-                      ? "bg-orange-100 text-orange-800"
-                      : mr.overallStatus === "critical"
-                        ? "bg-red-100 text-red-800"
-                        : "bg-gray-100 text-gray-600"
-                }`}>
-                {mr.overallStatus === "on_track"
-                  ? "🟢 On Track"
-                  : mr.overallStatus === "warning"
-                    ? "🟡 Warning"
-                    : mr.overallStatus === "at_risk"
-                      ? "🟠 At Risk"
-                      : mr.overallStatus === "critical"
-                        ? "🔴 Critical"
-                        : "⚪ Gray"
-                }
-              </span>
-            </StatusTooltip>
+            {/* Status badge removed as requested */}
           </div>
 
           <div className={`absolute right-4 top-14 w-6 h-6 rounded-full flex items-center justify-center text-gray-400 transition-all duration-300 ${isExpanded ? 'rotate-180 text-yellow-600 bg-yellow-100' : 'bg-gray-50'}`}>

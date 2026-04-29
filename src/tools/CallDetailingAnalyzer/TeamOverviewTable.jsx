@@ -125,12 +125,11 @@ const TeamOverviewTable = ({ data, targets }) => {
               <th className="text-center" onClick={() => requestSort('hcoRate')}>HCO Rate {getSortIcon('hcoRate')}</th>
               <th className="text-center border-r border-gray-100" onClick={() => requestSort('phRate')}>PH Rate {getSortIcon('phRate')}</th>
               <th className="text-center" onClick={() => requestSort('coachingDays')}>Coach Days {getSortIcon('coachingDays')}</th>
-              <th className="text-center bg-gray-50/50 border-l border-gray-100">Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {mrStats.length === 0 ? (
-               <tr><td colSpan="11" className="text-center py-8 text-gray-400 text-xs italic">No data available in current range.</td></tr>
+               <tr><td colSpan="10" className="text-center py-8 text-gray-400 text-xs italic">No data available in current range.</td></tr>
             ) : mrStats.map((mr) => (
               <tr key={mr.name} className="hover:bg-blue-50/30 transition-colors group">
                 <td className="px-4 py-3 font-bold text-gray-900 border-r border-gray-50">{mr.name}</td>
@@ -141,16 +140,11 @@ const TeamOverviewTable = ({ data, targets }) => {
                 <td className="px-4 py-3 text-center text-teal-600 font-medium group-hover:font-bold">{mr.totalPh}</td>
                 <td className="px-4 py-3 text-center font-black bg-gray-50/50 text-gray-900 border-x border-gray-50">{mr.total}</td>
                 
-                <td className="px-4 py-3 text-center font-black text-gray-700">{mr.hcpRate.toFixed(1)}</td>
-                <td className="px-4 py-3 text-center font-black text-gray-700">{mr.hcoRate.toFixed(1)}</td>
-                <td className="px-4 py-3 text-center font-black text-gray-700 border-r border-gray-50">{mr.phRate.toFixed(1)}</td>
+                <td className={`px-4 py-3 text-center font-black ${ (targets?.hcpPerDay && mr.hcpRate >= targets.hcpPerDay) ? 'text-green-600' : 'text-red-600' }`}>{mr.hcpRate.toFixed(1)}</td>
+                <td className={`px-4 py-3 text-center font-black ${ (targets?.hcoPerDay && mr.hcoRate >= targets.hcoPerDay) ? 'text-green-600' : 'text-red-600' }`}>{mr.hcoRate.toFixed(1)}</td>
+                <td className={`px-4 py-3 text-center font-black ${ (targets?.phPerDay && mr.phRate >= targets.phPerDay) ? 'text-green-600' : 'text-red-600' }` + " border-r border-gray-50"}>{mr.phRate.toFixed(1)}</td>
                 
-                <td className="px-4 py-3 text-center font-bold text-gray-600">{mr.coachingDays}</td>
-                <td className="px-4 py-3 text-center bg-gray-50/50 border-l border-gray-50">
-                  <span className={`px-2.5 py-1 rounded text-[9px] uppercase font-black tracking-widest border shadow-sm ${mr.statusColor}`}>
-                    {mr.status}
-                  </span>
-                </td>
+                <td className={`px-4 py-3 text-center font-bold ${ mr.coachingDays > 0 ? 'text-green-600' : 'text-red-600' }`}>{mr.coachingDays}</td>
               </tr>
             ))}
           </tbody>
