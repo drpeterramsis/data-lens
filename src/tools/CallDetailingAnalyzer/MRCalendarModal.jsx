@@ -14,7 +14,9 @@ const DAY_HEADERS = [
 
 const MRCalendarModal = ({ mr, targets, onClose }) => {
   const [currentMonth, setCurrentMonth] = useState(() => {
-    const last = mr.lastDate || new Date().toISOString().split('T')[0];
+    const d = new Date();
+    const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const last = mr.lastDate || todayStr;
     return last.substring(0, 7); // YYYY-MM
   });
   const [selectedDate, setSelectedDate] = useState(null);
@@ -48,8 +50,10 @@ const MRCalendarModal = ({ mr, targets, onClose }) => {
 
   const changeMonth = (dir) => {
     const [y, m] = currentMonth.split('-').map(Number);
-    const next = new Date(y, m - 1 + dir, 1);
-    setCurrentMonth(next.toISOString().substring(0, 7));
+    const nextY = m - 1 + dir > 11 ? y + 1 : m - 1 + dir < 0 ? y - 1 : y;
+    const nextM = (m - 1 + dir + 12) % 12;
+    const moStr = String(nextM + 1).padStart(2, '0');
+    setCurrentMonth(`${nextY}-${moStr}`);
     setSelectedDate(null);
   };
 
@@ -88,7 +92,14 @@ const MRCalendarModal = ({ mr, targets, onClose }) => {
             {calendarWeeks.map((week, wi) => (
               <React.Fragment key={wi}>
                 {week.map((date, di) => {
-                  const dateStr = date.toISOString().split('T')[0];
+                  const y = date.getFullYear();
+                  const m = String(date.getMonth() + 1).padStart(2, '0');
+                  const d = String(date.getDate()).padStart(2, '0');
+                  const dateStr = `${y}-${m}-${d}`;
+
+                  const today = new Date();
+                  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
                   const isCurrentMonth = dateStr.startsWith(currentMonth);
                   const dayData = mr.dateMap[dateStr];
                   const isFriday = date.getDay() === 5;
@@ -115,7 +126,7 @@ const MRCalendarModal = ({ mr, targets, onClose }) => {
                       `}
                     >
                       <div className="font-black text-gray-400 flex justify-between items-start">
-                        <span className={dateStr === new Date().toISOString().split('T')[0] ? "text-accent" : ""}>{date.getDate()}</span>
+                        <span className={dateStr === todayStr ? "text-accent" : ""}>{date.getDate()}</span>
                         {isCoachingDay && <span className="text-yellow-600" title="Coaching Day">🎓</span>}
                       </div>
 

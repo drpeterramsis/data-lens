@@ -20,11 +20,19 @@ export const isHCPDay = (d) => {
 const getDatesInRange = (from, to) => {
   if (!from || !to || from > to) return [];
   const dates = [];
-  const cur = new Date(from + "T00:00:00");
-  const end = new Date(to + "T00:00:00");
+  
+  const fromParts = from.split('-');
+  const toParts = to.split('-');
+  
+  const cur = new Date(parseInt(fromParts[0], 10), parseInt(fromParts[1], 10) - 1, parseInt(fromParts[2], 10));
+  const end = new Date(parseInt(toParts[0], 10), parseInt(toParts[1], 10) - 1, parseInt(toParts[2], 10));
+  
   let guard = 0;
   while (cur <= end && guard < 500) {
-    dates.push(cur.toISOString().split("T")[0]);
+    const yr = cur.getFullYear();
+    const mo = String(cur.getMonth() + 1).padStart(2, '0');
+    const da = String(cur.getDate()).padStart(2, '0');
+    dates.push(`${yr}-${mo}-${da}`);
     cur.setDate(cur.getDate() + 1);
     guard++;
   }
@@ -63,7 +71,7 @@ export const calculateForecast = ({
     // DM Meetings
     const dm = dmMeetings.find(m => m.date === date);
     if (dm) {
-      if (type === "HCO") return false; // always off
+      if (type === "HCO" && dm.hcoOff) return false;
       if (type === "PH" && dm.phOff) return false;
       if (type === "HCP" && dm.hcpOff) return false;
     }
@@ -82,9 +90,14 @@ export const calculateForecast = ({
   };
 
   const getNextDay = (dateStr) => {
-    const d = new Date(dateStr + "T00:00:00");
+    if (!dateStr || !dateStr.includes('-')) return dateStr;
+    const parts = dateStr.split('-');
+    const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
     d.setDate(d.getDate() + 1);
-    return d.toISOString().split("T")[0];
+    const yr = d.getFullYear();
+    const mo = String(d.getMonth() + 1).padStart(2, '0');
+    const da = String(d.getDate()).padStart(2, '0');
+    return `${yr}-${mo}-${da}`;
   };
 
   return mrStats.map(mr => {

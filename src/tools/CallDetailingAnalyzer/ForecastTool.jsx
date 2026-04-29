@@ -93,12 +93,29 @@ const ForecastTool = ({ data, targets, mrStats }) => {
   const [forecastResults, setForecastResults] = useState([]);
   const [isCalculated, setIsCalculated] = useState(false);
 
-  // Set default end date to last day of current month
+  // Set default end date to last day of the month based on the latest report date
   useEffect(() => {
-    const now = new Date();
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    setPeriodEndDate(end.toISOString().split('T')[0]);
-  }, []);
+    let maxDateStr = "";
+    if (mrStats && mrStats.length > 0) {
+      maxDateStr = mrStats.reduce((max, mr) => {
+        if (!mr.lastDate) return max;
+        return mr.lastDate > max ? mr.lastDate : max;
+      }, "");
+    }
+
+    let year = new Date().getFullYear();
+    let month = new Date().getMonth() + 1;
+
+    if (maxDateStr && maxDateStr.includes('-')) {
+      const parts = maxDateStr.split('-');
+      year = parseInt(parts[0], 10);
+      month = parseInt(parts[1], 10);
+    }
+
+    const end = new Date(year, month, 0); // 0th day of next month is last day of current month
+    const endStr = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`;
+    setPeriodEndDate(endStr);
+  }, [mrStats]);
 
   const uniqueMrNames = useMemo(() => mrStats?.map(m => m.mrName) || [], [mrStats]);
 

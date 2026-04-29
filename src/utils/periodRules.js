@@ -55,20 +55,25 @@ export const isThursday = (dateStr) => {
 
 // Get all dates in range
 export const getDatesInRange = (from, to) => {
-  if (!from || !to) return [];
-  const start = parseDateSafe(from);
-  const end   = parseDateSafe(to);
+  if (!from || !to || typeof from !== 'string' || typeof to !== 'string' || !from.includes('-') || !to.includes('-')) return [];
   
-  if (!start || !end) return [];
-  if (start > end) return [];
+  const fromParts = from.split('-');
+  const toParts = to.split('-');
+  
+  const cur = new Date(parseInt(fromParts[0], 10), parseInt(fromParts[1], 10) - 1, parseInt(fromParts[2], 10));
+  const end = new Date(parseInt(toParts[0], 10), parseInt(toParts[1], 10) - 1, parseInt(toParts[2], 10));
+  
+  if (cur > end) return [];
 
   const dates = [];
-  const cur = new Date(start);
   
   // Safety limit to prevent infinite loops (e.g. 1 year max)
   let guard = 0;
   while (cur <= end && guard < 1000) {
-    dates.push(cur.toISOString().split("T")[0]);
+    const yr = cur.getFullYear();
+    const mo = String(cur.getMonth() + 1).padStart(2, '0');
+    const da = String(cur.getDate()).padStart(2, '0');
+    dates.push(`${yr}-${mo}-${da}`);
     cur.setDate(cur.getDate() + 1);
     guard++;
   }
@@ -94,8 +99,9 @@ export const getRemainingWorkingDays = (
     // DM Meetings
     const dm = dmMeetings.find(m => m.date === d);
     if (dm) {
-      if (type === "HCO") return false;
+      if (type === "HCO" && dm.hcoOff) return false;
       if (type === "PH" && dm.phOff) return false;
+      if (type === "HCP" && dm.hcpOff) return false;
     }
 
     // Public Holidays
@@ -140,8 +146,9 @@ export const countWorkingDays = (dates, type, dmMeetings = [], holidays = []) =>
 
     const dm = dmMeetings.find(m => m.date === d);
     if (dm) {
-      if (type === 'HCO') return false;
+      if (type === 'HCO' && dm.hcoOff) return false;
       if (type === 'PH' && dm.phOff) return false;
+      if (type === 'HCP' && dm.hcpOff) return false;
     }
     return true;
   }).length;
