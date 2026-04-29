@@ -25,7 +25,7 @@ import { saveAs } from 'file-saver';
 
 // --- VERSION ---
 const ROUTING_VERSION = {
-  version: '1.0.440',
+  version: '1.0.437',
   releaseDate: 'Apr 2026',
   label: 'Advanced Routing Analysis Engine — Local Storage & Multi-file'
 };
@@ -180,38 +180,6 @@ const RoutingAnalyzer = () => {
   const [isEditingTargets, setIsEditingTargets] = useState(false);
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [expandedSections, setExpandedSections] = useState({
-    targets:     false,
-    visitStatus: true,
-    mrName:      true,
-    specialty:   false,
-    grade:       false,
-    customerType:false,
-    lineName:    false,
-  });
-
-  const toggleSection = (key) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
-  };
-
-  const openSection = (key) => {
-    setExpandedSections(prev => {
-      const next = { ...prev };
-      Object.keys(next).forEach(k => {
-        if (k !== key) {
-          const hasSelection = Array.isArray(filters[k]) 
-            ? filters[k].length > 0 
-            : filters[k] !== 'All';
-          if (!hasSelection) next[k] = false;
-        }
-      });
-      next[key] = true;
-      return next;
-    });
-  };
 
   // Quick Visit Toggles
   const [quickVisitFilter, setQuickVisitFilter] = useState('all'); // all, visited, uncovered, target_met
@@ -656,196 +624,263 @@ const RoutingAnalyzer = () => {
 
   // UI Sections
   const renderSidebar = () => (
-    <div className="p-3 space-y-1.5 scrollbar-thin h-full overflow-y-auto">
+    <div className="p-6 h-full flex flex-col gap-8 scrollbar-thin">
       {/* Header */}
-      <div className="flex items-center justify-between py-2 mb-1">
-        <h3 className="text-[10px] font-black text-gray-900 uppercase tracking-widest leading-none">Filters</h3>
-        <button
-          onClick={clearFilters}
-          className="text-[9px] font-black text-red-400 hover:text-red-600 uppercase tracking-widest"
-        >
-          Reset All
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-black text-gray-900 uppercase tracking-[0.2em] italic">Intelligence Filter</h3>
+        <button onClick={() => setIsSidebarOpen(false)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors group">
+          <X className="w-4 h-4 text-gray-400 group-hover:text-red-500" />
         </button>
       </div>
 
-      {/* ── Grade Targets Section ── */}
-      <div className="rounded-xl border border-gray-100 overflow-hidden shadow-sm">
-        <button
-          onClick={() => toggleSection('targets')}
-          className="w-full flex items-center justify-between px-3 py-2 bg-gray-50 hover:bg-gray-100 transition-colors"
-        >
-          <span className="text-[10px] font-black text-gray-700 uppercase tracking-widest flex items-center gap-2">
-            <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" /> Grade Targets
-          </span>
-          <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${expandedSections.targets ? 'rotate-180' : ''}`} />
-        </button>
-        {expandedSections.targets && (
-          <div className="p-3 bg-white border-t border-gray-100">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">Visits required</span>
-              <button
-                onClick={() => setIsEditingTargets(!isEditingTargets)}
-                className="text-[9px] font-black text-yellow-600 hover:text-yellow-700 uppercase"
-              >
-                {isEditingTargets ? '✓ Done' : 'Edit'}
-              </button>
+      {/* Grade Targets */}
+      <div className="bg-gray-50 rounded-3xl p-5 border border-gray-100 shadow-inner">
+        <div className="flex items-center justify-between mb-4">
+          <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest italic">Grade Targets</span>
+          <button
+            onClick={() => setIsEditingTargets(!isEditingTargets)}
+            className="text-[10px] font-black text-yellow-600 hover:text-yellow-700 uppercase tracking-widest underline decoration-yellow-200 underline-offset-4"
+          >
+            {isEditingTargets ? '✓ Save' : 'Adjust'}
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          {Object.entries(gradeTargets).map(([grade, target]) => (
+            <div key={grade} className="flex items-center justify-between bg-white rounded-2xl px-3 py-2.5 border border-gray-100 shadow-sm transition-all hover:shadow-md">
+              <span className="text-xs font-black text-gray-800">{grade}</span>
+              {isEditingTargets ? (
+                <input
+                  type="number"
+                  min="0"
+                  max="10"
+                  value={target}
+                  onChange={(e) => setGradeTargets(prev => ({...prev, [grade]: parseInt(e.target.value) || 0}))}
+                  className="w-10 h-7 text-center text-xs font-black border border-gray-200 rounded-xl focus:ring-4 focus:ring-yellow-400/20 focus:border-yellow-400 transition-all"
+                />
+              ) : (
+                <span className="text-[10px] font-black text-yellow-600 bg-yellow-50 px-2 py-0.5 rounded-lg border border-yellow-100 italic">
+                  {target}<span className="text-[8px] opacity-70 ml-0.5 uppercase">VIS</span>
+                </span>
+              )}
             </div>
-            <div className="grid grid-cols-2 gap-1.5">
-              {Object.entries(gradeTargets).map(([grade, target]) => (
-                <div key={grade} className="flex items-center justify-between bg-gray-50 rounded-lg px-2.5 py-1.5 border border-gray-100">
-                  <span className="text-xs font-black text-gray-700">{grade}</span>
-                  {isEditingTargets ? (
-                    <input type="number"
-                      min="0" max="10"
-                      value={target}
-                      onChange={e => setGradeTargets(prev => ({ ...prev, [grade]: parseInt(e.target.value) || 0 }))}
-                      className="w-10 h-6 text-center text-xs font-black border border-gray-200 rounded-lg focus:ring-2 focus:ring-yellow-400/20 focus:border-yellow-400 bg-white" />
-                  ) : (
-                    <span className="text-xs font-black text-yellow-600 bg-yellow-50 px-2 py-0.5 rounded-md border border-yellow-100">
-                      {target}x
-                    </span>
-                  )}
-                </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-6 flex-1 overflow-y-auto pr-1 scrollbar-thin">
+        {/* Visit Status */}
+        <div className="space-y-3">
+          <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] pl-1">Visit Status Node</label>
+          <select
+            value={filters.visitStatus}
+            onChange={(e) => setFilters(prev => ({ ...prev, visitStatus: e.target.value }))}
+            className="w-full px-4 py-3 rounded-2xl border border-gray-100 text-sm font-black text-gray-700 bg-gray-50 focus:ring-4 focus:ring-yellow-400/20 focus:border-yellow-400 transition-all appearance-none cursor-pointer"
+          >
+            <option value="All">All Execution States</option>
+            <option value="Fully Covered">✅ Fully Covered</option>
+            <option value="Partially Covered">🟡 Partial Scope</option>
+            <option value="Not Visited">❌ Zero Coverage</option>
+            <option value="Extra Visits">⭐ Yield Burst</option>
+            <option value="Not Planned">🆕 Unlisted Visit</option>
+          </select>
+        </div>
+
+        {/* Multi-select Filter Sections */}
+        {[
+          { label: 'Medical Reps', key: 'mrName', options: filterOptions.mrName },
+          { label: 'Specialty Scope', key: 'specialty', options: filterOptions.specialty },
+          { label: 'Triage Grade', key: 'grade', options: filterOptions.grade },
+          { label: 'Entity Type', key: 'customerType', options: filterOptions.customerType },
+          { label: 'Assigned Line', key: 'lineName', options: filterOptions.lineName },
+        ].map(section => (
+          <div key={section.key} className="space-y-3">
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest leading-none">
+                {section.label}
+              </label>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setFilters(prev => ({
+                    ...prev,
+                    [section.key]: [...section.options]
+                  }))}
+                  className="text-[9px] font-black text-yellow-600 hover:text-yellow-700 uppercase tracking-widest"
+                >
+                  All
+                </button>
+                <span className="text-gray-200 text-xs">|</span>
+                <button
+                  onClick={() => setFilters(prev => ({
+                    ...prev,
+                    [section.key]: []
+                  }))}
+                  className="text-[9px] font-black text-gray-400 hover:text-gray-600 uppercase tracking-widest"
+                >
+                  None
+                </button>
+                {filters[section.key].length > 0 && (
+                  <span className="text-[9px] font-black bg-yellow-400 text-black px-1.5 py-0.5 rounded-full">
+                    {filters[section.key].length}
+                  </span>
+                )}
+              </div>
+            </div>
+            
+            {section.key === 'mrName' && (
+              <div className="relative mb-2">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-300" />
+                <input
+                  type="text"
+                  placeholder="Search MR..."
+                  value={mrSearch}
+                  onChange={e => setMrSearch(e.target.value)}
+                  className="w-full pl-8 pr-3 py-2 rounded-xl border border-gray-100 text-xs font-bold text-gray-700 bg-white focus:ring-2 focus:ring-yellow-400/20 focus:border-yellow-400 placeholder:text-gray-300 transition-all"
+                />
+                {mrSearch && (
+                  <button
+                    onClick={() => setMrSearch('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2"
+                  >
+                    <X className="w-3 h-3 text-gray-300 hover:text-red-400" />
+                  </button>
+                )}
+              </div>
+            )}
+
+            <div className="space-y-1 max-h-48 overflow-y-auto scrollbar-thin pr-2 bg-gray-50/50 rounded-2xl p-2 border border-gray-100/50">
+              {section.options
+                .filter(opt => {
+                  if (section.key === 'mrName' && mrSearch.trim()) {
+                    return opt.toLowerCase().includes(mrSearch.toLowerCase());
+                  }
+                  return true;
+                })
+                .map(opt => (
+                <label key={opt} className={`flex items-center gap-3 p-2 rounded-xl cursor-pointer group transition-all hover:shadow-sm ${filters[section.key].includes(opt) ? 'bg-yellow-50 border-yellow-200 border' : 'hover:bg-white border border-transparent'}`}>
+                  <div className={`w-4 h-4 rounded-lg border-2 flex items-center justify-center flex-shrink-0 transition-all ${filters[section.key].includes(opt) ? 'bg-yellow-400 border-yellow-400' : 'border-gray-200 group-hover:border-yellow-300 bg-white'}`}>
+                    {filters[section.key].includes(opt) && <CheckCircle2 size={10} className="text-black" />}
+                  </div>
+                  <input
+                    type="checkbox"
+                    className="hidden"
+                    checked={filters[section.key].includes(opt)}
+                    onChange={() => handleToggleFilter(section.key, opt)}
+                  />
+                  <span className={`text-[11px] font-bold truncate uppercase flex-1 ${filters[section.key].includes(opt) ? 'text-yellow-800' : 'text-gray-600 group-hover:text-gray-900'}`}>{opt}</span>
+                  <span className="text-[9px] text-gray-400 font-bold ml-auto">
+                    {rawData.filter(r => r[section.key] === opt).length}
+                  </span>
+                </label>
               ))}
             </div>
           </div>
-        )}
+        ))}
       </div>
 
-      {/* ── Visit Status ── */}
-      <div className="rounded-xl border border-gray-100 overflow-hidden shadow-sm">
+      {/* Clear All */}
+      <div className="pt-6 border-t border-gray-100">
         <button
-          onClick={() => openSection('visitStatus')}
-          className={`w-full flex items-center justify-between px-3 py-2 transition-colors ${filters.visitStatus !== 'All' ? 'bg-yellow-50 border-yellow-100' : 'bg-gray-50 hover:bg-gray-100'}`}
+          onClick={clearFilters}
+          className="w-full py-4 rounded-2xl bg-gray-900 hover:bg-black text-white text-[10px] font-black uppercase tracking-[0.2em] transition-all transform active:scale-95 shadow-lg shadow-gray-200"
         >
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-black text-gray-700 uppercase tracking-widest">Visit Status</span>
-            {filters.visitStatus !== 'All' && (
-              <span className="text-[9px] font-black bg-yellow-400 text-black px-1.5 rounded-md">1</span>
-            )}
-          </div>
-          <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${expandedSections.visitStatus ? 'rotate-180' : ''}`} />
+          Reset All Filters
         </button>
-        {expandedSections.visitStatus && (
-          <div className="p-2 bg-white border-t border-gray-100 space-y-1">
-            {[
-              { val: 'All', label: 'All Statuses' },
-              { val: 'Fully Covered',     label: '✅ Fully Covered' },
-              { val: 'Partially Covered', label: '🟡 Partially Covered' },
-              { val: 'Not Visited',       label: '❌ Not Visited' },
-              { val: 'Extra Visits',      label: '⭐ Extra Visits' },
-              { val: 'Not Planned',       label: '🆕 Not Planned' },
-            ].map(opt => (
-              <button key={opt.val}
-                onClick={() => setFilters(p => ({ ...p, visitStatus: opt.val }))}
-                className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${filters.visitStatus === opt.val ? 'bg-yellow-400 text-black shadow-sm' : 'hover:bg-gray-50 text-gray-600'}`}>
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
-
-      {/* ── Multi-select sections ── */}
-      {[
-        { label: 'Medical Reps',  key: 'mrName',       options: filterOptions.mrName, hasSearch: true },
-        { label: 'Specialty',     key: 'specialty',    options: filterOptions.specialty },
-        { label: 'Grade',         key: 'grade',        options: filterOptions.grade },
-        { label: 'Customer Type', key: 'customerType', options: filterOptions.customerType },
-        { label: 'Line Name',     key: 'lineName',     options: filterOptions.lineName },
-      ].map(section => (
-        <div key={section.key} className="rounded-xl border border-gray-100 overflow-hidden shadow-sm">
-          {/* Section Header */}
-          <button
-            onClick={() => openSection(section.key)}
-            className={`w-full flex items-center justify-between px-3 py-2 transition-colors ${filters[section.key].length > 0 ? 'bg-yellow-50' : 'bg-gray-50 hover:bg-gray-100'}`}
-          >
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black text-gray-700 uppercase tracking-widest">{section.label}</span>
-              {filters[section.key].length > 0 && (
-                <span className="text-[9px] font-black bg-yellow-400 text-black px-1.5 py-0.5 rounded-md">{filters[section.key].length}</span>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              {expandedSections[section.key] && (
-                <div className="flex gap-1" onClick={e => e.stopPropagation()}>
-                  <button onClick={() => setFilters(p => ({ ...p, [section.key]: [...section.options] }))} className="text-[9px] font-black text-yellow-600 hover:text-yellow-700 uppercase px-1">All</button>
-                  <span className="text-gray-200">|</span>
-                  <button onClick={() => setFilters(p => ({ ...p, [section.key]: [] }))} className="text-[9px] font-black text-gray-400 hover:text-gray-600 uppercase px-1">None</button>
-                </div>
-              )}
-              <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${expandedSections[section.key] ? 'rotate-180' : ''}`} />
-            </div>
-          </button>
-
-          {/* Section Content */}
-          {expandedSections[section.key] && (
-            <div className="bg-white border-t border-gray-100 p-2">
-              {/* Search */}
-              {section.hasSearch && (
-                <div className="relative mb-2">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-300" />
-                  <input
-                    type="text"
-                    placeholder="Search..."
-                    value={mrSearch}
-                    onChange={e => setMrSearch(e.target.value)}
-                    className="w-full pl-7 pr-3 py-1.5 rounded-lg border border-gray-100 text-xs font-bold text-gray-700 bg-gray-50 focus:ring-2 focus:ring-yellow-400/20 focus:border-yellow-400 placeholder:text-gray-300 transition-all"
-                  />
-                </div>
-              )}
-
-              {/* Options List */}
-              <div className="space-y-0.5 max-h-44 overflow-y-auto scrollbar-thin pr-1">
-                {(section.hasSearch
-                  ? section.options.filter(o => o.toLowerCase().includes(mrSearch.toLowerCase()))
-                  : section.options
-                ).map(opt => (
-                  <label key={opt} className={`flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-all group border ${filters[section.key].includes(opt) ? 'bg-yellow-50 border-yellow-200' : 'hover:bg-gray-50 border-transparent'}`}>
-                    <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-all ${filters[section.key].includes(opt) ? 'bg-yellow-400 border-yellow-400' : 'border-gray-300 group-hover:border-yellow-300 bg-white shadow-inner'}`}>
-                      {filters[section.key].includes(opt) && <CheckCircle2 size={10} className="text-black" />}
-                    </div>
-                    <input type="checkbox" className="hidden" checked={filters[section.key].includes(opt)} onChange={() => handleToggleFilter(section.key, opt)} />
-                    <span className={`text-xs font-bold flex-1 truncate ${filters[section.key].includes(opt) ? 'text-yellow-800' : 'text-gray-600'}`}>{opt}</span>
-                    <span className="text-[9px] text-gray-400 font-bold flex-shrink-0">
-                      {rawData.filter(r => r[section.key] === opt).length}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      ))}
     </div>
   );
 
   const renderKPIs = () => (
-    <div className="flex items-stretch gap-2 px-4 py-2 h-[72px]">
+    <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-2 mb-4">
       {[
-        { label: 'All HCPs',   value: stats.totalHCP,   icon: '👨‍⚕️', color: 'text-blue-700', bg: 'bg-blue-50', border: 'border-blue-100' },
-        { label: 'Active',     value: stats.active,     icon: '✅', color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-100' },
-        { label: 'Deleted',    value: stats.deleted,    icon: '🗑️', color: 'text-gray-500', bg: 'bg-gray-50', border: 'border-gray-200' },
-        { label: 'Planned',    value: stats.totalPlanned,  icon: '📋', color: 'text-gray-700', bg: 'bg-gray-50', border: 'border-gray-100' },
-        { label: 'Reported',   value: stats.totalReported, icon: '📝', color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-100' },
-        { label: 'Coverage',   value: `${stats.coverage.toFixed(1)}%`, icon: '🎯', 
-          color: stats.coverage >= 80 ? 'text-emerald-600' : stats.coverage >= 50 ? 'text-amber-500' : 'text-red-500',
-          bg: stats.coverage >= 80 ? 'bg-emerald-50' : stats.coverage >= 50 ? 'bg-amber-50' : 'bg-red-50',
-          border: stats.coverage >= 80 ? 'border-emerald-100' : stats.coverage >= 50 ? 'border-amber-100' : 'border-red-100' },
-        { label: 'Full',       value: stats.fullyCovered,  icon: '💚', color: 'text-green-700', bg: 'bg-green-50', border: 'border-green-100' },
-        { label: 'Partial',    value: stats.partial,    icon: '🟡', color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100' },
-        { label: 'Not Visited',value: stats.uncovered,  icon: '❌', color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-100' },
+        {
+          label: 'All HCPs',
+          value: stats.totalHCP.toLocaleString(),
+          icon: '👨⚕️',
+          color: 'text-blue-700',
+          bg:    'bg-blue-50',
+          border:'border-blue-100',
+        },
+        {
+          label: 'Active',
+          value: stats.active.toLocaleString(),
+          icon: '✅',
+          color: 'text-emerald-700',
+          bg:    'bg-emerald-50',
+          border:'border-emerald-100',
+        },
+        {
+          label: 'Deleted',
+          value: stats.deleted.toLocaleString(),
+          icon: '🗑️',
+          color: 'text-gray-500',
+          bg:    'bg-gray-50',
+          border:'border-gray-200',
+        },
+        {
+          label: 'Planned',
+          value: stats.totalPlanned.toLocaleString(),
+          icon: '📋',
+          color: 'text-gray-700',
+          bg:    'bg-gray-50',
+          border:'border-gray-100',
+        },
+        {
+          label: 'Reported',
+          value: stats.totalReported.toLocaleString(),
+          icon: '📝',
+          color: 'text-green-600',
+          bg:    'bg-green-50',
+          border:'border-green-100',
+        },
+        {
+          label: 'Coverage',
+          value: `${stats.coverage.toFixed(1)}%`,
+          icon: '🎯',
+          color: stats.coverage >= 80 
+            ? 'text-emerald-600' 
+            : stats.coverage >= 50 
+              ? 'text-amber-500' 
+              : 'text-red-500',
+          bg: stats.coverage >= 80 
+            ? 'bg-emerald-50' 
+            : stats.coverage >= 50 
+              ? 'bg-amber-50' 
+              : 'bg-red-50',
+          border: stats.coverage >= 80 
+            ? 'border-emerald-100' 
+            : stats.coverage >= 50 
+              ? 'border-amber-100' 
+              : 'border-red-100',
+        },
+        {
+          label: 'Full',
+          value: stats.fullyCovered.toLocaleString(),
+          icon: '💚',
+          color: 'text-green-700',
+          bg:    'bg-green-50',
+          border:'border-green-100',
+        },
+        {
+          label: 'Partial',
+          value: stats.partial.toLocaleString(),
+          icon: '🟡',
+          color: 'text-amber-600',
+          bg:    'bg-amber-50',
+          border:'border-amber-100',
+        },
+        {
+          label: 'Not Visited',
+          value: stats.uncovered.toLocaleString(),
+          icon: '❌',
+          color: 'text-red-600',
+          bg:    'bg-red-50',
+          border:'border-red-100',
+        },
       ].map((card, i) => (
-        <div key={i} className={`flex-1 ${card.bg} border ${card.border} rounded-xl px-2.5 py-2 flex flex-col justify-between min-w-0 shadow-sm sm:shadow-none transition-shadow hover:shadow-sm`}>
-          <div className="flex items-center justify-between">
-            <span className="text-xs leading-none">{card.icon}</span>
-          </div>
-          <p className={`text-base font-black leading-none ${card.color}`}>
-            {typeof card.value === 'number' ? card.value.toLocaleString() : card.value}
-          </p>
-          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wide leading-none truncate">
-            {card.label}
-          </p>
+        <div key={i} className={`${card.bg} border ${card.border} rounded-xl p-2.5 flex flex-col gap-0.5`}>
+          <span className="text-base leading-none">{card.icon}</span>
+          <p className={`text-lg font-black leading-none mt-1 ${card.color}`}>{card.value}</p>
+          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider leading-tight">{card.label}</p>
         </div>
       ))}
     </div>
@@ -1143,276 +1178,324 @@ const RoutingAnalyzer = () => {
     setCurrentPage(1);
   };
 
-  const renderCustomerList = () => (
-    <div className="flex flex-col flex-1 overflow-hidden">
-      {/* ── Toggles + Search bar FIXED ── */}
-      <div className="flex-shrink-0 flex items-center justify-between gap-3 px-4 py-2 bg-white border-b border-gray-100">
-        {/* Toggles */}
-        <div className="flex items-center gap-2">
-          <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Toggles</span>
-          {[
-            { id: 'all',       label: 'All',       count: deduplicatedData.length },
-            { id: 'full',      label: '✅ Full',   count: stats.fullyCovered },
-            { id: 'partial',   label: '🟡 Partial',count: stats.partial },
-            { id: 'uncovered', label: '❌ Uncovered',count: stats.uncovered },
-          ].map(opt => (
-            <button
-              key={opt.id}
-              onClick={() => {
-                setQuickVisitFilter(opt.id);
-                setCurrentPage(1);
-              }}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter transition-all ${quickVisitFilter === opt.id ? 'bg-gray-900 text-white shadow-sm' : 'bg-gray-100 text-gray-400 hover:bg-gray-200 border border-gray-200'}`}
-            >
-              {opt.label}
-              <span className={`text-[9px] px-1 py-0.5 rounded font-black ${quickVisitFilter === opt.id ? 'bg-white/20 text-white' : 'bg-white text-gray-500 border border-gray-200'}`}>
-                {opt.count}
-              </span>
-            </button>
-          ))}
-        </div>
+  const renderCustomerList = () => {
+    const showMonthColumn = selectedMonth === 'All' && availableMonths.length > 1;
+    const showMRColumn = filters.mrName.length !== 1;
 
-        {/* Search + Count */}
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-300" />
-            <input
-              type="text"
-              placeholder="Search..."
-              value={searchQ}
-              onChange={e => {
-                setSearchQ(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="pl-8 pr-7 py-1.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-800 w-56 placeholder:text-gray-300 focus:ring-2 focus:ring-yellow-400/20 focus:border-yellow-400 bg-white transition-all"
-            />
-            {searchQ && (
-              <button onClick={() => { setSearchQ(''); setCurrentPage(1); }} className="absolute right-2 top-1/2 -translate-y-1/2">
-                <X className="w-3 h-3 text-gray-300 hover:text-red-400"/>
-              </button>
-            )}
-          </div>
-          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">
-            Showing <span className="text-gray-900">{sortedData.length}</span> of <span className="text-gray-900">{deduplicatedData.length}</span>
-          </span>
-        </div>
-      </div>
-
-      {/* ── Table Area — ONLY THIS SCROLLS ── */}
-      <div className="flex-1 overflow-hidden">
-        <div className="h-full overflow-auto scrollbar-thin">
-          <table className="w-full text-sm border-collapse min-w-[1000px]">
-            <thead>
-              <tr>
-                <th className="sticky top-0 z-[3] bg-gray-900 text-white px-2.5 py-2 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap cursor-pointer hover:bg-gray-800 select-none shadow-sm" onClick={() => handleSort('customerId')}>
-                  ID <SortIcon col="customerId"/>
-                </th>
-
-                {showMonthColumn && (
-                  <th className="sticky top-0 z-[3] bg-gray-900 text-white px-2.5 py-2 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap cursor-pointer hover:bg-gray-800 select-none shadow-sm" onClick={() => handleSort('sourceMonth')}>
-                    Month <SortIcon col="sourceMonth"/>
-                  </th>
-                )}
-
-                <th className="sticky top-0 z-[3] bg-gray-900 text-white px-2.5 py-2 text-left text-[10px] font-black uppercase tracking-wider cursor-pointer hover:bg-gray-800 select-none shadow-sm min-w-[160px]" onClick={() => handleSort('customerName')}>
-                  Name <SortIcon col="customerName"/>
-                </th>
-
-                <th className="sticky top-0 z-[3] bg-gray-900 text-white px-2.5 py-2 text-center text-[10px] font-black uppercase tracking-wider whitespace-nowrap cursor-pointer hover:bg-gray-800 select-none shadow-sm" onClick={() => handleSort('customerGrade')}>
-                  Grade <SortIcon col="customerGrade"/>
-                </th>
-
-                <th className="sticky top-0 z-[3] bg-gray-900 text-white px-2.5 py-2 text-left text-[10px] font-black uppercase tracking-wider cursor-pointer hover:bg-gray-800 select-none shadow-sm" onClick={() => handleSort('specialty')}>
-                  Specialty <SortIcon col="specialty"/>
-                </th>
-
-                {showMRColumn && (
-                  <th className="sticky top-0 z-[3] bg-gray-900 text-white px-2.5 py-2 text-left text-[10px] font-black uppercase tracking-wider cursor-pointer hover:bg-gray-800 select-none shadow-sm" onClick={() => handleSort('mrName')}>
-                    MR Name <SortIcon col="mrName"/>
-                  </th>
-                )}
-
-                <th className="sticky top-0 z-[3] bg-gray-900 text-white px-2.5 py-2 text-center text-[10px] font-black uppercase tracking-wider whitespace-nowrap cursor-pointer hover:bg-gray-800 select-none shadow-sm" onClick={() => handleSort('totalPlanned')}>
-                  Planned <SortIcon col="totalPlanned"/>
-                </th>
-
-                <th className="sticky top-0 z-[3] bg-gray-900 text-white px-2.5 py-2 text-center text-[10px] font-black uppercase tracking-wider whitespace-nowrap cursor-pointer hover:bg-gray-800 select-none shadow-sm" onClick={() => handleSort('totalReported')}>
-                  Reported <SortIcon col="totalReported"/>
-                </th>
-
-                <th className="sticky top-0 z-[3] bg-gray-900 text-white px-2.5 py-2 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap shadow-sm">Planned Days</th>
-                <th className="sticky top-0 z-[3] bg-gray-900 text-white px-2.5 py-2 text-left text-[10px) font-black uppercase tracking-wider whitespace-nowrap shadow-sm">Reported Days</th>
-
-                <th className="sticky top-0 z-[3] bg-gray-900 text-white px-2.5 py-2 text-center text-[10px] font-black uppercase tracking-wider whitespace-nowrap cursor-pointer hover:bg-gray-800 select-none shadow-sm" onClick={() => handleSort('daysInterval')}>
-                  Interval <SortIcon col="daysInterval"/>
-                </th>
-
-                <th className="sticky top-0 z-[3] bg-gray-900 text-white px-2.5 py-2 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap cursor-pointer hover:bg-gray-800 select-none shadow-sm" onClick={() => handleSort('_status')}>
-                  Status <SortIcon col="_status"/>
-                </th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {paginatedData.map((r, i) => {
-                const status = getStatus(r.totalPlanned, r.totalReported);
-                const missed = r.monthlyData ? [] : r.monthPlanned.filter(d => !r.monthReported.includes(d));
-
-                return (
-                  <tr key={`${r.customerId}_${i}`} className={i % 2 === 0 ? 'bg-white hover:bg-yellow-50/40 transition-colors' : 'bg-gray-50/60 hover:bg-yellow-50/40 transition-colors'}>
-                    <td className="px-2.5 py-1.5 text-[11px] text-gray-500 border-b border-gray-50 whitespace-nowrap font-mono">{r.customerId}</td>
-                    
-                    {showMonthColumn && (
-                      <td className="px-2.5 py-1.5 border-b border-gray-50">
-                        <div className="flex gap-0.5">
-                          {(r.customerMonths || [r.sourceMonth]).map(m => (
-                            <span key={m} className="px-1.5 py-0.5 rounded text-[9px] font-black bg-yellow-50 text-yellow-700 border border-yellow-200">
-                              {m.slice(0,3)}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                    )}
-
-                    <td className="px-2.5 py-1.5 text-[11px] text-gray-800 font-semibold border-b border-gray-50 max-w-[180px] truncate">{r.customerName}</td>
-
-                    <td className="px-2.5 py-1.5 border-b border-gray-50 whitespace-nowrap text-center">
-                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-black border ${
-                        r.customerGrade === 'A+' ? 'bg-purple-50 text-purple-700 border-purple-100' :
-                        r.customerGrade === 'A' ? 'bg-blue-50 text-blue-700 border-blue-100' :
-                        r.customerGrade === 'B' ? 'bg-green-50 text-green-700 border-green-100' :
-                        'bg-gray-50 text-gray-600 border-gray-200'}`}>
-                        {r.customerGrade}
-                      </span>
-                    </td>
-
-                    <td className="px-2.5 py-1.5 text-[11px] text-yellow-600 border-b border-gray-50 max-w-[140px] truncate">{r.specialty}</td>
-
-                    {showMRColumn && (
-                      <td className="px-2.5 py-1.5 text-[11px] text-gray-600 border-b border-gray-50 max-w-[130px] truncate">{r.mrName}</td>
-                    )}
-
-                    <td className="px-2.5 py-1.5 text-[11px] text-gray-700 font-bold border-b border-gray-50 whitespace-nowrap text-center">{r.totalPlanned}</td>
-                    <td className="px-2.5 py-1.5 text-[11px] text-gray-700 font-bold border-b border-gray-50 whitespace-nowrap text-center">{r.totalReported}</td>
-
-                    <td className="px-2.5 py-1.5 border-b border-gray-50">
-                      {r.monthlyData ? (
-                        <div className="space-y-0.5">
-                          {Object.entries(r.monthlyData).map(([m, d]) => (
-                            <div key={m} className="flex items-center gap-1">
-                              <span className="text-[8px] font-black text-gray-400 w-7 flex-shrink-0">{m.slice(0,3)}:</span>
-                              <div className="flex flex-wrap gap-0.5">
-                                {d.planned.map(day => (
-                                  <span key={day} className="px-1 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-black border border-blue-100">{day}</span>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="flex flex-wrap gap-0.5 max-w-[120px]">
-                          {r.monthPlanned.map(d => (
-                            <span key={d} className="px-1 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-black border border-blue-100">{d}</span>
-                          ))}
-                        </div>
-                      )}
-                    </td>
-
-                    <td className="px-2.5 py-1.5 border-b border-gray-50">
-                      {r.monthlyData ? (
-                        <div className="space-y-0.5">
-                          {Object.entries(r.monthlyData).map(([m, d]) => {
-                            const mMissed = d.planned.filter(dd => ! d.reported.includes(dd));
-                            return (
-                              <div key={m} className="flex items-center gap-1">
-                                <span className="text-[8px] font-black text-gray-400 w-7 flex-shrink-0">{m.slice(0,3)}:</span>
-                                <div className="flex flex-wrap gap-0.5">
-                                  {d.reported.map(day => (
-                                    <span key={day} className="px-1 py-0.5 bg-green-50 text-green-600 rounded text-[9px] font-black border border-green-100">{day}</span>
-                                  ))}
-                                  {mMissed.map(day => (
-                                    <span key={`m_${day}`} className="px-1 py-0.5 bg-red-50 text-red-400 rounded text-[9px] font-black border border-red-100 line-through">{day}</span>
-                                  ))}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="flex flex-wrap gap-0.5 max-w-[120px]">
-                          {r.monthReported.map(d => (
-                            <span key={d} className="px-1 py-0.5 bg-green-50 text-green-600 rounded text-[9px] font-black border border-green-100">{d}</span>
-                          ))}
-                          {missed.map(d => (
-                            <span key={`m_${d}`} className="px-1 py-0.5 bg-red-50 text-red-500 rounded text-[9px] font-black border border-red-100 line-through">{d}</span>
-                          ))}
-                        </div>
-                      )}
-                    </td>
-
-                    <td className="px-2.5 py-1.5 text-[11px] text-gray-500 border-b border-gray-50 whitespace-nowrap text-center">{r.daysInterval}d</td>
-                    <td className="px-2.5 py-1.5 border-b border-gray-50 whitespace-nowrap">{getStatusBadge(status)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* ── Pagination FIXED ── */}
-      <div className="flex-shrink-0 flex items-center justify-between gap-4 px-4 py-2 bg-white border-t border-gray-100">
-        <div className="flex items-center gap-1.5">
-          <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Show:</span>
-          <div className="flex gap-1">
-            {[10, 25, 50, 100, 200].map(n => (
-              <button key={n}
-                onClick={() => { setItemsPerPage(n); setCurrentPage(1); }}
-                className={`w-8 h-6 rounded text-[10px] font-black transition-all border ${itemsPerPage === n ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'}`}>
-                {n}
+    return (
+      <div className="space-y-3 pb-32">
+        {/* Toggles Row — INSIDE the list */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-2.5 flex items-center justify-between gap-3 mb-3">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mr-1">Toggles</span>
+            {[
+              { id: 'all', label: 'All', count: deduplicatedData.length },
+              { id: 'full', label: '✅ Full', count: stats.fullyCovered },
+              { id: 'partial', label: '🟡 Partial', count: stats.partial },
+              { id: 'uncovered', label: '❌ Uncovered', count: stats.uncovered },
+            ].map(opt => (
+              <button
+                key={opt.id}
+                onClick={() => {
+                  setQuickVisitFilter(opt.id);
+                  setCurrentPage(1);
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-tighter transition-all ${
+                  quickVisitFilter === opt.id
+                    ? 'bg-gray-900 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-400 hover:bg-gray-200 border border-gray-200'
+                }`}
+              >
+                {opt.label}
+                <span className={`text-[9px] px-1.5 py-0.5 rounded-md font-black ${
+                  quickVisitFilter === opt.id
+                    ? 'bg-white/20 text-white'
+                    : 'bg-white text-gray-500 border border-gray-200'
+                }`}>
+                  {opt.count}
+                </span>
               </button>
             ))}
           </div>
+
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
+              <input
+                type="text"
+                placeholder="Search name, ID, MR, specialty..."
+                value={searchQ}
+                onChange={e => {
+                  setSearchQ(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="pl-9 pr-8 py-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-800 w-64 placeholder:text-gray-300 focus:ring-2 focus:ring-yellow-400/20 focus:border-yellow-400 bg-white transition-all"
+              />
+              {searchQ && (
+                <button onClick={() => { setSearchQ(''); setCurrentPage(1); }} className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                  <X className="w-3.5 h-3.5 text-gray-300 hover:text-red-400" />
+                </button>
+              )}
+            </div>
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">
+              Showing <span className="text-gray-900">{sortedData.length}</span> of <span className="text-gray-900">{deduplicatedData.length}</span>
+            </span>
+          </div>
         </div>
 
-        {totalPages > 1 && (
-          <div className="flex items-center gap-1">
-            <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-gray-200 text-[10px] font-black text-gray-600 disabled:opacity-40 hover:bg-gray-50">
-              <ChevronLeft className="w-3 h-3"/> Prev
-            </button>
-            {(() => {
-              const pages = [];
-              let start = Math.max(1, currentPage - 2);
-              let end = Math.min(totalPages, currentPage + 2);
-              if (start > 1) {
-                pages.push(<button key={1} onClick={() => setCurrentPage(1)} className="w-7 h-7 rounded-lg text-[10px] font-black bg-white border border-gray-200 text-gray-600">1</button>);
-                if (start > 2) pages.push(<span key="e1" className="text-gray-300 text-xs text-center w-4">…</span>);
-              }
-              for (let i = start; i <= end; i++) {
-                pages.push(
-                  <button key={i} onClick={() => setCurrentPage(i)} className={`w-7 h-7 rounded-lg text-[10px] font-black transition-all ${currentPage === i ? 'bg-yellow-400 text-black' : 'bg-white border border-gray-200 text-gray-600'}`}>
-                    {i}
+        {/* Table Area */}
+        <div className="rounded-2xl border border-gray-100 overflow-hidden shadow-sm bg-white">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border-collapse min-w-[900px]">
+              <thead className="sticky top-0 z-[3]">
+                <tr className="bg-gray-900 text-white">
+                  <th onClick={() => handleSort('customerId')} className="px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                    ID <SortIcon col="customerId" />
+                  </th>
+                  {showMonthColumn && (
+                    <th onClick={() => handleSort('sourceMonth')} className="px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                      Months <SortIcon col="sourceMonth" />
+                    </th>
+                  )}
+                  <th onClick={() => handleSort('customerName')} className="px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                    Name <SortIcon col="customerName" />
+                  </th>
+                  <th onClick={() => handleSort('customerGrade')} className="px-3 py-2.5 text-center text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                    Grade <SortIcon col="customerGrade" />
+                  </th>
+                  <th onClick={() => handleSort('specialty')} className="px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                    Specialty <SortIcon col="specialty" />
+                  </th>
+                  {showMRColumn && (
+                    <th onClick={() => handleSort('mrName')} className="px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                      MR Name <SortIcon col="mrName" />
+                    </th>
+                  )}
+                  <th onClick={() => handleSort('totalPlanned')} className="px-3 py-2.5 text-center text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                    Planned <SortIcon col="totalPlanned" />
+                  </th>
+                  <th onClick={() => handleSort('totalReported')} className="px-3 py-2.5 text-center text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                    Reported <SortIcon col="totalReported" />
+                  </th>
+                  <th className="px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white">Planned Days</th>
+                  <th className="px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white">Reported Days</th>
+                  <th onClick={() => handleSort('daysInterval')} className="px-3 py-2.5 text-center text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                    Interval <SortIcon col="daysInterval" />
+                  </th>
+                  <th onClick={() => handleSort('_status')} className="px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                    Status <SortIcon col="_status" />
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {paginatedData.map((r, i) => {
+                  const status = getStatus(r.totalPlanned, r.totalReported);
+                  const missed = r.monthlyData ? [] : r.monthPlanned.filter(d => !r.monthReported.includes(d));
+
+                  return (
+                    <tr key={r.customerId} className={i % 2 === 0 ? 'bg-white hover:bg-yellow-50/30 transition-colors' : 'bg-gray-50/50 hover:bg-yellow-50/30 transition-colors'}>
+                      <td className="px-2.5 py-1 text-[10px] font-mono font-bold text-gray-500 tracking-tighter border-b border-gray-50 whitespace-nowrap">{r.customerId}</td>
+                      {showMonthColumn && (
+                        <td className="px-2.5 py-1 text-[11px] border-b border-gray-50 whitespace-nowrap">
+                          <div className="flex flex-wrap gap-1">
+                            {(r.customerMonths || [r.sourceMonth]).map(m => (
+                              <span key={m} className="px-1.5 py-0.5 rounded-md text-[9px] font-black bg-yellow-50 text-yellow-700 border border-yellow-200">
+                                {m.slice(0, 3)}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                      )}
+                      <td className="px-2.5 py-1 text-[11px] text-gray-800 font-semibold border-b border-gray-50 max-w-[180px] truncate" title={r.customerName}>{r.customerName}</td>
+                      <td className="px-2.5 py-1 text-center border-b border-gray-50 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-black border ${
+                          r.customerGrade === 'A+' ? 'bg-purple-50 text-purple-700 border-purple-100' :
+                            r.customerGrade === 'A' ? 'bg-blue-50 text-blue-700 border-blue-100' :
+                              r.customerGrade === 'B' ? 'bg-green-50 text-green-700 border-green-100' :
+                                'bg-gray-50 text-gray-600 border-gray-200'
+                          }`}>
+                          {r.customerGrade}
+                        </span>
+                      </td>
+                      <td className="px-2.5 py-1 text-[11px] text-gray-500 capitalize border-b border-gray-50 whitespace-nowrap">{r.specialty}</td>
+                      {showMRColumn && (
+                        <td className="px-2.5 py-1 text-[11px] text-gray-700 border-b border-gray-50 whitespace-nowrap max-w-[140px] truncate">{r.mrName}</td>
+                      )}
+                      <td className="px-2.5 py-1 text-center font-black text-gray-600 border-b border-gray-50 whitespace-nowrap">{r.totalPlanned}</td>
+                      <td className="px-2.5 py-1 text-center font-black text-gray-900 border-b border-gray-50 whitespace-nowrap">{r.totalReported}</td>
+                      <td className="px-2.5 py-1 border-b border-gray-50">
+                        <div className="flex flex-col gap-1 max-w-[120px]">
+                          {r.monthlyData
+                            ? Object.entries(r.monthlyData).map(([month, days]) => (
+                              <div key={month} className="flex items-center gap-1 flex-wrap">
+                                <span className="text-[8px] font-black text-gray-400 w-8 flex-shrink-0">{month.slice(0, 3)}:</span>
+                                {days.planned.map(d => (
+                                  <span key={d} className="inline-block px-1 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-black border border-blue-100">
+                                    {d}
+                                  </span>
+                                ))}
+                              </div>
+                            ))
+                            : r.monthPlanned.map(d => (
+                              <span key={d} className="inline-block px-1 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-black border border-blue-100">
+                                {d}
+                              </span>
+                            ))
+                          }
+                        </div>
+                      </td>
+                      <td className="px-2.5 py-1 border-b border-gray-50">
+                        <div className="flex flex-col gap-1 max-w-[120px]">
+                          {r.monthlyData
+                            ? Object.entries(r.monthlyData).map(([month, days]) => {
+                              const mMissed = days.planned.filter(d => !days.reported.includes(d));
+                              return (
+                                <div key={month} className="flex items-center gap-1 flex-wrap">
+                                  <span className="text-[8px] font-black text-gray-400 w-8 flex-shrink-0">{month.slice(0, 3)}:</span>
+                                  {days.reported.map(d => (
+                                    <span key={d} className="inline-block px-1 py-0.5 bg-green-50 text-green-600 rounded text-[9px] font-black border border-green-100">
+                                      {d}
+                                    </span>
+                                  ))}
+                                  {mMissed.map(d => (
+                                    <span key={`m_${d}`} className="inline-block px-1 py-0.5 bg-red-50 text-red-500 rounded text-[9px] font-black border border-red-100 line-through">
+                                      {d}
+                                    </span>
+                                  ))}
+                                </div>
+                              );
+                            })
+                            : (
+                              <div className="flex flex-wrap gap-0.5">
+                                {r.monthReported.map(d => (
+                                  <span key={d} className="inline-block px-1 py-0.5 bg-green-50 text-green-600 rounded text-[9px] font-black border border-green-100">
+                                    {d}
+                                  </span>
+                                ))}
+                                {missed.map(d => (
+                                  <span key={`m_${d}`} className="inline-block px-1 py-0.5 bg-red-50 text-red-500 rounded text-[9px] font-black border border-red-100 line-through">
+                                    {d}
+                                  </span>
+                                ))}
+                              </div>
+                            )
+                          }
+                        </div>
+                      </td>
+                      <td className="px-2.5 py-1 text-center text-[11px] font-bold text-gray-400 border-b border-gray-50 whitespace-nowrap">{r.daysInterval}d</td>
+                      <td className="px-2.5 py-1 border-b border-gray-50 whitespace-nowrap">{getStatusBadge(status)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {totalPages >= 1 && (
+          <div className="flex items-center justify-between gap-4 pt-4 mt-2 border-t border-gray-100">
+            {/* LEFT — Records per page */}
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">
+                Show:
+              </span>
+              <div className="flex items-center gap-1">
+                {[10, 25, 50, 100, 200].map(n => (
+                  <button
+                    key={n}
+                    onClick={() => {
+                      setItemsPerPage(n);
+                      setCurrentPage(1);
+                    }}
+                    className={`w-9 h-8 rounded-lg text-[11px] font-black transition-all border ${itemsPerPage === n ? 'bg-gray-900 text-white border-gray-900 shadow-sm' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400 hover:text-gray-700'}`}
+                  >
+                    {n}
                   </button>
-                );
-              }
-              if (end < totalPages) {
-                if (end < totalPages - 1) pages.push(<span key="e2" className="text-gray-300 text-xs text-center w-4">…</span>);
-                pages.push(<button key={totalPages} onClick={() => setCurrentPage(totalPages)} className="w-7 h-7 rounded-lg text-[10px] font-black bg-white border border-gray-200 text-gray-600">{totalPages}</button>);
-              }
-              return pages;
-            })()}
-            <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-gray-200 text-[10px] font-black text-gray-600 disabled:opacity-40 hover:bg-gray-50">
-              Next <ChevronRight className="w-3 h-3"/>
-            </button>
+                ))}
+              </div>
+              <span className="text-[10px] text-gray-300 font-bold">
+                per page
+              </span>
+            </div>
+
+            {/* CENTER — Page info */}
+            <div className="flex items-center gap-2">
+              {totalPages > 1 && (
+                <>
+                  {/* Prev */}
+                  <button
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(p => p - 1)}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-gray-200 text-xs font-black text-gray-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 transition-all"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                    Prev
+                  </button>
+
+                  {/* Page Numbers */}
+                  <div className="flex items-center gap-1">
+                    {(() => {
+                      const pages = [];
+                      let start = Math.max(1, currentPage - 2);
+                      let end = Math.min(totalPages, currentPage + 2);
+
+                      if (end - start < 4) {
+                        if (start === 1) end = Math.min(5, totalPages);
+                        else start = Math.max(1, end - 4);
+                      }
+
+                      if (start > 1) {
+                        pages.push(
+                          <button key={1} onClick={() => setCurrentPage(1)} className="w-8 h-8 rounded-lg text-xs font-black bg-white border border-gray-200 text-gray-600 hover:bg-gray-50">1</button>
+                        );
+                        if (start > 2) pages.push(<span key="s1" className="text-gray-300 text-xs px-1">…</span>);
+                      }
+
+                      for (let i = start; i <= end; i++) {
+                        pages.push(
+                          <button
+                            key={i}
+                            onClick={() => setCurrentPage(i)}
+                            className={`w-8 h-8 rounded-lg text-xs font-black transition-all ${currentPage === i ? 'bg-yellow-400 text-black shadow-sm' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
+                          >
+                            {i}
+                          </button>
+                        );
+                      }
+
+                      if (end < totalPages) {
+                        if (end < totalPages - 1) pages.push(<span key="s2" className="text-gray-300 text-xs px-1">…</span>);
+                        pages.push(
+                          <button key={totalPages} onClick={() => setCurrentPage(totalPages)} className="w-8 h-8 rounded-lg text-xs font-black bg-white border border-gray-200 text-gray-600 hover:bg-gray-50">{totalPages}</button>
+                        );
+                      }
+
+                      return pages;
+                    })()}
+                  </div>
+
+                  {/* Next */}
+                  <button
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(p => p + 1)}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-gray-200 text-xs font-black text-gray-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 transition-all"
+                  >
+                    Next
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* RIGHT — Total count */}
+            <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">
+              Page <span className="text-gray-900">{currentPage}</span> of <span className="text-gray-900">{totalPages}</span> · <span className="text-gray-900">{sortedData.length}</span> records
+            </div>
           </div>
         )}
-
-        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none">
-          Page <span className="text-gray-900">{currentPage}</span> / <span className="text-gray-900">{totalPages}</span> · <span className="text-gray-900">{sortedData.length}</span> nodes
-        </span>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderCoverageMap = () => {
     const mrs = filterOptions.mrName;
@@ -1475,25 +1558,6 @@ const RoutingAnalyzer = () => {
   const tabsTop = availableMonths.length > 1 ? 'top-[225px]' : 'top-[185px]';
   const filterChipsTop = availableMonths.length > 1 ? 'top-[185px]' : 'top-[145px]';
 
-  // Active filter detection
-  const hasActiveFilters = useMemo(() => 
-    Object.entries(filters).some(([k, v]) =>
-      Array.isArray(v) ? v.length > 0 : v !== 'All'
-    )
-  , [filters]);
-
-  const activeFilterCount = useMemo(() => {
-    let count = 0;
-    Object.entries(filters).forEach(([k, v]) => {
-      if (Array.isArray(v)) count += v.length;
-      else if (v !== 'All') count += 1;
-    });
-    return count;
-  }, [filters]);
-
-  const showMRColumn = filters.mrName.length !== 1;
-  const showMonthColumn = selectedMonth === 'All' && availableMonths.length > 1;
-
   if (!rawData.length && !isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-8">
@@ -1529,142 +1593,8 @@ const RoutingAnalyzer = () => {
   }
 
   return (
-    <div className="fixed inset-0 flex bg-gray-50/50 text-gray-900 font-sans overflow-hidden">
-      {/* ── Sidebar — Left FIXED ── */}
-      {renderSidebar()}
-
-      {/* ── Main Content — Right ── */}
-      <div className="flex-1 flex flex-col min-w-0 bg-white overflow-hidden">
-        {/* FIXED HEADER SECTION (Header + KPIs + Tabs) */}
-        <div className="flex-shrink-0 bg-white border-b border-gray-100 z-10 shadow-sm">
-          {/* Main Top Header */}
-          <div className="flex items-center justify-between px-6 py-3">
-            <div className="flex items-center gap-4">
-              <div className="flex flex-col">
-                <div className="flex items-center gap-2">
-                  <h1 className="text-xl font-black tracking-tight text-gray-900 uppercase">Routing Analyzer</h1>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-black bg-yellow-400 text-black uppercase tracking-widest">
-                    v{ROUTING_VERSION.version}
-                  </span>
-                </div>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Efficiency & Coverage Monitoring System</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              {rawData.length > 0 && (
-                <button
-                  onClick={handleExport}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-900 text-white text-xs font-black uppercase tracking-widest hover:bg-black transition-all shadow-md group"
-                >
-                  <Download size={14} className="group-hover:-translate-y-0.5 transition-transform" />
-                  Export Data
-                </button>
-              )}
-              <button
-                onClick={() => setShowUploadModal(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-yellow-400 text-black text-xs font-black uppercase tracking-widest hover:bg-yellow-500 transition-all shadow-md group"
-              >
-                <Plus size={14} className="group-hover:rotate-90 transition-transform" />
-                Upload Reports
-              </button>
-            </div>
-          </div>
-
-          {/* Month Indicator Bar (If multiple months) */}
-          {availableMonths.length > 0 && (
-            <div className="flex items-center gap-3 px-6 py-1.5 bg-gray-50/50 border-y border-gray-100">
-               <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Reporting Period:</span>
-               <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
-                  <button 
-                    onClick={() => { setSelectedMonth('All'); setCurrentPage(1); }}
-                    className={`px-3 py-1 rounded-lg text-[10px] font-black whitespace-nowrap transition-all border ${selectedMonth === 'All' ? 'bg-yellow-400 text-black border-yellow-400 shadow-sm' : 'bg-white text-gray-500 border-gray-200 hover:border-yellow-200'}`}
-                  >
-                    ALL MONTHS
-                  </button>
-                  {availableMonths.map(m => (
-                    <button
-                      key={m}
-                      onClick={() => { setSelectedMonth(m); setCurrentPage(1); }}
-                      className={`px-3 py-1 rounded-lg text-[10px] font-black whitespace-nowrap transition-all border ${selectedMonth === m ? 'bg-yellow-400 text-black border-yellow-400 shadow-sm' : 'bg-white text-gray-500 border-gray-200 hover:border-yellow-200'}`}
-                    >
-                      {m.toUpperCase()}
-                    </button>
-                  ))}
-               </div>
-            </div>
-          )}
-
-          {/* KPIs Bar */}
-          {rawData.length > 0 && (
-            <div className={`sticky ${kpiTop} z-[15] bg-white border-b border-gray-100/80 shadow-sm px-6 py-3`}>
-              {renderKPIs()}
-            </div>
-          )}
-
-          {/* Tabs Bar */}
-          <div className="px-4 py-2 bg-white flex items-center justify-between">
-            <div className="flex p-1 bg-gray-100 rounded-xl">
-              {[
-                { id: 'overview',  label: 'Overview', icon: LayoutDashboard },
-                { id: 'list',      label: 'Customers', icon: Users },
-                { id: 'by-mr',     label: 'MR Analysis', icon: UserCircle },
-                { id: 'by-spec',   label: 'Specialty', icon: Stethoscope },
-                { id: 'map',       label: 'Coverage Map', icon: Calendar },
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${activeTab === tab.id ? 'bg-white text-gray-900 shadow-sm border border-gray-100' : 'text-gray-400 hover:text-gray-600'}`}
-                >
-                  <tab.icon size={14} />
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* ── Scrollable Content Area ── */}
-        <div className="flex-1 overflow-hidden flex flex-col">
-          {rawData.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center p-20 text-center bg-gray-50/30">
-               <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-lg border border-gray-100 mb-6 group animate-bounce">
-                  <FileText size={40} className="text-yellow-400" />
-               </div>
-               <h2 className="text-3xl font-black text-gray-900 mb-3 tracking-tight uppercase">No Data Loaded</h2>
-               <p className="text-gray-400 max-w-sm font-bold text-sm leading-relaxed mb-8">
-                  Upload your CRM routing report (CSV) to analyze visits, coverage, and MR performance.
-               </p>
-               <button
-                  onClick={() => setShowUploadModal(true)}
-                  className="flex items-center gap-2 px-8 py-3 rounded-2xl bg-yellow-400 text-black text-xs font-black uppercase tracking-[0.2em] hover:bg-yellow-500 transition-all shadow-xl hover:scale-105 active:scale-95"
-               >
-                  <Plus size={18} />
-                  Start Analysis
-               </button>
-            </div>
-          ) : (
-            <div className="flex-1 overflow-hidden p-4">
-               <motion.div
-                  key={activeTab}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="h-full flex flex-col overflow-hidden"
-               >
-                  {activeTab === 'overview' && renderOverview()}
-                  {activeTab === 'list' && renderCustomerList()}
-                  {activeTab === 'by-mr' && renderByMR()}
-                  {activeTab === 'by-spec' && renderBySpecialty()}
-                  {activeTab === 'map' && renderCoverageMap()}
-               </motion.div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ── Modals ── */}
+    <div className="flex flex-col h-screen overflow-hidden bg-gray-50">
+      {/* Upload Modal */}
       {showUploadModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl shadow-2xl p-8 w-[420px] border border-gray-100 animate-in zoom-in-95 duration-200">
@@ -1688,18 +1618,57 @@ const RoutingAnalyzer = () => {
               ))}
             </div>
 
-            <label className="block w-full border-2 border-dashed border-gray-200 rounded-3xl p-10 text-center cursor-pointer hover:border-yellow-400 hover:bg-yellow-50/30 transition-all group">
-              <div className="text-5xl mb-4 grayscale group-hover:grayscale-0 transition-all">📂</div>
-              <p className="text-base font-black text-gray-700 group-hover:text-yellow-600 tracking-tight">Click to select CSV file</p>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv,.txt"
-                className="hidden"
-                onChange={(e) => handleFileUpload(e, uploadMode)}
-              />
-            </label>
+              <label className="block w-full border-2 border-dashed border-gray-200 rounded-3xl p-10 text-center cursor-pointer hover:border-yellow-400 hover:bg-yellow-50/30 transition-all group">
+                <div className="text-5xl mb-4 grayscale group-hover:grayscale-0 transition-all">📂</div>
+                <p className="text-base font-black text-gray-700 group-hover:text-yellow-600 tracking-tight">Click to select CSV file</p>
+                <p className="text-[10px] text-gray-400 mt-2 font-bold uppercase tracking-widest">Pipe-delimited (|) supported</p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv,.txt"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    
+                    // Quick preview of month name
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                      const firstLines = ev.target.result.split('\n').slice(0, 1).join('');
+                      const cols = firstLines.split('|');
+                      const hdr = cols[10] || '';
+                      const month = hdr.replace('Planned','').trim();
+                      setPreviewMonth(month);
+                    };
+                    reader.readAsText(file.slice(0, 500));
+                    
+                    // Then upload
+                    handleFileUpload(e, uploadMode);
+                  }}
+                />
+              </label>
 
+              {previewMonth && (
+                <div className="mt-3 flex items-center gap-2 px-4 py-2.5 bg-yellow-50 rounded-xl border border-yellow-200">
+                  <span className="text-lg">📅</span>
+                  <div>
+                    <p className="text-xs font-black text-yellow-800">
+                      Detected: {previewMonth} Report
+                    </p>
+                    {availableMonths.includes(previewMonth) ? (
+                      <p className="text-[10px] text-amber-600 font-bold">
+                        ⚠️ This month already loaded — will merge/replace
+                      </p>
+                    ) : (
+                      <p className="text-[10px] text-green-600 font-bold">
+                        ✅ New month — will be added
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+            {/* Buttons */}
             <div className="flex gap-3 mt-8">
               <button
                 onClick={() => setShowUploadModal(false)}
@@ -1707,10 +1676,251 @@ const RoutingAnalyzer = () => {
               >
                 Cancel
               </button>
+              {rawData.length > 0 && (
+                <button
+                  onClick={handleClearData}
+                  className="flex-1 py-4 rounded-2xl bg-red-50 border-2 border-red-100 text-sm font-black text-red-600 hover:bg-red-100 transition-all"
+                >
+                  Clear Data
+                </button>
+              )}
             </div>
           </div>
         </div>
       )}
+
+      {/* Header Sticky */}
+      <div className="sticky top-0 z-30 bg-white border-b border-gray-100 shadow-sm px-6 py-3 flex items-center justify-between gap-4">
+        {/* Left — Logo + Title */}
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-yellow-400 rounded-2xl flex items-center justify-center shadow-lg shadow-yellow-200">
+            <MapIcon className="w-6 h-6 text-black" />
+          </div>
+          <div>
+            <h2 className="text-xl font-black text-gray-900 leading-none flex items-center gap-2 tracking-tight italic uppercase">
+              Routing <span className="text-yellow-500">Analyzer</span>
+            </h2>
+            <div className="flex items-center gap-2 mt-1 px-1 py-0.5 bg-gray-50 rounded w-fit border border-gray-100">
+               <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+               <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest">
+                  Intelligence Engine {ROUTING_VERSION.version}
+               </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Right — Actions */}
+        <div className="flex items-center gap-2">
+          {/* Upload / Add More */}
+          <button
+            onClick={() => setShowUploadModal(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-yellow-400 hover:bg-yellow-500 text-black text-[10px] font-black uppercase tracking-widest rounded-xl transition-all hover:-translate-y-0.5 shadow-sm shadow-yellow-200"
+          >
+            <PlusCircle className="w-4 h-4" />
+            {rawData.length > 0 ? 'Batch Upload' : 'Upload File'}
+          </button>
+
+          {/* Export */}
+          {rawData.length > 0 && (
+            <button
+              onClick={handleExport}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-50 transition-all hover:-translate-y-0.5 shadow-sm"
+            >
+              <Download className="w-4 h-4" />
+              Export ({sortedData.length})
+            </button>
+          )}
+
+          {/* Clear Data */}
+          {rawData.length > 0 && (
+            <button
+              onClick={handleClearData}
+              className="flex items-center justify-center w-10 h-10 bg-red-50 border border-red-100 text-red-600 rounded-xl hover:bg-red-100 transition-all"
+              title="Clear Data"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+
+          {/* Vertical Separator */}
+          <div className="w-px h-8 bg-gray-100 mx-2" />
+
+          {/* Toggle Sidebar */}
+          <button
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className={`flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-50 transition-all shadow-sm ${!isSidebarOpen ? 'ring-2 ring-yellow-400/20' : ''}`}
+          >
+            <Filter className="w-4 h-4" />
+            Filters
+            {Object.entries(filters).some(([k,v]) => Array.isArray(v) ? v.length > 0 : v !== 'All') && (
+              <span className="w-5 h-5 bg-yellow-400 text-black text-[9px] font-black rounded-full flex items-center justify-center ml-1">
+                {Object.values(filters).flat().filter(v => v !== 'All' && v !== '').length}
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Main Body */}
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* Sidebar */}
+        <AnimatePresence mode="wait">
+          {isSidebarOpen && (
+            <motion.aside
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 300, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ duration: 0.3, ease: 'circOut' }}
+              className="h-full bg-white border-r border-gray-100 overflow-y-auto pb-32 flex-shrink-0 shadow-sm z-30"
+            >
+              {renderSidebar()}
+            </motion.aside>
+          )}
+        </AnimatePresence>
+
+        {/* Content Area */}
+        <div 
+          ref={contentRef}
+          onScroll={(e) => {
+            setIsScrolled(e.target.scrollTop > 10);
+          }}
+          className="flex-1 overflow-y-auto bg-gray-50 flex flex-col pb-32 scrollbar-thin"
+        >
+          {/* Data Info Bar */}
+          <div className="sticky top-[61px] z-20 bg-white border-b border-gray-100 px-6 py-2 flex items-center justify-between">
+            <div className="flex items-center gap-5">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Dataset:</span>
+                <span className="text-[11px] font-black text-gray-800">{stats.rawTotal.toLocaleString()} records</span>
+              </div>
+              <div className="h-4 w-px bg-gray-200" />
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Period:</span>
+                <span className="text-[11px] font-black text-yellow-600 italic">{reportMonth || 'Global'} 2026</span>
+              </div>
+              {filters.mrName.length === 1 && (
+                <>
+                  <div className="h-4 w-px bg-gray-200" />
+                  <div className="flex items-center gap-2 px-3 py-1 bg-yellow-50 border border-yellow-200 rounded-xl">
+                    <span className="text-[10px] text-yellow-600 font-black uppercase tracking-widest">MR:</span>
+                    <span className="text-[11px] font-black text-yellow-800">{filters.mrName[0]}</span>
+                  </div>
+                </>
+              )}
+              <div className="h-4 w-px bg-gray-200" />
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Assigned Line:</span>
+                <span className="text-[11px] font-black text-gray-700">{lineName || 'N/A'}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+               <span className="text-[10px] text-gray-400 font-bold bg-gray-50 px-2 py-0.5 rounded border">
+                 Showing <span className="text-gray-900 font-black">{stats.allCustomers.toLocaleString()}</span> nodes
+               </span>
+            </div>
+          </div>
+
+          <div className="p-8 pb-32 space-y-8 max-w-[1600px] mx-auto w-full">
+            {availableMonths.length > 1 && (
+              <div className="sticky top-[101px] z-20 bg-white border-b border-gray-100 px-6 py-2">
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex-shrink-0">
+                  📅 View Month:
+                </span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={() => setSelectedMonth('All')}
+                    className={`px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${selectedMonth === 'All' ? 'bg-yellow-400 text-black shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                  >
+                    All ({rawData.length})
+                  </button>
+                  {availableMonths.map(month => {
+                    const count = rawData.filter(r => r.sourceMonth === month).length;
+                    return (
+                      <button
+                        key={month}
+                        onClick={() => setSelectedMonth(month)}
+                        className={`px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${selectedMonth === month ? 'bg-gray-900 text-white shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                      >
+                        {month} ({count})
+                      </button>
+                    );
+                  })}
+                </div>
+                <span className="ml-auto text-[10px] text-gray-300 font-bold">{availableMonths.length} months loaded</span>
+                </div>
+              </div>
+            )}
+            
+            <div className={`sticky ${kpiTop} z-[15] bg-white border-b border-gray-100/80 shadow-sm px-6 py-3`}>
+              {renderKPIs()}
+            </div>
+
+            {/* Active Filter Chips */}
+            {Object.entries(filters).some(([k,v]) => Array.isArray(v) ? v.length > 0 : v !== 'All') && (
+              <div className={`sticky ${filterChipsTop} z-[9] bg-yellow-50 border-b border-yellow-100 px-6 py-2 flex flex-wrap items-center gap-2`}>
+                <div className="flex items-center gap-1.5 mr-2">
+                   <div className="w-1 h-3 bg-yellow-400 rounded-full" />
+                   <span className="text-[10px] font-black text-yellow-700 uppercase tracking-widest">Active Filters</span>
+                </div>
+                {filters.visitStatus !== 'All' && (
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-400 text-black rounded-xl text-[10px] font-black shadow-sm group">
+                    Status: {filters.visitStatus}
+                    <button onClick={() => setFilters(prev => ({...prev, visitStatus: 'All'}))} className="hover:scale-125 transition-transform"><X size={12} /></button>
+                  </div>
+                )}
+                {Object.entries(filters).map(([k, v]) => {
+                  if (!Array.isArray(v)) return null;
+                  return v.map(val => (
+                    <div key={`${k}_${val}`} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-yellow-200 text-gray-700 rounded-xl text-[10px] font-black shadow-sm hover:border-yellow-400 transition-colors">
+                      {val}
+                      <button onClick={() => handleToggleFilter(k, val)} className="hover:text-red-500 hover:scale-125 transition-all"><X size={12} /></button>
+                    </div>
+                  ));
+                })}
+                <button onClick={clearFilters} className="ml-auto text-[10px] font-black text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-xl transition-all uppercase tracking-widest border border-transparent hover:border-red-100">Clear All</button>
+              </div>
+            )}
+
+            {/* Tabs Bar Fix */}
+            <div className={`sticky ${tabsTop} z-[10] bg-white border-b border-gray-100 shadow-sm px-6 py-2`}>
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div className="flex items-center gap-1.5 flex-1 justify-center">
+                {[
+                  { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+                  { id: 'by-mr',    label: 'By MR', icon: Users },
+                  { id: 'by-spec',  label: 'By Specialty', icon: BarChart3 },
+                  { id: 'list',     label: 'Customer List', icon: ClipboardCheck },
+                  { id: 'map',      label: 'Coverage Map', icon: MapIcon },
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => { setActiveTab(tab.id); setCurrentPage(1); }}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all flex-1 justify-center ${activeTab === tab.id ? 'bg-yellow-400 text-black shadow-lg shadow-yellow-400/20' : 'text-gray-400 hover:text-gray-700 hover:bg-gray-50'}`}
+                  >
+                    <tab.icon className={activeTab === tab.id ? 'w-4 h-4' : 'w-3.5 h-3.5 text-gray-300'} />
+                    <span className="hidden sm:inline">{tab.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, ease: 'easeOut' }}
+            >
+              {activeTab === 'overview'  && renderOverview()}
+              {activeTab === 'by-mr'    && renderByMR()}
+              {activeTab === 'by-spec'  && renderBySpecialty()}
+              {activeTab === 'list'     && renderCustomerList()}
+              {activeTab === 'map'      && renderCoverageMap()}
+            </motion.div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
