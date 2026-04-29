@@ -166,12 +166,12 @@ const SalesAnalyzer = () => {
     return { netValue, netQty, returnsValue, returnsQty, uniqueProducts };
   }, [filteredData]);
 
+  const [trendGroup, setTrendGroup] = useState('monthly');
+  const [customerSearch, setCustomerSearch] = useState('');
   const activeFilterCount = useMemo(() => Object.entries(filters).filter(([k, v]) => Array.isArray(v) ? v.length > 0 : v !== '').length, [filters]);
   const startDate = useMemo(() => data.length > 0 ? new Date(Math.min(...data.map(d => d.invoiceDate))) : new Date(), [data]);
   const endDate = useMemo(() => data.length > 0 ? new Date(Math.max(...data.map(d => d.invoiceDate))) : new Date(), [data]);
-  const topProductsByVal = useMemo(() => byProduct.slice(0, 10).map(p => ({name: p.productName.substring(0,20), val: p.netValue})), [byProduct]);
-  const topProductsByQty = useMemo(() => byProduct.slice(0, 10).map(p => ({name: p.productName.substring(0,20), val: p.netQty})), [byProduct]);
-  const customerTypeData = useMemo(() => [...new Set(filteredData.map(d=>d.customerType))].map(t => ({name: t, val: filteredData.filter(d=>d.customerType===t).reduce((acc,f)=>acc+f.netValue,0)})), [filteredData]);
+
   const byProduct = useMemo(() => {
     const map = {};
     filteredData.forEach(row => {
@@ -187,6 +187,10 @@ const SalesAnalyzer = () => {
     const total = Object.values(map).reduce((s,r) => s + r.netValue, 0);
     return Object.values(map).map(r => ({ ...r, invoiceCount: r.invoices.size, pct: total > 0 ? ((r.netValue/total)*100).toFixed(1) : '0.0' })).sort((a,b) => b.netQty - a.netQty);
   }, [filteredData]);
+
+  const topProductsByVal = useMemo(() => byProduct.slice(0, 10).map(p => ({name: p.productName.substring(0,20), val: p.netValue})), [byProduct]);
+  const topProductsByQty = useMemo(() => byProduct.slice(0, 10).map(p => ({name: p.productName.substring(0,20), val: p.netQty})), [byProduct]);
+  const customerTypeData = useMemo(() => [...new Set(filteredData.map(d=>d.customerType))].map(t => ({name: t, val: filteredData.filter(d=>d.customerType===t).reduce((acc,f)=>acc+f.netValue,0)})), [filteredData]);
 
   const byMR = useMemo(() => {
     const map = {};
@@ -242,7 +246,6 @@ const SalesAnalyzer = () => {
     return Object.values(map).map(r => ({ ...r, mrCount: r.mrs.size, customerCount: r.customers.size, invoiceCount: r.invoices.size, pct: total > 0 ? ((r.netValue/total)*100).toFixed(1) : '0.0' })).sort((a,b) => b.netQty - a.netQty);
   }, [filteredData]);
 
-  const [trendGroup, setTrendGroup] = useState('monthly');
   const trendData = useMemo(() => {
       const map = {};
       filteredData.forEach(row => {
