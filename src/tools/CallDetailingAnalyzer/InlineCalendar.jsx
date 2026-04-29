@@ -87,12 +87,12 @@ export default function InlineCalendar({ mr, targets, onClose }) {
         </div>
       </div>
 
-      <div className={`grid transition-all duration-300 ${selectedDate ? 'grid-cols-1 lg:grid-cols-3' : 'grid-cols-1'}`}>
+      <div className={`flex flex-col lg:flex-row transition-all duration-300`}>
         {/* Calendar Grid */}
-        <div className={`p-4 ${selectedDate ? 'lg:col-span-2 border-r border-gray-100' : ''}`}>
-          <div className="grid grid-cols-7 gap-1">
+        <div className={`p-2 lg:p-4 ${selectedDate ? 'lg:w-3/5' : 'w-full'} transition-all duration-300`}>
+          <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
             {['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map(d => (
-              <div key={d} className="text-center py-2 text-[10px] font-black uppercase tracking-widest text-gray-400">
+              <div key={d} className="text-center py-2 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-gray-400">
                 {d}
               </div>
             ))}
@@ -144,15 +144,37 @@ export default function InlineCalendar({ mr, targets, onClose }) {
 
         {/* Day Detail Panel */}
         {selectedDate && selectedDayData && (
-          <div className="bg-gray-50 p-4 border-l border-gray-100 animate-in slide-in-from-right-4 duration-300 overflow-y-auto max-h-[800px] custom-scrollbar">
-             <DayDetailPanel 
-               date={selectedDate} 
-               dayData={selectedDayData} 
-               targets={targets} 
-               mrName={mr.mrName} 
-               onClose={() => setSelectedDate(null)} 
-             />
-          </div>
+          <>
+            {/* Desktop: right panel */}
+            <div className="hidden lg:block lg:w-2/5 bg-gray-50 p-4 border-l border-gray-100 animate-in slide-in-from-right-4 duration-300 overflow-y-auto max-h-[800px] custom-scrollbar">
+               <DayDetailPanel 
+                 date={selectedDate} 
+                 dayData={selectedDayData} 
+                 targets={targets} 
+                 mrName={mr.mrName} 
+                 onClose={() => setSelectedDate(null)} 
+               />
+            </div>
+
+            {/* Mobile: bottom sheet */}
+            <div className="lg:hidden fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-2xl shadow-2xl max-h-[75vh] overflow-y-auto border-t-2 border-yellow-400 pb-8 animate-in slide-in-from-bottom-full duration-300">
+              <div className="flex justify-center pt-3 pb-2 sticky top-0 bg-white border-b border-gray-100 z-10 w-full" onClick={() => setSelectedDate(null)}>
+                <div className="w-12 h-1.5 bg-gray-300 rounded-full cursor-pointer"/>
+              </div>
+              <div className="p-4">
+               <DayDetailPanel 
+                 date={selectedDate} 
+                 dayData={selectedDayData} 
+                 targets={targets} 
+                 mrName={mr.mrName} 
+                 onClose={() => setSelectedDate(null)} 
+               />
+              </div>
+            </div>
+
+            {/* Mobile backdrop */}
+            <div className="lg:hidden fixed inset-0 z-40 bg-black/40 animate-in fade-in duration-300" onClick={() => setSelectedDate(null)}/>
+          </>
         )}
       </div>
     </div>
@@ -211,8 +233,8 @@ const DayCell = ({ day, dateStr, dayData, targets, inMonth }) => {
 
   return (
     <div className={`
-      border rounded-lg p-1 min-h-[90px]
-      text-xs transition-all cursor-pointer
+      border rounded p-0.5 sm:p-1 min-h-[55px] sm:min-h-[80px] lg:min-h-[90px]
+      text-[9px] sm:text-[10px] transition-all cursor-pointer
       hover:border-yellow-400
       ${isFriday ? "bg-red-50 border-red-100" : ""}
       ${isThursday ? "bg-orange-50 border-orange-100" : ""}
@@ -221,13 +243,13 @@ const DayCell = ({ day, dateStr, dayData, targets, inMonth }) => {
       ${!isFriday && !isThursday && dayData ? "bg-white border-gray-200" : ""}
     `}>
       <div className="flex items-center justify-between mb-0.5">
-        <span className="font-bold text-gray-800">{day}</span>
+        <span className="font-bold text-gray-800 text-[10px] sm:text-xs">{day}</span>
         <div className="flex items-center gap-0.5">
           {dayData?.coached >= 4 && (
-            <span className="text-[9px]">🎓</span>
+            <span className="text-[9px] sm:text-xs">🎓</span>
           )}
           {overallAch !== null && (
-            <span className={`text-[9px] font-bold px-1 rounded ${achBg(overallAch)} ${achColor(overallAch)}`}>
+            <span className={`hidden sm:inline text-[8px] font-bold px-1 rounded ${achBg(overallAch)} ${achColor(overallAch)}`}>
               {overallAch}%
             </span>
           )}
@@ -235,46 +257,45 @@ const DayCell = ({ day, dateStr, dayData, targets, inMonth }) => {
       </div>
 
       {dayData && (
-        <div className="space-y-0.5">
+        <div className="space-y-0.5 mt-0.5">
           {(dayData.hco > 0 || hcoAch !== null) && !isFriday && (
             <div className="flex items-center justify-between">
-              <span className="text-green-700 font-medium">🏥 {dayData.hco}</span>
+              <span className="text-green-700 font-medium whitespace-nowrap">🏥 <span className="hidden sm:inline">{dayData.hco}</span></span>
+              <span className="sm:hidden text-green-700 font-bold">{dayData.hco}</span>
               {hcoAch !== null && (
-                <span className={`text-[9px] font-semibold ${achColor(hcoAch)}`}>{hcoAch}%</span>
+                <span className={`hidden sm:inline text-[8px] font-semibold ${achColor(hcoAch)}`}>{hcoAch}%</span>
               )}
             </div>
           )}
 
           {(dayData.ph > 0 || phAch !== null) && !isFriday && (
             <div className="flex items-center justify-between">
-              <span className="text-purple-700 font-medium">💊 {dayData.ph}</span>
+              <span className="text-purple-700 font-medium whitespace-nowrap">💊 <span className="hidden sm:inline">{dayData.ph}</span></span>
+              <span className="sm:hidden text-purple-700 font-bold">{dayData.ph}</span>
               {phAch !== null && (
-                <span className={`text-[9px] font-semibold ${achColor(phAch)}`}>{phAch}%</span>
+                <span className={`hidden sm:inline text-[8px] font-semibold ${achColor(phAch)}`}>{phAch}%</span>
               )}
             </div>
           )}
 
           {!isFriday && !isThursday && (dayData.hcp > 0 || hcpAch !== null) && (
             <div className="flex items-center justify-between">
-              <span className="text-blue-700 font-medium">👤 {dayData.hcp}</span>
+              <span className="text-blue-700 font-medium whitespace-nowrap">👤 <span className="hidden sm:inline">{dayData.hcp}</span></span>
+              <span className="sm:hidden text-blue-700 font-bold">{dayData.hcp}</span>
               {hcpAch !== null && (
-                <span className={`text-[9px] font-semibold ${achColor(hcpAch)}`}>{hcpAch}%</span>
+                <span className={`hidden sm:inline text-[8px] font-semibold ${achColor(hcpAch)}`}>{hcpAch}%</span>
               )}
             </div>
           )}
 
           {isThursday && dayData.hcp === 0 && (
-            <div className="text-[9px] text-orange-400">PM off</div>
+            <div className="text-[8px] text-orange-400 leading-tight">PM off</div>
           )}
-
-          <div className="text-[9px] text-gray-400 pt-0.5 border-t border-gray-100">
-            {totalDone} visits
-          </div>
         </div>
       )}
 
       {isFriday && (
-        <div className="text-[9px] text-red-400 mt-1">🔴 OFF</div>
+        <div className="hidden sm:block text-[9px] text-red-400 mt-1">🔴 OFF</div>
       )}
     </div>
   );
@@ -341,7 +362,7 @@ const DayDetailPanel = ({ date, dayData, targets, mrName, onClose }) => {
           <CollapsibleTypeSection
             isOpen={openSections.hco}
             onToggle={() => toggleSection("hco")}
-            icon="🏥" label="HCO" session="AM — Sat to Thu"
+            icon="🏥" label="HCO"
             count={dayData.hco} target={targets?.hcoPerDay} ach={hcoAch} customers={hcoCustomers} isOff={false} showSpecialty={false}
           />
         )}
@@ -349,7 +370,7 @@ const DayDetailPanel = ({ date, dayData, targets, mrName, onClose }) => {
           <CollapsibleTypeSection
             isOpen={openSections.ph}
             onToggle={() => toggleSection("ph")}
-            icon="💊" label="Pharmacy" session="AM — Sat to Thu"
+            icon="💊" label="Pharmacy"
             count={dayData.ph} target={targets?.phPerDay} ach={phAch} customers={phCustomers} isOff={false} showSpecialty={false}
           />
         )}
@@ -357,20 +378,20 @@ const DayDetailPanel = ({ date, dayData, targets, mrName, onClose }) => {
           <div className="rounded-xl border border-orange-200 bg-orange-50 px-4 py-3">
             <div className="flex items-center gap-2">
               <span>👤</span><span className="font-semibold text-sm text-orange-700">HCP</span>
-              <span className="text-xs text-orange-500">PM — Thursday PM is OFF</span>
+              <span className="text-xs text-orange-500">· Thursday — PM Off</span>
             </div>
           </div>
         ) : (
           <CollapsibleTypeSection
             isOpen={openSections.hcp}
             onToggle={() => toggleSection("hcp")}
-            icon="👤" label="HCP" session="PM — Sat to Wed"
+            icon="👤" label="HCP"
             count={dayData.hcp} target={targets?.hcpPerDay} ach={hcpAch} customers={hcpCustomers} isOff={false} showSpecialty={true}
           />
         )}
         {isFriday && (
           <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-center">
-            <span className="text-red-500 font-semibold">🔴 Friday — Full Off Day</span>
+            <span className="text-red-500 font-semibold">🔴 Full Off Day</span>
           </div>
         )}
         {coachedList.length > 0 && (
@@ -381,13 +402,13 @@ const DayDetailPanel = ({ date, dayData, targets, mrName, onClose }) => {
   );
 };
 
-const CollapsibleTypeSection = ({ isOpen, onToggle, icon, label, session, count, target, ach, customers, isOff, showSpecialty }) => {
+const CollapsibleTypeSection = ({ isOpen, onToggle, icon, label, count, target, ach, customers, isOff, showSpecialty }) => {
   const achColor = (pct) => pct === null ? "text-gray-500" : pct >= 100 ? "text-green-700" : pct >= 90 ? "text-yellow-600" : "text-red-600";
   const sectionBg = (pct) => pct === null ? "bg-gray-50 border-gray-200" : pct >= 100 ? "bg-green-50 border-green-200" : pct >= 90 ? "bg-yellow-50 border-yellow-200" : "bg-red-50 border-red-200";
 
   if (isOff) return (
     <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-400 flex items-center gap-2">
-      {icon} {label} — {session} OFF
+      {icon} {label} — OFF
     </div>
   );
 
@@ -397,11 +418,10 @@ const CollapsibleTypeSection = ({ isOpen, onToggle, icon, label, session, count,
         <div className="flex items-center gap-2">
           <span className="text-base">{icon}</span>
           <span className="font-bold text-gray-800">{label}</span>
-          <span className="text-xs text-gray-500">{session}</span>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="font-bold text-gray-800">{count} visits</span>
-          {ach !== null && target && <span className={`text-xs font-bold ${achColor(ach)}`}>{ach}% of {target} target</span>}
+        <div className="flex items-center gap-2 sm:gap-3">
+          <span className="font-bold text-gray-800 text-xs sm:text-sm">{count} visits</span>
+          {ach !== null && target && <span className={`text-[10px] sm:text-xs font-bold ${achColor(ach)}`}>{ach}% <span className="hidden sm:inline">of {target}</span></span>}
           <span className="text-gray-400 text-xs">{isOpen ? "▲" : "▼"}</span>
         </div>
       </button>

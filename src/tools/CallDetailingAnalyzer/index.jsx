@@ -17,6 +17,126 @@ import CoachingAnalysis from './CoachingAnalysis';
 import CoachingSection from './CoachingSection';
 import InlineCalendar from './InlineCalendar';
 
+const StickyToolbar = ({
+  activeTab, setActiveTab, tabs,
+  periodFrom, periodTo,
+  selectedMonths, availableMonths,
+  filteredRowCount,
+}) => {
+  const periodLabel = useMemo(() => {
+    if (!periodFrom || !periodTo) return "";
+    const fmtShort = (d) => {
+      try {
+        return new Date(d + "T00:00:00").toLocaleDateString("en-GB", {
+          day:   "numeric",
+          month: "short",
+          year:  "numeric",
+        });
+      } catch { return d; }
+    };
+    const fmtMonthYear = (d) => {
+      try {
+        return new Date(d + "T00:00:00").toLocaleDateString("en-GB", {
+          month: "short",
+          year:  "numeric",
+        });
+      } catch { return d; }
+    };
+
+    const fromYM = periodFrom.substring(0, 7);
+    const toYM   = periodTo.substring(0, 7);
+
+    if (fromYM === toYM) {
+      const fromDay = parseInt(periodFrom.split("-")[2], 10);
+      const toDay = parseInt(periodTo.split("-")[2], 10);
+      const monthYear = fmtMonthYear(periodFrom);
+      return `${fromDay}–${toDay} ${monthYear}`;
+    }
+    return `${fmtShort(periodFrom)} → ${fmtShort(periodTo)}`;
+  }, [periodFrom, periodTo]);
+
+  const monthFilterLabel = useMemo(() => {
+    if (!selectedMonths || selectedMonths.size === 0 || selectedMonths.size === availableMonths.length) {
+      return "All Months";
+    }
+    if (selectedMonths.size === 1) {
+      const ym = [...selectedMonths][0];
+      const [y, m] = ym.split("-").map(Number);
+      return new Date(y, m-1, 1).toLocaleDateString("en-GB", {
+        month: "long", year: "numeric"
+      });
+    }
+    const sorted = [...selectedMonths].sort();
+    const months = sorted.map(ym => {
+      const [y, m] = ym.split("-").map(Number);
+      return new Date(y, m-1, 1).toLocaleDateString("en-GB", {
+        month: "short"
+      });
+    });
+    const lastYM = sorted[sorted.length - 1];
+    const year = lastYM.split("-")[0];
+    return `${months.join(" · ")} ${year}`;
+  }, [selectedMonths, availableMonths]);
+
+  return (
+    <div className="sticky top-[60px] z-30 bg-white border-b shadow-sm -mx-4 px-0">
+      <div className="flex items-center justify-between px-3 sm:px-6">
+        <div className="flex gap-1 overflow-x-auto scrollbar-none py-2 px-1">
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`
+                flex items-center gap-1 sm:gap-1.5
+                px-2 sm:px-3 py-1.5 rounded-lg
+                text-xs sm:text-sm font-medium
+                whitespace-nowrap flex-shrink-0
+                transition-all
+                ${activeTab === tab.id
+                  ? "bg-yellow-400 text-gray-900 shadow-sm"
+                  : "text-gray-600 hover:bg-gray-100"
+                }`}
+            >
+              <span>{tab.icon}</span>
+              <span className="hidden xs:inline sm:inline">{tab.label}</span>
+            </button>
+          ))}
+        </div>
+
+        {periodLabel && (
+          <div className="hidden sm:flex items-center gap-2 flex-shrink-0 ml-3">
+            <div className="flex items-center gap-1.5 bg-yellow-50 border border-yellow-200 rounded-lg px-2.5 py-1">
+              <span className="text-yellow-600 text-xs">📅</span>
+              <span className="text-xs font-semibold text-yellow-800">{monthFilterLabel}</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-gray-100 border border-gray-200 rounded-lg px-2.5 py-1">
+              <span className="text-xs font-medium text-gray-700">{periodLabel}</span>
+              <span className="text-[10px] text-gray-400 border-l border-gray-300 pl-1.5">
+                {filteredRowCount.toLocaleString()} rows
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {periodLabel && (
+        <div className="sm:hidden flex items-center gap-2 px-3 pb-2 overflow-x-auto scrollbar-none">
+          <div className="flex items-center gap-1 bg-yellow-50 border border-yellow-200 rounded-lg px-2 py-1 flex-shrink-0">
+            <span className="text-yellow-600 text-[10px]">📅</span>
+            <span className="text-[10px] font-semibold text-yellow-800">{monthFilterLabel}</span>
+          </div>
+          <div className="flex items-center gap-1 bg-gray-100 border border-gray-200 rounded-lg px-2 py-1 flex-shrink-0">
+            <span className="text-[10px] font-medium text-gray-700">{periodLabel}</span>
+          </div>
+          <div className="text-[10px] text-gray-400 flex-shrink-0">
+            {filteredRowCount.toLocaleString()} rows
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const KPICard = ({ title, value, unit, sub, icon, color }) => (
   <div
     className="bg-white rounded-3xl border shadow-sm p-4 flex flex-col gap-1 transition-all hover:shadow-lg hover:-translate-y-1"
@@ -112,12 +232,13 @@ const CallDetailingAnalyzer = () => {
   const [selectedMonths, setSelectedMonths] = useState(null); // null = ALL
   const [targets, setTargets] = useState({ hcpPerDay: 0, hcoPerDay: 0, phPerDay: 0 });
   const [selectedMRForCalendar, setSelectedMRForCalendar] = useState(null);
-  const [activeTab, setActiveTab] = useState('section-performance');
+  const [activeTab, setActiveTab] = useState('performance');
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [globalSearch, setGlobalSearch] = useState("");
   const [searchFilter, setSearchFilter] = useState("All");
   const [onlyCoached, setOnlyCoached] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [insightsOpen, setInsightsOpen] = useState(false);
 
   // Auto-load on mount
   useEffect(() => {
@@ -361,33 +482,56 @@ const CallDetailingAnalyzer = () => {
     }).slice(0, 500);
   }, [filteredData, globalSearch, searchFilter, onlyCoached]);
 
-  const scrollToSection = (id) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
-    setActiveTab(id);
-  };
+  const tabs = useMemo(() => [
+    { id: 'performance', label: 'Performance', icon: '📊', href: '#section-performance' },
+    { id: 'forecast', label: 'Forecast', icon: '📈', href: '#section-forecast' },
+    { id: 'search', label: 'Search', icon: '🔍', href: '#section-search' },
+    { id: 'coaching', label: 'Coaching', icon: '🎓', href: '#section-coaching' },
+    { id: 'data', label: 'Data', icon: '📋', href: '#section-datatable' },
+    { id: 'insights', label: 'Insights', icon: '🤖', href: '#section-insights' },
+  ], []);
 
-  useEffect(() => {
-    const onScroll = () => setShowScrollTop(window.scrollY > 400);
-    window.addEventListener("scroll", onScroll);
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  const handleTabClick = (tabId) => {
+    setActiveTab(tabId);
+    if (tabId === "insights") {
+      setInsightsOpen(true);
+      setTimeout(() => {
+        document.getElementById("section-insights")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+      return;
+    }
+    const tab = tabs.find(t => t.id === tabId);
+    if (tab?.href) {
+      document.querySelector(tab.href)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
 
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
-          setActiveTab(entry.target.id);
+          setActiveTab(entry.target.id.replace('section-', ''));
         }
       });
     }, { rootMargin: '-20% 0px -60% 0px', threshold: 0.1 }); 
 
-    ['section-performance', 'section-insights', 'section-forecast', 'section-search', 'section-datatable'].forEach(id => {
+    ['section-performance', 'section-forecast', 'section-search', 'section-coaching', 'section-datatable', 'section-insights'].forEach(id => {
       const el = document.getElementById(id);
       if (el) observer.observe(el);
     });
 
     return () => observer.disconnect();
   }, [filteredData.length]);
+
+  const periodFrom = useMemo(() => {
+    const dates = filteredData.map(r => r.ReportDate).filter(d => d && /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
+    return dates[0] ?? "";
+  }, [filteredData]);
+
+  const periodTo = useMemo(() => {
+    const dates = filteredData.map(r => r.ReportDate).filter(d => d && /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
+    return dates[dates.length - 1] ?? "";
+  }, [filteredData]);
 
   const formatDateBanner = (d) => {
     if (!d) return "";
@@ -396,6 +540,12 @@ const CallDetailingAnalyzer = () => {
       month: "short",
       year: "numeric"
     });
+  };
+
+  const shortLabel = (ym) => {
+    const [y, m] = ym.split("-").map(Number);
+    const month = new Date(y, m-1, 1).toLocaleDateString("en-GB", { month:"short" });
+    return `${month} '${String(y).slice(2)}`;
   };
 
   const hasData = rawData.length > 0;
@@ -500,57 +650,40 @@ const CallDetailingAnalyzer = () => {
                 )}
               </div>
 
-              <div className="flex gap-2 flex-wrap mb-2">
+              <div className="flex gap-1.5 flex-wrap sm:flex-nowrap overflow-x-auto scrollbar-none mb-2">
                 <button
                   onClick={selectAllMonths}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-2xl border text-xs font-black transition-all ${
+                  className={`flex-shrink-0 text-xs px-2.5 py-1.5 rounded-lg border font-bold transition-all ${
                     isAllSelected
-                      ? "bg-yellow-400 border-yellow-400 text-gray-900 shadow-lg shadow-yellow-200"
+                      ? "bg-yellow-400 border-yellow-400 text-gray-900"
                       : "bg-white border-gray-200 text-gray-500 hover:bg-gray-50 hover:border-gray-300"
                   }`}>
-                  All
-                  <span className={`text-[9px] px-2 py-0.5 rounded-full ${
-                    isAllSelected ? "bg-yellow-500 text-white" : "bg-gray-100 text-gray-500"
-                  }`}>
-                    {rawData.length.toLocaleString()}
+                  <span className="sm:hidden">All</span>
+                  <span className="hidden sm:inline">All Months</span>
+                  <span className="ml-1 text-[10px] opacity-70">
+                    ({rawData.length.toLocaleString()})
                   </span>
                 </button>
 
                 {availableMonths.map(m => {
                   const active = isMonthSelected(m.yearMonth) && !isAllSelected;
                   return (
-                    <div key={m.yearMonth} className="relative group/month cursor-pointer">
-                      <button
-                        onClick={() => toggleMonth(m.yearMonth)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-2xl border text-xs transition-all ${
-                          active
-                            ? "bg-yellow-400 border-yellow-400 text-gray-900 font-black shadow-lg shadow-yellow-200"
-                            : isAllSelected
-                              ? "bg-gray-50 border-gray-100 text-gray-600 hover:bg-yellow-50 hover:border-yellow-200 font-bold"
-                              : "bg-white border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-600 font-bold"
-                        }`}>
-                        {m.label}
-                        <span className={`text-[9px] px-2 py-0.5 rounded-full ${
-                          active ? "bg-yellow-500 text-white" : "bg-gray-100 text-gray-500 font-bold"
-                        }`}>
-                          {m.rowCount.toLocaleString()}
-                        </span>
-                      </button>
-
-                      {/* Tooltip */}
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-gray-900 text-white rounded-2xl px-4 py-3 text-xs whitespace-nowrap z-50 shadow-2xl pointer-events-none opacity-0 group-hover/month:opacity-100 transition-all translate-y-2 group-hover/month:translate-y-0 border border-gray-800">
-                        <div className="font-black mb-2 text-sm text-yellow-400">
-                          {m.label}
-                        </div>
-                        <div className="text-gray-300 font-medium mb-1">
-                          <span className="opacity-50 inline-block w-12">Rows:</span> <span className="text-white font-bold">{m.rowCount.toLocaleString()}</span>
-                        </div>
-                        <div className="text-gray-300 font-medium">
-                          <span className="opacity-50 inline-block w-12">MRs:</span> <span className="text-white font-bold">{m.mrCount}</span>
-                        </div>
-                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"/>
-                      </div>
-                    </div>
+                    <button
+                      key={m.yearMonth}
+                      onClick={() => toggleMonth(m.yearMonth)}
+                      className={`flex-shrink-0 text-xs px-2.5 py-1.5 rounded-lg border font-bold transition-all ${
+                        active
+                          ? "bg-yellow-400 border-yellow-400 text-gray-900"
+                          : isAllSelected
+                            ? "bg-gray-50 border-gray-100 text-gray-600 hover:bg-yellow-50 hover:border-yellow-200"
+                            : "bg-white border-gray-200 text-gray-400 hover:bg-gray-50"
+                      }`}>
+                      <span className="sm:hidden">{shortLabel(m.yearMonth)}</span>
+                      <span className="hidden sm:inline">{m.label}</span>
+                      <span className="ml-1 text-[10px] opacity-70">
+                        ({m.rowCount})
+                      </span>
+                    </button>
                   );
                 })}
               </div>
@@ -638,30 +771,16 @@ const CallDetailingAnalyzer = () => {
              </div>
           </div>
 
-          {/* 5. STICKY TAB BAR */}
-          <div className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl -mx-4 px-4 py-2 border-b border-gray-200 shadow-sm flex items-center justify-between overflow-x-auto custom-scrollbar">
-             <div className="flex gap-1 md:gap-4 min-w-max">
-                {[
-                  { id: 'section-performance', label: 'Performance', icon: '📊' },
-                  { id: 'section-insights', label: 'Insights', icon: '🤖' },
-                  { id: 'section-forecast', label: 'Forecast', icon: '📈' },
-                  { id: 'section-search', label: 'Search', icon: '🔍' },
-                  { id: 'section-datatable', label: 'Data', icon: '📋' }
-                ].map(tab => (
-                  <button
-                    key={tab.id}
-                    onClick={() => scrollToSection(tab.id)}
-                    className={`flex items-center gap-2 px-4 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${
-                      activeTab === tab.id 
-                        ? 'bg-accent text-black shadow-lg scale-105' 
-                        : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'
-                    }`}
-                  >
-                    <span>{tab.icon}</span> {tab.label}
-                  </button>
-                ))}
-             </div>
-          </div>
+          <StickyToolbar
+            activeTab={activeTab}
+            setActiveTab={handleTabClick}
+            tabs={tabs}
+            periodFrom={periodFrom}
+            periodTo={periodTo}
+            selectedMonths={selectedMonths}
+            availableMonths={availableMonths}
+            filteredRowCount={filteredData.length}
+          />
 
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             <KPICard title="Coaching Days" value={metrics.coachingDays} sub={`${metrics.coachingMRs} active coaches`} icon={<GraduationCap size={20}/>} color="#F5C518" />
@@ -712,14 +831,7 @@ const CallDetailingAnalyzer = () => {
              })()}
           </div>
 
-          {/* 11. INSIGHTS SECTION */}
-          <div id="section-insights" className="scroll-mt-24 pt-8">
-             <div className="mb-8">
-                <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tight">Auto <span className="text-accent underline decoration-accent/20">Insights</span></h2>
-                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] mt-1">AI-Powered trend detection</p>
-             </div>
-             <AutoInsights insights={insights} />
-          </div>
+          {/* 11. INSIGHTS SECTION (Moved to bottom) */}
 
           {/* 12. FORECAST SECTION */}
           <div id="section-forecast" className="scroll-mt-24 pt-8">
@@ -884,6 +996,78 @@ const CallDetailingAnalyzer = () => {
                 </div>
              </details>
           </div>
+
+          <section id="section-insights" className="bg-white rounded-2xl border shadow-sm overflow-hidden scroll-mt-24 mt-8">
+            <button
+              type="button"
+              onClick={() => setInsightsOpen(o => !o)}
+              className="w-full flex items-center justify-between px-4 sm:px-6 py-4 hover:bg-gray-50 transition-colors">
+              <div className="flex items-center gap-3">
+                <span className="text-xl">🤖</span>
+                <div className="text-left">
+                  <h2 className="font-bold text-base sm:text-lg text-gray-900">
+                    Auto Insights
+                  </h2>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {insightsOpen
+                      ? "Click to collapse"
+                      : `${insights.length} insights generated · Click to expand`
+                    }
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {!insightsOpen && (
+                  <span className="bg-yellow-400 text-gray-900 text-xs font-bold px-2.5 py-1 rounded-full">
+                    {insights.length}
+                  </span>
+                )}
+                <span className={`text-gray-400 text-sm transition-transform duration-200 ${insightsOpen ? "rotate-180" : ""}`}>
+                  ▼
+                </span>
+              </div>
+            </button>
+
+            {insightsOpen && (
+              <div className="border-t border-gray-100 px-4 sm:px-6 py-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {insights.map((insight, i) => (
+                    <div key={i}
+                      className={`rounded-xl border p-4 ${
+                        insight.type === "positive"
+                          ? "bg-green-50 border-green-200"
+                          : insight.type === "warning"
+                            ? "bg-yellow-50 border-yellow-200"
+                            : insight.type === "negative"
+                              ? "bg-red-50 border-red-200"
+                              : "bg-blue-50 border-blue-200"
+                      }`}>
+                      <div className="flex items-start gap-2">
+                        <span className="text-lg flex-shrink-0">
+                          {insight.icon || "💡"}
+                        </span>
+                        <div>
+                          <div className="font-semibold text-sm text-gray-800">
+                            {insight.title}
+                          </div>
+                          <div className="text-xs text-gray-600 mt-1 leading-relaxed">
+                            {insight.body}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {insights.length === 0 && (
+                  <div className="text-center py-8 text-gray-400 text-sm">
+                    No insights available yet. Upload data to generate insights.
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
         </>
       )}
 

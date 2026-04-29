@@ -1,85 +1,119 @@
-import React from 'react';
-import { useLocation } from 'react-router-dom';
-import { Shield, Menu } from 'lucide-react';
+import React, { useState } from 'react';
+import { useLocation, NavLink } from 'react-router-dom';
+import { LayoutDashboard, Settings, Activity, BarChart3, Menu, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useSidebar } from '../context/SidebarContext';
 
 const Navbar = () => {
   const { user } = useAuth();
   const location = useLocation();
-  const { toggle } = useSidebar();
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  // Get current tool name for breadcrumbs
-  const getBreadcrumb = () => {
-    const path = location.pathname;
-    if (path === '/dashboard') return 'Dashboard';
-    if (path === '/tools/call-detailing') return 'Dashboard  ›  Call Detailing Analyzer';
-    if (path === '/tools/sales-analyzer') return 'Dashboard  ›  Sales Analyzer';
-    if (path === '/admin/users') return 'Dashboard  ›  User Management';
-    return '';
-  };
-
-  // Get initials for avatar
   const getInitials = (name) => {
     if (!name || typeof name !== 'string') return '??';
     return name.split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase().substring(0, 2);
   };
 
+  const menuItems = [
+    { title: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, role: 'all' },
+    { title: 'Call Detailing', path: '/tools/call-detailing', icon: Activity, role: 'user' },
+    { title: 'Sales Analyzer', path: '/tools/sales-analyzer', icon: BarChart3, role: 'user' },
+    { title: 'User Management', path: '/admin/users', icon: Settings, role: 'admin' },
+  ];
+
+  const visibleItems = menuItems.filter(item => {
+    if (item.role === 'all') return true;
+    if (item.role === 'admin') return user?.role === 'admin';
+    if (item.role === 'user') return user?.role === 'admin' || user?.role === 'manager' || user?.role === 'viewer';
+    return false;
+  });
+
   return (
-    <nav className="fixed top-0 left-0 right-0 h-14 bg-surface border-b border-border z-50 px-6 flex items-center justify-between shadow-sm flex-shrink-0">
-      {/* LEFT: App Information */}
-      <div className="flex items-center gap-3">
-        <button 
-          onClick={toggle}
-          className="p-1.5 -ml-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors"
-          aria-label="Toggle Sidebar"
-        >
-          <Menu size={20} />
-        </button>
-        <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center shadow-[0_0_10px_rgba(245,197,24,0.3)]">
-          <span className="text-sm">🔍</span>
-        </div>
-        <div className="flex flex-col">
-          <h1 className="text-sm font-black tracking-tight text-black leading-tight">
-            Data<span className="text-accent underline decoration-accent/20"> Lens</span>
-          </h1>
-          <span className="text-[10px] text-muted font-medium uppercase tracking-wider">
-            Pharma Analytics Portal
-          </span>
-        </div>
-      </div>
-
-      {/* CENTER: Breadcrumbs */}
-      <div className="hidden md:block">
-        <p className="text-[10px] text-muted font-black uppercase tracking-[0.2em] opacity-40">
-          {getBreadcrumb()}
-        </p>
-      </div>
-
-      {/* RIGHT: User Profile */}
-      <div className="flex items-center gap-3">
-        <div className="flex flex-col items-end">
-          <span className="text-sm font-black text-gray-900 leading-tight tracking-tight">{user?.name}</span>
-          <div className="flex items-center gap-2 mt-0.5">
-            <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter italic">{user?.jobTitle}</span>
-            <span className={`text-[8px] uppercase font-black tracking-widest px-2 py-0.5 rounded-full border shadow-inner ${
-              user?.role === 'admin' ? 'bg-accent/10 text-accent border-accent/20' : 'bg-gray-100 text-gray-400 border-gray-200'
-            }`}>
-              {user?.role}
-            </span>
+    <>
+      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-3 sm:px-6 py-3 bg-gray-900 text-white shadow-md">
+        {/* Logo */}
+        <div className="flex items-center gap-2">
+          <span className="text-xl">🔍</span>
+          <div>
+            <div className="font-bold text-sm sm:text-base text-white">
+              Data Lens
+            </div>
+            <div className="text-[9px] sm:text-[11px] text-yellow-400 leading-tight hidden sm:block">
+              Pharma Analytics Portal
+            </div>
           </div>
         </div>
-        
-        <div 
-          className="w-10 h-10 rounded-xl bg-gray-900 flex items-center justify-center border-4 border-white shadow-xl"
-          style={{ backgroundColor: user?.username ? `hsl(${user.username.length * 40}, 60%, 40%)` : '#1A1A2E' }}
-        >
-          <span className="text-xs font-black text-white">
-            {getInitials(user?.name)}
-          </span>
+
+        {/* Desktop nav */}
+        <div className="hidden md:flex items-center gap-4 text-sm">
+          {visibleItems.map((item) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              className={({ isActive }) =>
+                `flex items-center gap-2 px-3 py-2 rounded-lg font-bold transition-all ${
+                  isActive
+                    ? 'bg-yellow-400 text-gray-900 shadow-sm'
+                    : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                }`
+              }
+            >
+              <item.icon size={16} />
+              <span>{item.title}</span>
+            </NavLink>
+          ))}
         </div>
-      </div>
-    </nav>
+
+        {/* User + hamburger */}
+        <div className="flex items-center gap-2">
+          {/* User info hidden on very small mobile, visible on sm+ */}
+          <div className="hidden sm:flex flex-col items-end mr-2">
+            <span className="text-xs font-bold leading-tight">{user?.name}</span>
+            <span className="text-[9px] text-gray-400 font-medium uppercase tracking-wider">{user?.role}</span>
+          </div>
+          
+          <div 
+            className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center border-2 border-gray-700 shadow-sm"
+            style={{ backgroundColor: user?.username ? `hsl(${user.username.length * 40}, 60%, 40%)` : '#1A1A2E' }}
+          >
+            <span className="text-[10px] sm:text-xs font-black text-white">
+              {getInitials(user?.name)}
+            </span>
+          </div>
+
+          <button 
+            className="md:hidden text-white text-xl p-1 ml-1 rounded-md hover:bg-gray-800 transition-colors"
+            onClick={() => setMenuOpen(!menuOpen)}
+          >
+            {menuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+        </div>
+      </nav>
+
+      {/* Mobile drawer */}
+      {menuOpen && (
+        <div className="md:hidden fixed top-[60px] left-0 right-0 bg-gray-900 border-t border-gray-800 z-40 shadow-xl overflow-hidden animate-in slide-in-from-top-4 duration-200">
+          <div className="px-4 py-4 space-y-2">
+            {visibleItems.map((item) => (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                onClick={() => setMenuOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${
+                    isActive
+                      ? 'bg-yellow-400 text-gray-900'
+                      : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                  }`
+                }
+              >
+                <item.icon size={20} />
+                <span>{item.title}</span>
+              </NavLink>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
