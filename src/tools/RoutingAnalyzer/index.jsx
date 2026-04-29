@@ -25,7 +25,7 @@ import { saveAs } from 'file-saver';
 
 // --- VERSION ---
 const ROUTING_VERSION = {
-  version: '1.0.431',
+  version: '1.0.432',
   releaseDate: 'Jun 2025',
   label: 'Advanced Routing Analysis Engine — Local Storage & Multi-file'
 };
@@ -281,25 +281,53 @@ const RoutingAnalyzer = () => {
       });
     }
 
-    // Quick Visit Toggles
-    if (quickVisitFilter === 'visited') {
-      d = d.filter(r => r.totalReported > 0);
-    } else if (quickVisitFilter === 'uncovered') {
-      d = d.filter(r => r.totalReported === 0 && r.totalPlanned > 0);
-    } else if (quickVisitFilter === 'target_met') {
-      d = d.filter(r => r.totalReported >= (gradeTargets[r.customerGrade] || 0));
+    // Quick Visit Toggles 
+    // (only apply when on 'list' tab)
+    if (activeTab === 'list') {
+      if (quickVisitFilter === 'full') {
+        // Fully reported = reported >= planned > 0
+        d = d.filter(r => 
+          r.totalPlanned > 0 && 
+          r.totalReported >= r.totalPlanned
+        );
+      } else if (quickVisitFilter === 'partial') {
+        // Partial = 0 < reported < planned
+        d = d.filter(r => 
+          r.totalReported > 0 && 
+          r.totalReported < r.totalPlanned
+        );
+      } else if (quickVisitFilter === 'uncovered') {
+        // Uncovered = planned > 0, reported = 0
+        d = d.filter(r => 
+          r.totalReported === 0 && 
+          r.totalPlanned > 0
+        );
+      }
+      // 'all' → no extra filter
     }
 
-    if (searchQ) {
-      const q = searchQ.toLowerCase();
+    if (searchQ.trim()) {
+      const q = searchQ.toLowerCase().trim();
       d = d.filter(r => 
-        r.customerName.toLowerCase().includes(q) || 
-        r.customerId.toLowerCase().includes(q)
+        (r.customerName || '')
+          .toLowerCase().includes(q) ||
+        (r.customerId || '')
+          .toLowerCase().includes(q) ||
+        (r.mrName || '')
+          .toLowerCase().includes(q) ||
+        (r.specialty || '')
+          .toLowerCase().includes(q) ||
+        (r.customerGrade || '')
+          .toLowerCase().includes(q) ||
+        (r.customerType || '')
+          .toLowerCase().includes(q) ||
+        (r.lineName || '')
+          .toLowerCase().includes(q)
       );
     }
     
     return d;
-  }, [rawData, filters, searchQ]);
+  }, [rawData, filters, searchQ, quickVisitFilter, gradeTargets, activeTab]);
 
   // Sorting
   const sortedData = useMemo(() => {
@@ -323,27 +351,90 @@ const RoutingAnalyzer = () => {
 
   // Stats Calculations
   const stats = useMemo(() => {
-    const totalGross = filteredData.length;
-    const deleted = filteredData.filter(r => r.totalPlanned === 0 && r.totalReported === 0).length;
-    const active = totalGross - deleted;
+    // Always from rawData for header KPIs
+    const allCustomers  = rawData.length;
     
-    const totalPlanned = filteredData.reduce((acc, r) => acc + r.totalPlanned, 0);
-    const totalReported = filteredData.reduce((acc, r) => acc + r.totalReported, 0);
-    const coverage = totalPlanned > 0 ? (totalReported / totalPlanned * 100) : 0;
+    // Deleted = both planned AND reported = 0
+    const deleted = rawData.filter(r =>
+      r.totalPlanned === 0 && 
+      r.totalReported === 0
+    ).length;
     
-    // Uncovered: Active (planned > 0) but not visited at all
-    const uncovered = filteredData.filter(r => r.totalReported === 0 && r.totalPlanned > 0).length;
-    const targetMetCount = filteredData.filter(r => r.totalReported >= (gradeTargets[r.customerGrade] || 0) && r.totalPlanned > 0).length;
-    const extraVisits = filteredData.filter(r => r.totalReported > r.totalPlanned).length;
+    // Active = has any planned OR reported > 0
+    const active = rawData.filter(r =>
+      r.totalPlanned > 0 || r.totalReported > 0
+    ).length;
 
-    // Type Breakdown
+    // HCPs only (customerType === 'HCP')
+    const totalHCP = rawData.filter(r =>
+      (r.customerType || '').toUpperCase() === 'HCP'
+    ).length;
+
+    // From filteredData for dynamic stats
+    const totalPlanned = filteredData.reduce(
+      (acc, r) => acc + r.totalPlanned, 0
+    );
+    const totalReported = filteredData.reduce(
+      (acc, r) => acc + r.totalReported, 0
+    );
+    const coverage = totalPlanned > 0 
+      ? (totalReported / totalPlanned * 100) 
+      : 0;
+
+    // Uncovered = planned > 0 AND reported = 0
+    const uncovered = filteredData.filter(r =>
+      r.totalReported === 0 && r.totalPlanned > 0
+    ).length;
+
+    // Fully reported = reported >= planned > 0
+    const fullyCovered = filteredData.filter(r =>
+      r.totalPlanned > 0 && 
+      r.totalReported >= r.totalPlanned
+    ).length;
+
+    // Partial = 0 < reported < planned
+    const partial = filteredData.filter(r =>
+      r.totalReported > 0 && 
+      r.totalReported < r.totalPlanned
+    ).length;
+
+    // Extra = reported > planned
+    const extraVisits = filteredData.filter(r =>
+      r.totalReported > r.totalPlanned
+    ).length;
+
+    // Target met
+    const targetMetCount = filteredData.filter(r =>
+      r.totalPlanned > 0 &&
+      r.totalReported >= 
+        (gradeTargets[r.customerGrade] || 0)
+    ).length;
+
+    // Type breakdown from filteredData
     const types = filteredData.reduce((acc, r) => {
-      acc[r.customerType] = (acc[r.customerType] || 0) + 1;
+      const t = r.customerType || 'Unknown';
+      acc[t] = (acc[t] || 0) + 1;
       return acc;
     }, {});
 
-    return { totalGross, deleted, active, totalPlanned, totalReported, coverage, uncovered, targetMetCount, extraVisits, types };
-  }, [filteredData]);
+    return {
+      allCustomers,   // total raw records
+      deleted,        // inactive (both 0)
+      active,         // has activity
+      totalHCP,       // HCP count from raw
+      totalPlanned,
+      totalReported,
+      coverage,
+      uncovered,      // not visited (planned>0, reported=0)
+      fullyCovered,   // reported >= planned
+      partial,        // partially visited
+      extraVisits,    // reported > planned
+      targetMetCount,
+      types,
+      // keep backward compat:
+      totalGross: filteredData.length,
+    };
+  }, [rawData, filteredData, gradeTargets]);
 
   // Export
   const handleExport = () => {
@@ -507,73 +598,110 @@ const RoutingAnalyzer = () => {
   );
 
   const renderKPIs = () => (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-      {[
-        {
-          label: 'Total Customers',
-          value: stats.totalGross.toLocaleString(),
-          sub: `${stats.active} active`,
-          icon: '👥',
-          color: 'text-blue-600',
-          bg: 'bg-blue-50',
-          border: 'border-blue-100',
-        },
-        {
-          label: 'Total Planned',
-          value: stats.totalPlanned.toLocaleString(),
-          icon: '📋',
-          color: 'text-gray-700',
-          bg: 'bg-gray-50',
-          border: 'border-gray-100',
-        },
-        {
-          label: 'Total Reported',
-          value: stats.totalReported.toLocaleString(),
-          icon: '✅',
-          color: 'text-green-600',
-          bg: 'bg-green-50',
-          border: 'border-green-100',
-        },
-        {
-          label: 'Coverage',
-          value: `${stats.coverage.toFixed(1)}%`,
-          icon: '🎯',
-          color: stats.coverage >= 80 ? 'text-emerald-600' : stats.coverage >= 50 ? 'text-amber-500' : 'text-red-500',
-          bg: stats.coverage >= 80 ? 'bg-emerald-50' : stats.coverage >= 50 ? 'bg-amber' : 'bg-red-50',
-          border: stats.coverage >= 80 ? 'border-emerald-100' : stats.coverage >= 50 ? 'border-amber-100' : 'border-red-100',
-        },
-        {
-          label: 'Not Visited',
-          value: stats.uncovered.toLocaleString(),
-          icon: '⚠️',
-          color: 'text-red-600',
-          bg: 'bg-red-50',
-          border: 'border-red-100',
-        },
-        {
-          label: 'Extra Visits',
-          value: stats.extraVisits.toLocaleString(),
-          icon: '⭐',
-          color: 'text-purple-600',
-          bg: 'bg-purple-50',
-          border: 'border-purple-100',
-        },
-      ].map((card, i) => (
-        <div key={i} className={`${card.bg} border-2 ${card.border} rounded-2xl p-4 flex flex-col gap-1 transition-all hover:shadow-md cursor-default group`}>
-          <div className="flex items-center justify-between">
-            <span className="text-xl group-hover:scale-110 transition-transform">{card.icon}</span>
-            {card.sub && <span className="text-[9px] text-gray-400 font-black uppercase tracking-widest">{card.sub}</span>}
-          </div>
-          <p className={`text-2xl font-black ${card.color} leading-none tracking-tighter mt-2`}>
-            {card.value}
-          </p>
-          <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mt-1">
-            {card.label}
-          </p>
-        </div>
-      ))}
-    </div>
-  );
+  <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-2 mb-4">
+    {[
+      {
+        label: 'All HCPs',
+        value: stats.totalHCP.toLocaleString(),
+        icon: '👨⚕️',
+        color: 'text-blue-700',
+        bg:    'bg-blue-50',
+        border:'border-blue-100',
+      },
+      {
+        label: 'Active',
+        value: stats.active.toLocaleString(),
+        icon: '✅',
+        color: 'text-emerald-700',
+        bg:    'bg-emerald-50',
+        border:'border-emerald-100',
+      },
+      {
+        label: 'Deleted',
+        value: stats.deleted.toLocaleString(),
+        icon: '🗑️',
+        color: 'text-gray-500',
+        bg:    'bg-gray-50',
+        border:'border-gray-200',
+      },
+      {
+        label: 'Planned',
+        value: stats.totalPlanned.toLocaleString(),
+        icon: '📋',
+        color: 'text-gray-700',
+        bg:    'bg-gray-50',
+        border:'border-gray-100',
+      },
+      {
+        label: 'Reported',
+        value: stats.totalReported.toLocaleString(),
+        icon: '📝',
+        color: 'text-green-600',
+        bg:    'bg-green-50',
+        border:'border-green-100',
+      },
+      {
+        label: 'Coverage',
+        value: `${stats.coverage.toFixed(1)}%`,
+        icon: '🎯',
+        color: stats.coverage >= 80 
+          ? 'text-emerald-600' 
+          : stats.coverage >= 50 
+            ? 'text-amber-500' 
+            : 'text-red-500',
+        bg: stats.coverage >= 80 
+          ? 'bg-emerald-50' 
+          : stats.coverage >= 50 
+            ? 'bg-amber-50' 
+            : 'bg-red-50',
+        border: stats.coverage >= 80 
+          ? 'border-emerald-100' 
+          : stats.coverage >= 50 
+            ? 'border-amber-100' 
+            : 'border-red-100',
+      },
+      {
+        label: 'Full',
+        value: stats.fullyCovered.toLocaleString(),
+        icon: '💚',
+        color: 'text-green-700',
+        bg:    'bg-green-50',
+        border:'border-green-100',
+      },
+      {
+        label: 'Partial',
+        value: stats.partial.toLocaleString(),
+        icon: '🟡',
+        color: 'text-amber-600',
+        bg:    'bg-amber-50',
+        border:'border-amber-100',
+      },
+      {
+        label: 'Not Visited',
+        value: stats.uncovered.toLocaleString(),
+        icon: '❌',
+        color: 'text-red-600',
+        bg:    'bg-red-50',
+        border:'border-red-100',
+      },
+    ].map((card, i) => (
+      <div
+        key={i}
+        className={`${card.bg} border ${card.border} rounded-xl p-2.5 flex flex-col gap-0.5`}
+      >
+        <span className="text-base leading-none">
+          {card.icon}
+        </span>
+        <p className={`text-lg font-black leading-none mt-1 ${card.color}`}>
+          {card.value}
+        </p>
+        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider leading-tight">
+          {card.label}
+        </p>
+      </div>
+    ))}
+  </div>
+);
 
   const renderOverview = () => {
     // Basic Distribution Logic
@@ -847,17 +975,31 @@ const RoutingAnalyzer = () => {
   };
 
   const renderCustomerList = () => (
-    <div className="bg-white rounded-3xl border shadow-sm overflow-hidden flex flex-col">
+    <div className="bg-white rounded-3xl border shadow-sm overflow-hidden flex flex-col pb-32">
       <div className="p-4 border-b bg-gray-50 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="relative w-full sm:w-80">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-          <input 
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
             type="text"
-            placeholder="Search by ID or Name..."
+            placeholder="Search by name, ID, MR, specialty, grade..."
             value={searchQ}
-            onChange={(e) => setSearchQ(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 rounded-xl border-gray-200 text-sm font-bold bg-white focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
+            onChange={(e) => {
+              setSearchQ(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm font-bold text-gray-900 placeholder:text-gray-300 focus:ring-2 focus:ring-yellow-400/20 focus:border-yellow-400 bg-white transition-all"
           />
+          {searchQ && (
+            <button
+              onClick={() => {
+                setSearchQ('');
+                setCurrentPage(1);
+              }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 hover:text-red-500 transition-colors"
+            >
+              <X className="w-4 h-4 text-gray-400" />
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest">
            Showing <span className="text-gray-900">{paginatedData.length}</span> of <span className="text-gray-900">{sortedData.length}</span> results
@@ -1208,7 +1350,7 @@ const RoutingAnalyzer = () => {
               animate={{ width: 300, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
               transition={{ duration: 0.3, ease: 'circOut' }}
-              className="h-full bg-white border-r border-gray-100 overflow-y-auto flex-shrink-0 shadow-sm z-30"
+              className="h-full bg-white border-r border-gray-100 overflow-y-auto pb-32 flex-shrink-0 shadow-sm z-30"
             >
               {renderSidebar()}
             </motion.aside>
@@ -1216,7 +1358,7 @@ const RoutingAnalyzer = () => {
         </AnimatePresence>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto bg-gray-50 flex flex-col scrollbar-thin">
+        <div className="flex-1 overflow-y-auto bg-gray-50 flex flex-col pb-32 scrollbar-thin">
           {/* Data Info Bar */}
           <div className="bg-white border-b border-gray-100 px-8 py-2.5 flex items-center justify-between sticky top-0 z-20">
             <div className="flex items-center gap-5">
@@ -1295,17 +1437,39 @@ const RoutingAnalyzer = () => {
               <div className="flex items-center gap-2.5 px-3 py-1 bg-gray-50 rounded-2xl border border-gray-100">
                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mr-1">Toggles</span>
                 {[
-                  { id: 'all',        label: 'All' },
-                  { id: 'visited',    label: 'Visited' },
-                  { id: 'uncovered',  label: 'Uncovered' },
-                  { id: 'target_met', label: 'Target Met' },
+                  { id: 'all',       label: 'All',      
+                    count: filteredData.length },
+                  { id: 'full',      label: '✅ Full',   
+                    count: stats.fullyCovered },
+                  { id: 'partial',   label: '🟡 Partial',
+                    count: stats.partial },
+                  { id: 'uncovered', label: '❌ Uncovered',
+                    count: stats.uncovered },
                 ].map(opt => (
                   <button
                     key={opt.id}
-                    onClick={() => { setQuickVisitFilter(opt.id); setCurrentPage(1); }}
-                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-tighter transition-all ${quickVisitFilter === opt.id ? 'bg-gray-900 text-white shadow-md' : 'text-gray-400 hover:text-gray-600 hover:bg-white border border-transparent hover:border-gray-200'}`}
+                    onClick={() => {
+                      setQuickVisitFilter(opt.id);
+                      setCurrentPage(1);
+                      // Auto-switch to list tab
+                      if (opt.id !== 'all') {
+                        setActiveTab('list');
+                      }
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-tighter transition-all ${
+                      quickVisitFilter === opt.id 
+                        ? 'bg-gray-900 text-white shadow-md' 
+                        : 'text-gray-400 hover:text-gray-600 bg-white border border-gray-200 hover:border-gray-300'
+                    }`}
                   >
                     {opt.label}
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded-md font-black ${
+                      quickVisitFilter === opt.id 
+                        ? 'bg-white/20 text-white' 
+                        : 'bg-gray-100 text-gray-500'
+                    }`}>
+                      {opt.count}
+                    </span>
                   </button>
                 ))}
               </div>
