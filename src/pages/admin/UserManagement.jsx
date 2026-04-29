@@ -30,6 +30,8 @@ const UserManagement = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [deleteConfirmName, setDeleteConfirmName] = useState('');
   const { toast, showToast, hideToast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -103,6 +105,39 @@ const UserManagement = () => {
     setIsModalOpen(false);
   };
 
+  const handleDeleteRequest = (user) => {
+    // Cannot delete yourself
+    if (user.id === currentUser.id) {
+      showToast("Cannot delete your own account", "error");
+      return;
+    }
+
+    // Cannot delete the last admin
+    if (user.role === 'admin') {
+      const adminCount = users.filter(u => u.role === 'admin' && u.active).length;
+      if (adminCount <= 1) {
+        showToast("Cannot delete the last admin account", "error");
+        return;
+      }
+    }
+
+    setDeleteConfirmId(user.id);
+    setDeleteConfirmName(user.name);
+  };
+
+  const handleDeleteConfirm = () => {
+    const updatedUsers = users.filter(u => u.id !== deleteConfirmId);
+    updateUsers(updatedUsers);
+    showToast(`${deleteConfirmName} deleted successfully`, "success");
+    setDeleteConfirmId(null);
+    setDeleteConfirmName('');
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteConfirmId(null);
+    setDeleteConfirmName('');
+  };
+
   const filteredUsers = users.filter(u => 
     u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     u.email.toLowerCase().includes(searchTerm.toLowerCase())
@@ -111,6 +146,69 @@ const UserManagement = () => {
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20">
       <Toast toast={toast} onClose={hideToast} />
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {deleteConfirmId && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-sm border border-gray-100"
+            >
+              {/* Icon */}
+              <div className="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-5">
+                <span className="text-3xl">🗑️</span>
+              </div>
+
+              {/* Title */}
+              <h3 className="text-xl font-black text-gray-900 text-center mb-2">
+                Delete Account?
+              </h3>
+
+              {/* User Name */}
+              <p className="text-sm text-gray-500 text-center mb-1">
+                You are about to permanently delete:
+              </p>
+              <p className="text-base font-black text-red-600 text-center mb-2">
+                {deleteConfirmName}
+              </p>
+
+              {/* Warning */}
+              <div className="bg-red-50 border border-red-100 rounded-2xl p-4 mb-6">
+                <p className="text-[11px] text-red-600 font-bold text-center leading-relaxed">
+                  ⚠️ This action is permanent and cannot be undone.<br />All user data will be lost.
+                </p>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex gap-3">
+                {/* Cancel */}
+                <button
+                  onClick={handleDeleteCancel}
+                  className="flex-1 py-3.5 rounded-2xl border-2 border-gray-100 text-sm font-black text-gray-500 hover:bg-gray-50 transition-all"
+                >
+                  Cancel
+                </button>
+
+                {/* Confirm Delete */}
+                <button
+                  onClick={handleDeleteConfirm}
+                  className="flex-1 py-3.5 rounded-2xl bg-red-500 hover:bg-red-600 text-white text-sm font-black transition-all shadow-lg shadow-red-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red-200"
+                >
+                  🗑️ Yes, Delete
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -213,6 +311,30 @@ const UserManagement = () => {
                       >
                         <Edit size={16} />
                       </button>
+                      {/* Delete Button */}
+                      {u.id !== currentUser.id && (
+                        <button
+                          onClick={() => handleDeleteRequest(u)}
+                          title="Delete Account"
+                          className="flex items-center justify-center w-9 h-9 rounded-xl bg-red-50 hover:bg-red-100 border border-red-100 hover:border-red-200 text-red-500 hover:text-red-600 transition-all hover:scale-105"
+                        >
+                          <svg 
+                            xmlns="http://www.w3.org/2000/svg" 
+                            className="w-4 h-4" 
+                            viewBox="0 0 24 24" 
+                            fill="none" 
+                            stroke="currentColor" 
+                            strokeWidth="2.5" 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round"
+                          >
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                            <path d="M10 11v6M14 11v6"/>
+                            <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                          </svg>
+                        </button>
+                      )}
                       <button 
                         onClick={() => handleToggleActive(u.id)}
                         className={`p-2 border rounded-lg transition-all shadow-sm ${u.active ? 'bg-white border-gray-100 text-danger hover:bg-danger/5' : 'bg-white border-gray-100 text-success hover:bg-success/5'}`}

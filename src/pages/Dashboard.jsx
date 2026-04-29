@@ -26,7 +26,7 @@ const Dashboard = () => {
     },
     {
       id: 'sales-analyzer',
-      title: 'Sales Analyzer',
+      title: 'ATR Sales Analyzer',
       description: 'Track revenue performance, regional growth, and target achievement across product portfolios.',
       icon: BarChart3,
       path: '/tools/sales-analyzer',

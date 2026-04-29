@@ -25,7 +25,7 @@ import { saveAs } from 'file-saver';
 
 // --- VERSION ---
 const ROUTING_VERSION = {
-  version: '1.0.433',
+  version: '1.0.435',
   releaseDate: 'Jun 2025',
   label: 'Advanced Routing Analysis Engine — Local Storage & Multi-file'
 };
@@ -70,6 +70,7 @@ const parseCSV = (text) => {
       daysInterval:  parseInt(cols[9]) || 0,
       monthPlanned:  parseDays(cols[10]),
       monthReported: parseDays(cols[11]),
+      sourceMonth:   monthName,
     };
   }).filter(r => r.customerId);
 
@@ -157,11 +158,16 @@ const RoutingAnalyzer = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [searchQ, setSearchQ] = useState('');
   const [mrSearch, setMrSearch] = useState('');
-  const fileInputRef = useRef(null);
+  const [availableMonths, setAvailableMonths] = useState([]);
+  const [selectedMonth, setSelectedMonth] = useState('All');
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [previewMonth, setPreviewMonth] = useState('');
   const [sortKey, setSortKey] = useState('customerName');
   const [sortDir, setSortDir] = useState('asc');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
+  const fileInputRef = useRef(null);
+  const contentRef = useRef(null);
 
   // Grade Targets State
   const [gradeTargets, setGradeTargets] = useState({
@@ -188,21 +194,24 @@ const RoutingAnalyzer = () => {
         JSON.stringify({ 
           rawData, 
           reportMonth, 
-          lineName 
+          lineName,
+          availableMonths
         })
       );
     }
-  }, [rawData, reportMonth, lineName]);
+  }, [rawData, reportMonth, lineName, availableMonths]);
 
   // Load from localStorage on mount
   useEffect(() => {
     const saved = localStorage.getItem('routingData');
     if (saved) {
       try {
-        const { rawData: savedData, reportMonth: savedMonth, lineName: savedLine } = JSON.parse(saved);
-        setRawData(savedData || []);
-        setReportMonth(savedMonth || '');
-        setLineName(savedLine || '');
+        const parsed = JSON.parse(saved);
+        setRawData(parsed.rawData || []);
+        setReportMonth(parsed.reportMonth || '');
+        setLineName(parsed.lineName || '');
+        setAvailableMonths(parsed.availableMonths || []);
+        setSelectedMonth('All');
       } catch(e) {
         localStorage.removeItem('routingData');
       }
@@ -214,6 +223,8 @@ const RoutingAnalyzer = () => {
       setRawData([]);
       setReportMonth('');
       setLineName('');
+      setAvailableMonths([]);
+      setSelectedMonth('All');
       localStorage.removeItem('routingData');
       clearFilters();
     }
@@ -231,16 +242,27 @@ const RoutingAnalyzer = () => {
       const { data, month, lineName: ln } = parseCSV(text);
       
       if (mode === 'append' && rawData.length > 0) {
-        // Merge by customerId + mrName (avoid dups)
         setRawData(prev => {
-          const existingKeys = new Set(prev.map(r => `${r.customerId}_${r.mrName}`));
-          const newRows = data.filter(r => !existingKeys.has(`${r.customerId}_${r.mrName}`));
+          // Deduplicate by customerId ONLY
+          // But KEEP same customerId across months
+          // Key = customerId + sourceMonth
+          const existingKeys = new Set(prev.map(r => `${r.customerId}_${r.sourceMonth}`));
+          const newRows = data.filter(r => !existingKeys.has(`${r.customerId}_${r.sourceMonth}`));
           return [...prev, ...newRows];
         });
+        // Add new month to available months
+        setAvailableMonths(prev => 
+          prev.includes(month) 
+            ? prev 
+            : [...prev, month]
+        );
       } else {
+        // Replace
         setRawData(data);
         setReportMonth(month);
         setLineName(ln);
+        setAvailableMonths([month]);
+        setSelectedMonth('All');
       }
       setIsLoading(false);
       setShowUploadModal(false);
@@ -281,6 +303,11 @@ const RoutingAnalyzer = () => {
     if (!rawData.length) return [];
     let d = [...rawData];
     
+    // Month Filter first
+    if (selectedMonth !== 'All') {
+      d = d.filter(r => r.sourceMonth === selectedMonth);
+    }
+
     if (filters.mrName.length > 0) d = d.filter(r => filters.mrName.includes(r.mrName));
     if (filters.specialty.length > 0) d = d.filter(r => filters.specialty.includes(r.specialty));
     if (filters.grade.length > 0) d = d.filter(r => filters.grade.includes(r.customerGrade));
@@ -347,12 +374,55 @@ const RoutingAnalyzer = () => {
     }
     
     return d;
-  }, [rawData, filters, searchQ, quickVisitFilter, gradeTargets, activeTab]);
+  }, [rawData, filters, searchQ, quickVisitFilter, gradeTargets, activeTab, selectedMonth]);
+
+  const deduplicatedData = useMemo(() => {
+    if (selectedMonth !== 'All' || availableMonths.length <= 1) {
+      // Single month — no dedup needed
+      return filteredData;
+    }
+
+    // Group by customerId
+    const map = new Map();
+    
+    filteredData.forEach(r => {
+      if (!map.has(r.customerId)) {
+        // First occurrence — use as base
+        map.set(r.customerId, {
+          ...r,
+          // Merge across months:
+          totalPlanned: 0,
+          totalReported: 0,
+          monthPlanned: [],
+          monthReported: [],
+          months: [],
+        });
+      }
+      const existing = map.get(r.customerId);
+      existing.totalPlanned  += r.totalPlanned;
+      existing.totalReported += r.totalReported;
+      // Tag days with month prefix 
+      // to avoid day number collisions
+      if (!existing.months.includes(r.sourceMonth)) {
+        existing.months.push(r.sourceMonth);
+      }
+      // Keep planned/reported days per month
+      if (!existing.monthlyData) {
+        existing.monthlyData = {};
+      }
+      existing.monthlyData[r.sourceMonth] = {
+        planned:  r.monthPlanned,
+        reported: r.monthReported,
+      };
+    });
+
+    return Array.from(map.values());
+  }, [filteredData, selectedMonth, availableMonths]);
 
   // Sorting
   const sortedData = useMemo(() => {
-    if (!filteredData.length) return [];
-    return [...filteredData].sort((a, b) => {
+    if (!deduplicatedData.length) return [];
+    return [...deduplicatedData].sort((a, b) => {
       let valA, valB;
       
       if (sortKey === '_status') {
@@ -375,7 +445,7 @@ const RoutingAnalyzer = () => {
       if (strA > strB) return sortDir === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [filteredData, sortKey, sortDir]);
+  }, [deduplicatedData, sortKey, sortDir]);
 
   // Pagination
   const paginatedData = useMemo(() => {
@@ -617,16 +687,36 @@ const RoutingAnalyzer = () => {
           { label: 'Assigned Line', key: 'lineName', options: filterOptions.lineName },
         ].map(section => (
           <div key={section.key} className="space-y-3">
-            <div className="flex items-center justify-between pl-1">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] leading-none">{section.label}</label>
-              {filters[section.key].length > 0 && (
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest leading-none">
+                {section.label}
+              </label>
+              <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setFilters(prev => ({ ...prev, [section.key]: [] }))}
-                  className="text-[9px] font-black text-red-400 hover:text-red-500 uppercase tracking-widest hover:underline"
+                  onClick={() => setFilters(prev => ({
+                    ...prev,
+                    [section.key]: [...section.options]
+                  }))}
+                  className="text-[9px] font-black text-yellow-600 hover:text-yellow-700 uppercase tracking-widest"
                 >
-                  Reset
+                  All
                 </button>
-              )}
+                <span className="text-gray-200 text-xs">|</span>
+                <button
+                  onClick={() => setFilters(prev => ({
+                    ...prev,
+                    [section.key]: []
+                  }))}
+                  className="text-[9px] font-black text-gray-400 hover:text-gray-600 uppercase tracking-widest"
+                >
+                  None
+                </button>
+                {filters[section.key].length > 0 && (
+                  <span className="text-[9px] font-black bg-yellow-400 text-black px-1.5 py-0.5 rounded-full">
+                    {filters[section.key].length}
+                  </span>
+                )}
+              </div>
             </div>
             
             {section.key === 'mrName' && (
@@ -1174,26 +1264,62 @@ const RoutingAnalyzer = () => {
                       <td className="px-2.5 py-1 text-center font-black text-gray-600 border-b border-gray-50 whitespace-nowrap">{r.totalPlanned}</td>
                       <td className="px-2.5 py-1 text-center font-black text-gray-900 border-b border-gray-50 whitespace-nowrap">{r.totalReported}</td>
                       <td className="px-2.5 py-1 border-b border-gray-50">
-                        <div className="flex flex-wrap gap-0.5 max-w-[120px]">
-                          {r.monthPlanned.map(d => (
-                             <span key={d} className="inline-block px-1 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-black border border-blue-100">
-                               {d}
-                             </span>
-                          ))}
+                        <div className="flex flex-col gap-1 max-w-[120px]">
+                          {r.monthlyData 
+                            ? Object.entries(r.monthlyData).map(([month, days]) => (
+                                <div key={month} className="flex items-center gap-1 flex-wrap">
+                                  <span className="text-[8px] font-black text-gray-400 w-8 flex-shrink-0">{month.slice(0,3)}:</span>
+                                  {days.planned.map(d => (
+                                    <span key={d} className="inline-block px-1 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-black border border-blue-100">
+                                      {d}
+                                    </span>
+                                  ))}
+                                </div>
+                              ))
+                            : r.monthPlanned.map(d => (
+                                <span key={d} className="inline-block px-1 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-black border border-blue-100">
+                                  {d}
+                                </span>
+                              ))
+                          }
                         </div>
                       </td>
                       <td className="px-2.5 py-1 border-b border-gray-50">
-                        <div className="flex flex-wrap gap-0.5 max-w-[120px]">
-                          {r.monthReported.map(d => (
-                             <span key={d} className="inline-block px-1 py-0.5 bg-green-50 text-green-600 rounded text-[9px] font-black border border-green-100">
-                               {d}
-                             </span>
-                          ))}
-                          {missed.map(d => (
-                            <span key={`m_${d}`} className="inline-block px-1 py-0.5 bg-red-50 text-red-500 rounded text-[9px] font-black border border-red-100 line-through">
-                              {d}
-                            </span>
-                          ))}
+                        <div className="flex flex-col gap-1 max-w-[120px]">
+                          {r.monthlyData 
+                            ? Object.entries(r.monthlyData).map(([month, days]) => {
+                                const mMissed = days.planned.filter(d => !days.reported.includes(d));
+                                return (
+                                  <div key={month} className="flex items-center gap-1 flex-wrap">
+                                    <span className="text-[8px] font-black text-gray-400 w-8 flex-shrink-0">{month.slice(0,3)}:</span>
+                                    {days.reported.map(d => (
+                                      <span key={d} className="inline-block px-1 py-0.5 bg-green-50 text-green-600 rounded text-[9px] font-black border border-green-100">
+                                        {d}
+                                      </span>
+                                    ))}
+                                    {mMissed.map(d => (
+                                      <span key={`m_${d}`} className="inline-block px-1 py-0.5 bg-red-50 text-red-500 rounded text-[9px] font-black border border-red-100 line-through">
+                                        {d}
+                                      </span>
+                                    ))}
+                                  </div>
+                                );
+                              })
+                            : (
+                                <div className="flex flex-wrap gap-0.5">
+                                  {r.monthReported.map(d => (
+                                    <span key={d} className="inline-block px-1 py-0.5 bg-green-50 text-green-600 rounded text-[9px] font-black border border-green-100">
+                                      {d}
+                                    </span>
+                                  ))}
+                                  {missed.map(d => (
+                                    <span key={`m_${d}`} className="inline-block px-1 py-0.5 bg-red-50 text-red-500 rounded text-[9px] font-black border border-red-100 line-through">
+                                      {d}
+                                    </span>
+                                  ))}
+                                </div>
+                              )
+                          }
                         </div>
                       </td>
                       <td className="px-2.5 py-1 text-center text-[11px] font-bold text-gray-400 border-b border-gray-50 whitespace-nowrap">{r.daysInterval}d</td>
@@ -1365,19 +1491,55 @@ const RoutingAnalyzer = () => {
               ))}
             </div>
 
-            {/* Drop Zone */}
-            <label className="block w-full border-2 border-dashed border-gray-200 rounded-3xl p-10 text-center cursor-pointer hover:border-yellow-400 hover:bg-yellow-50/30 transition-all group">
-              <div className="text-5xl mb-4 grayscale group-hover:grayscale-0 transition-all">📂</div>
-              <p className="text-base font-black text-gray-700 group-hover:text-yellow-600 tracking-tight">Click to select CSV file</p>
-              <p className="text-[10px] text-gray-400 mt-2 font-bold uppercase tracking-widest">Pipe-delimited (|) supported</p>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv,.txt"
-                className="hidden"
-                onChange={(e) => handleFileUpload(e, uploadMode)}
-              />
-            </label>
+              <label className="block w-full border-2 border-dashed border-gray-200 rounded-3xl p-10 text-center cursor-pointer hover:border-yellow-400 hover:bg-yellow-50/30 transition-all group">
+                <div className="text-5xl mb-4 grayscale group-hover:grayscale-0 transition-all">📂</div>
+                <p className="text-base font-black text-gray-700 group-hover:text-yellow-600 tracking-tight">Click to select CSV file</p>
+                <p className="text-[10px] text-gray-400 mt-2 font-bold uppercase tracking-widest">Pipe-delimited (|) supported</p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv,.txt"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    
+                    // Quick preview of month name
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                      const firstLines = ev.target.result.split('\n').slice(0, 1).join('');
+                      const cols = firstLines.split('|');
+                      const hdr = cols[10] || '';
+                      const month = hdr.replace('Planned','').trim();
+                      setPreviewMonth(month);
+                    };
+                    reader.readAsText(file.slice(0, 500));
+                    
+                    // Then upload
+                    handleFileUpload(e, uploadMode);
+                  }}
+                />
+              </label>
+
+              {previewMonth && (
+                <div className="mt-3 flex items-center gap-2 px-4 py-2.5 bg-yellow-50 rounded-xl border border-yellow-200">
+                  <span className="text-lg">📅</span>
+                  <div>
+                    <p className="text-xs font-black text-yellow-800">
+                      Detected: {previewMonth} Report
+                    </p>
+                    {availableMonths.includes(previewMonth) ? (
+                      <p className="text-[10px] text-amber-600 font-bold">
+                        ⚠️ This month already loaded — will merge/replace
+                      </p>
+                    ) : (
+                      <p className="text-[10px] text-green-600 font-bold">
+                        ✅ New month — will be added
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
 
             {/* Buttons */}
             <div className="flex gap-3 mt-8">
@@ -1401,7 +1563,7 @@ const RoutingAnalyzer = () => {
       )}
 
       {/* Header Sticky */}
-      <div className="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between gap-4 sticky top-0 z-40 shadow-sm">
+      <div className={`sticky top-0 z-40 px-6 py-4 flex items-center justify-between gap-4 transition-all border-b ${isScrolled ? 'backdrop-blur-md shadow-lg bg-white/80 border-gray-100' : 'bg-white border-gray-100 shadow-sm'}`}>
         {/* Left — Logo + Title */}
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 bg-yellow-400 rounded-2xl flex items-center justify-center shadow-lg shadow-yellow-200">
@@ -1490,9 +1652,15 @@ const RoutingAnalyzer = () => {
         </AnimatePresence>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto bg-gray-50 flex flex-col pb-32 scrollbar-thin">
+        <div 
+          ref={contentRef}
+          onScroll={(e) => {
+            setIsScrolled(e.target.scrollTop > 10);
+          }}
+          className="flex-1 overflow-y-auto bg-gray-50 flex flex-col pb-32 scrollbar-thin"
+        >
           {/* Data Info Bar */}
-          <div className="bg-white border-b border-gray-100 px-8 py-2.5 flex items-center justify-between sticky top-0 z-20">
+          <div className={`px-8 py-2.5 flex items-center justify-between sticky top-0 z-20 transition-all border-b ${isScrolled ? 'backdrop-blur-md bg-white/80 shadow-sm border-gray-100/50' : 'bg-white border-gray-100'}`}>
             <div className="flex items-center gap-5">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Dataset:</span>
@@ -1517,6 +1685,35 @@ const RoutingAnalyzer = () => {
           </div>
 
           <div className="p-8 pb-32 space-y-8 max-w-[1600px] mx-auto w-full">
+            {availableMonths.length > 1 && (
+              <div className="flex items-center gap-3 mb-3 p-3 bg-white rounded-2xl border border-gray-100 shadow-sm">
+                <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex-shrink-0">
+                  📅 View Month:
+                </span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={() => setSelectedMonth('All')}
+                    className={`px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${selectedMonth === 'All' ? 'bg-yellow-400 text-black shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                  >
+                    All ({rawData.length})
+                  </button>
+                  {availableMonths.map(month => {
+                    const count = rawData.filter(r => r.sourceMonth === month).length;
+                    return (
+                      <button
+                        key={month}
+                        onClick={() => setSelectedMonth(month)}
+                        className={`px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${selectedMonth === month ? 'bg-gray-900 text-white shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                      >
+                        {month} ({count})
+                      </button>
+                    );
+                  })}
+                </div>
+                <span className="ml-auto text-[10px] text-gray-300 font-bold">{availableMonths.length} months loaded</span>
+              </div>
+            )}
+            
             {renderKPIs()}
 
             {/* Active Filter Chips */}
