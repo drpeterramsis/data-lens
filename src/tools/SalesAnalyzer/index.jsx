@@ -38,6 +38,22 @@ const COLUMN_MAP = {
   "الفرع":           "branch",
 };
 
+const saveToStorage = (cacheObject) => {
+  try {
+    const json = JSON.stringify(cacheObject);
+    const sizeMB = json.length / 1024 / 1024;
+    console.log(`Cache size: ${sizeMB.toFixed(2)} MB`);
+    if (sizeMB > 4.5) {
+      const lightCache = { ...cacheObject, rows: [], tooLarge: true };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(lightCache));
+      console.warn('Data too large, saved meta only');
+    } else {
+      localStorage.setItem(STORAGE_KEY, json);
+      console.log('Data saved successfully');
+    }
+  } catch (e) { console.error('Storage save failed:', e); }
+};
+
 const MultiSelect = ({ label, options, selected, onChange }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -98,17 +114,24 @@ const SalesAnalyzer = () => {
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        const { uploadedAt, fileName, rows } = JSON.parse(saved);
-        setData(rows.map(item => ({ ...item, invoiceDate: new Date(item.invoiceDate) })));
-        setPersistenceInfo({ uploadedAt, fileName });
-      } catch (e) {
-        console.error("Failed to load cached data", e);
+    if (!saved) return;
+    try {
+      const cache = JSON.parse(saved);
+      if (cache.tooLarge || !cache.rows || cache.rows.length === 0) {
+        setPersistenceInfo({ ...cache.meta, fileName: cache.fileName, uploadedAt: cache.uploadedAt, tooLarge: true });
+        return;
       }
+      const rows = cache.rows.map(r => ({ supervisor: r.sup, mrName: r.mr, customerType: r.ct, customerId: r.cid, customerName: r.cn, lineName: r.ln, invoiceNo: r.inv, invoiceDate: new Date(r.dt), productCode: r.pc, productName: r.pn, salesQty: r.sq, salesValue: r.sv, returnQty: r.rq, returnValue: r.rv, netQty: r.nq, netValue: r.nv, branch: r.br }));
+      setData(rows);
+      setPersistenceInfo({ fileName: cache.fileName, uploadedAt: cache.uploadedAt, tooLarge: false });
+    } catch (e) {
+      console.error("Failed to load cached data", e);
+      localStorage.removeItem(STORAGE_KEY);
     }
   }, []);
 
+  const totalProducts = useMemo(() => new Set(data.map(d => d.productName)).size, [data]);
+  const totalMRs = useMemo(() => new Set(data.map(d => d.mrName)).size, [data]);
   const filterOptions = useMemo(() => {
       return {
           branches: [...new Set(data.map(d => d.branch))].sort(),
@@ -133,6 +156,7 @@ const SalesAnalyzer = () => {
       return filtered;
   }, [data, filters]);
 
+  const valColor = (n) => (n < 0 ? 'text-red-600' : 'text-gray-900');
   const kpis = useMemo(() => {
     const netValue = filteredData.reduce((acc, row) => acc + row.netValue, 0);
     const netQty = filteredData.reduce((acc, row) => acc + row.netQty, 0);
@@ -145,10 +169,93 @@ const SalesAnalyzer = () => {
   const activeFilterCount = useMemo(() => Object.entries(filters).filter(([k, v]) => Array.isArray(v) ? v.length > 0 : v !== '').length, [filters]);
   const startDate = useMemo(() => data.length > 0 ? new Date(Math.min(...data.map(d => d.invoiceDate))) : new Date(), [data]);
   const endDate = useMemo(() => data.length > 0 ? new Date(Math.max(...data.map(d => d.invoiceDate))) : new Date(), [data]);
-  const topProductsByVal = useMemo(() => [...new Set(filteredData.map(d=>d.productName))].map(p => ({name: p.substring(0,20), val: filteredData.filter(d=>d.productName===p).reduce((acc,f)=>acc+f.netValue,0)})).sort((a,b)=>b.val-a.val).slice(0,10), [filteredData]);
-  const topProductsByQty = useMemo(() => [...new Set(filteredData.map(d=>d.productName))].map(p => ({name: p.substring(0,20), val: filteredData.filter(d=>d.productName===p).reduce((acc,f)=>acc+f.netQty,0)})).sort((a,b)=>b.val-a.val).slice(0,10), [filteredData]);
+  const topProductsByVal = useMemo(() => byProduct.slice(0, 10).map(p => ({name: p.productName.substring(0,20), val: p.netValue})), [byProduct]);
+  const topProductsByQty = useMemo(() => byProduct.slice(0, 10).map(p => ({name: p.productName.substring(0,20), val: p.netQty})), [byProduct]);
   const customerTypeData = useMemo(() => [...new Set(filteredData.map(d=>d.customerType))].map(t => ({name: t, val: filteredData.filter(d=>d.customerType===t).reduce((acc,f)=>acc+f.netValue,0)})), [filteredData]);
-  const customerTypeCells = useMemo(() => SALES_COLORS, []);
+  const byProduct = useMemo(() => {
+    const map = {};
+    filteredData.forEach(row => {
+      if (!map[row.productName]) {
+        map[row.productName] = { productName: row.productName, netQty: 0, netValue: 0, returnQty: 0, returnValue: 0, invoices: new Set() };
+      }
+      map[row.productName].netQty += row.netQty;
+      map[row.productName].netValue += row.netValue;
+      map[row.productName].returnQty += Math.abs(row.returnQty);
+      map[row.productName].returnValue += Math.abs(row.returnValue);
+      map[row.productName].invoices.add(row.invoiceNo);
+    });
+    const total = Object.values(map).reduce((s,r) => s + r.netValue, 0);
+    return Object.values(map).map(r => ({ ...r, invoiceCount: r.invoices.size, pct: total > 0 ? ((r.netValue/total)*100).toFixed(1) : '0.0' })).sort((a,b) => b.netQty - a.netQty);
+  }, [filteredData]);
+
+  const byMR = useMemo(() => {
+    const map = {};
+    filteredData.forEach(row => {
+        if (!map[row.mrName]) {
+            map[row.mrName] = { mrName: row.mrName, supervisor: row.supervisor, branch: row.branch, netQty: 0, netValue: 0, returnQty: 0, returnValue: 0, customers: new Set(), invoices: new Set() };
+        }
+        const m = map[row.mrName];
+        m.netQty += row.netQty;
+        m.netValue += row.netValue;
+        m.returnQty += Math.abs(row.returnQty);
+        m.returnValue += Math.abs(row.returnValue);
+        m.customers.add(row.customerName);
+        m.invoices.add(row.invoiceNo);
+    });
+    const total = Object.values(map).reduce((s,r) => s + r.netValue, 0);
+    return Object.values(map).map(r => ({ ...r, customerCount: r.customers.size, invoiceCount: r.invoices.size, pct: total > 0 ? ((r.netValue/total)*100).toFixed(1) : '0.0' })).sort((a,b) => b.netQty - a.netQty);
+  }, [filteredData]);
+
+  const byCustomer = useMemo(() => {
+    const map = {};
+    filteredData.forEach(row => {
+        const key = row.customerId || row.customerName;
+        if (!map[key]) {
+            map[key] = { customerName: row.customerName, customerType: row.customerType, mrName: row.mrName, branch: row.branch, netQty: 0, netValue: 0, returnQty: 0, returnValue: 0, products: new Set(), invoices: new Set() };
+        }
+        const c = map[key];
+        c.netQty += row.netQty;
+        c.netValue += row.netValue;
+        c.returnQty += Math.abs(row.returnQty);
+        c.returnValue += Math.abs(row.returnValue);
+        c.products.add(row.productName);
+        c.invoices.add(row.invoiceNo);
+    });
+    return Object.values(map).map(r => ({ ...r, productCount: r.products.size, invoiceCount: r.invoices.size })).sort((a,b) => b.netQty - a.netQty);
+  }, [filteredData]);
+
+  const byBranch = useMemo(() => {
+    const map = {};
+    filteredData.forEach(row => {
+        if (!map[row.branch]) {
+            map[row.branch] = { branch: row.branch, netQty: 0, netValue: 0, returnQty: 0, mrs: new Set(), customers: new Set(), invoices: new Set() };
+        }
+        const b = map[row.branch];
+        b.netQty += row.netQty;
+        b.netValue += row.netValue;
+        b.returnQty += Math.abs(row.returnQty);
+        b.mrs.add(row.mrName);
+        b.customers.add(row.customerName);
+        b.invoices.add(row.invoiceNo);
+    });
+    const total = Object.values(map).reduce((s,r) => s + r.netValue, 0);
+    return Object.values(map).map(r => ({ ...r, mrCount: r.mrs.size, customerCount: r.customers.size, invoiceCount: r.invoices.size, pct: total > 0 ? ((r.netValue/total)*100).toFixed(1) : '0.0' })).sort((a,b) => b.netQty - a.netQty);
+  }, [filteredData]);
+
+  const [trendGroup, setTrendGroup] = useState('monthly');
+  const trendData = useMemo(() => {
+      const map = {};
+      filteredData.forEach(row => {
+          const d = row.invoiceDate;
+          if (!(d instanceof Date) || isNaN(d)) return;
+          const key = trendGroup === 'monthly' ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}` : `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+          if (!map[key]) map[key] = { period: key, netQty: 0, netValue: 0, invoices: new Set() };
+          map[key].netQty += row.netQty;
+          map[key].netValue += row.netValue;
+          map[key].invoices.add(row.invoiceNo);
+      });
+      return Object.values(map).map(r => ({ ...r, invoiceCount: r.invoices.size })).sort((a,b) => a.period.localeCompare(b.period));
+  }, [filteredData, trendGroup]);
 
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
@@ -188,14 +295,18 @@ const SalesAnalyzer = () => {
         }));
         setData(parsedRows);
         setParsing(false);
-        const saveObj = { uploadedAt: new Date().toISOString(), fileName: file.name, rows: parsedRows };
-        const jsonStr = JSON.stringify(saveObj);
-        if (jsonStr.length < 4500000) localStorage.setItem(STORAGE_KEY, jsonStr);
+        const cacheObject = {
+            uploadedAt: new Date().toISOString(),
+            fileName: file.name,
+            meta: { totalInvoices: parsedRows.length, dateRange: { from: Math.min(...parsedRows.map(r => r.invoiceDate.getTime())), to: Math.max(...parsedRows.map(r => r.invoiceDate.getTime())) } },
+            rows: parsedRows.map(r => ({ sup: r.supervisor, mr: r.mrName, ct: r.customerType, cid: r.customerId, cn: r.customerName, ln: r.lineName, inv: r.invoiceNo, dt: r.invoiceDate.getTime(), pc: r.productCode, pn: r.productName, sq: r.salesQty, sv: r.salesValue, rq: r.returnQty, rv: r.returnValue, nq: r.netQty, nv: r.netValue, br: r.branch }))
+        };
+        saveToStorage(cacheObject);
       } catch (err) { console.error(err); alert("Error parsing file."); setParsing(false); }
     };
     reader.readAsBinaryString(file);
   };
-  const handleReset = () => { setData([]); localStorage.removeItem(STORAGE_KEY); setPersistenceInfo(null); };
+  const handleReset = () => { localStorage.removeItem(STORAGE_KEY); setData([]); setPersistenceInfo(null); };
 
   if (parsing) return <div className="flex flex-col items-center justify-center h-screen"><div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" /><h3 className="text-xl font-black">{progress}</h3></div>;
 
@@ -224,7 +335,7 @@ const SalesAnalyzer = () => {
           <div>
             <h2 className="text-2xl font-black text-gray-900 uppercase">ATR Sales Analysis</h2>
             <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">
-                {data.length.toLocaleString()} INVOICES · {kpis.uniqueProducts.toLocaleString()} PRODUCTS · {new Set(data.map(d=>d.mrName)).size} MRs
+                {data.length.toLocaleString()} INVOICES · {totalProducts.toLocaleString()} PRODUCTS · {totalMRs.toLocaleString()} MRs
                  · {startDate.toLocaleDateString('en-EG', {day:'numeric', month:'short', year:'numeric'})} → {endDate.toLocaleDateString('en-EG', {day:'numeric', month:'short', year:'numeric'})}
             </p>
           </div>
@@ -233,7 +344,19 @@ const SalesAnalyzer = () => {
           </button>
        </div>
 
-       {persistenceInfo && (<div className="text-xs p-2 bg-green-50 text-green-700 rounded-md mx-6">Loaded from cache: {persistenceInfo.fileName} ({new Date(persistenceInfo.uploadedAt).toLocaleString()})</div>)}
+       {persistenceInfo && (
+           <div className={`mx-6 mb-4 px-4 py-2 rounded-xl flex items-center justify-between text-sm ${persistenceInfo.tooLarge ? 'bg-red-50 border border-red-200 text-red-700' : 'bg-blue-50 border border-blue-200 text-blue-700'}`}>
+             <span className="font-semibold">
+               {persistenceInfo.tooLarge ? '⚠️ Previous file too large to cache' : '💾 Loaded from cache'} · {persistenceInfo.fileName}
+             </span>
+             {persistenceInfo.tooLarge ? (
+               <button onClick={() => fileInputRef.current.click()} className="text-red-600 font-semibold hover:underline text-xs">Upload File</button>
+             ) : (
+                <button onClick={() => fileInputRef.current.click()} className="text-blue-600 font-semibold hover:underline text-xs">Upload New File</button>
+             )}
+             <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xlsx,.csv" className="hidden" />
+           </div>
+       )}
 
        <div className="flex flex-wrap gap-3 px-6 py-4 bg-white border-b border-gray-100 sticky top-0 z-40">
            <MultiSelect label="Branch" options={filterOptions.branches} selected={filters.branch} onChange={v => setFilters(f => ({...f, branch: v}))} />
@@ -246,6 +369,7 @@ const SalesAnalyzer = () => {
              <input type="date" value={filters.fromDate} onChange={e => setFilters(f => ({...f, fromDate: e.target.value}))} className="border border-gray-200 rounded-lg px-3 py-2 text-sm" />
              <span className="text-gray-400 text-sm">→</span>
              <input type="date" value={filters.toDate} onChange={e => setFilters(f => ({...f, toDate: e.target.value}))} className="border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+             <button onClick={() => setFilters(f => ({...f, fromDate: '', toDate: ''}))} className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${!filters.fromDate && !filters.toDate ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-800 text-white hover:bg-gray-700'}`}>📅 Full Period</button>
            </div>
            {activeFilterCount > 0 && (
              <button onClick={() => setFilters({branch:[], supervisor:[], mrName:[], line:[], customerType:[], product:[], fromDate:'', toDate:''})} className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-100 border border-red-200 transition-all">Clear All ({activeFilterCount})</button>
@@ -262,7 +386,7 @@ const SalesAnalyzer = () => {
             <div key={i} className="bg-white border border-gray-200 p-6 rounded-2xl shadow-soft">
                <div className={`p-3 rounded-xl mb-4 inline-block ${card.bg} ${card.color}`}><card.icon size={24} /></div>
                <p className="text-[10px] uppercase font-black text-gray-400 tracking-widest mb-1">{card.label}</p>
-               <p className="text-xl font-black text-gray-900 tracking-tight">{card.val}</p>
+               <p className={`text-xl font-black ${i < 2 ? valColor(i === 0 ? kpis.netQty : kpis.netValue) : 'text-gray-900'} tracking-tight`}>{card.val}</p>
                <p className="text-xs text-gray-400 mt-1">{card.sub}</p>
             </div>
           ))}
@@ -289,9 +413,54 @@ const SalesAnalyzer = () => {
                   </div>
               </div>
           )}
-          {activeTab !== 'Overview' && <div className="text-center py-12 text-gray-400">Analysis module "{activeTab}" is in progress.</div>}
+          {activeTab === 'By Product' && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="h-[280px]"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 Products (Qty)</h4><ResponsiveContainer><BarChart data={byProduct.slice(0,10)} layout="vertical" margin={{left: 40}}><XAxis type="number" fontSize={10} /><YAxis dataKey="productName" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netQty" fill="#10B981" /></BarChart></ResponsiveContainer></div>
+                    <div className="h-[280px]"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 Products (Value)</h4><ResponsiveContainer><BarChart data={byProduct.slice(0,10)} layout="vertical" margin={{left: 40}}><XAxis type="number" fontSize={10} /><YAxis dataKey="productName" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netValue" fill="#3B82F6" /></BarChart></ResponsiveContainer></div>
+                </div>
+                <div className="overflow-x-auto max-h-[500px] overflow-y-auto"><table className="w-full text-sm">
+                    <thead className="sticky top-0 bg-gray-50 z-10"><tr className="text-xs text-gray-500 uppercase"><th className="p-2 text-left">#</th><th className="p-2 text-left">Product</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">Value</th><th className="p-2 text-right">%</th></tr></thead>
+                    <tbody>{byProduct.map((p, i) => <tr key={p.productName} className={`border-b ${i<3 ? (i===0?'border-l-4 border-l-yellow-400':i===1?'border-l-4 border-l-gray-400':'border-l-4 border-l-orange-400'):''} hover:bg-blue-50`}>
+                        <td className="p-2">{i+1}</td><td className="p-2 font-semibold">{p.productName}</td><td className="p-2 text-right">{p.netQty.toLocaleString()}</td><td className="p-2 text-right">{p.netValue.toLocaleString()}</td><td className="p-2 text-right">{p.pct}%</td></tr>)}</tbody>
+                </table></div>
+              </div>
+          )}
+          {activeTab === 'By MR' && (
+              <div className="space-y-6">
+                <div className="h-[280px]"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 MRs (Net Qty)</h4><ResponsiveContainer><BarChart data={byMR.slice(0,10)} layout="vertical" margin={{left: 60}}><XAxis type="number" fontSize={10} /><YAxis dataKey="mrName" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netQty" fill="#8B5CF6" /></BarChart></ResponsiveContainer></div>
+                <div className="overflow-x-auto max-h-[500px] overflow-y-auto"><table className="w-full text-sm">
+                    <thead className="sticky top-0 bg-gray-50 z-10"><tr className="text-xs text-gray-500 uppercase"><th className="p-2 text-left">#</th><th className="p-2 text-left">MR</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">Value</th><th className="p-2 text-right">%</th></tr></thead>
+                    <tbody>{byMR.map((m, i) => <tr key={m.mrName} className="border-b hover:bg-blue-50"><td className="p-2">{i+1}</td><td className="p-2 font-semibold">{m.mrName}</td><td className="p-2 text-right">{m.netQty.toLocaleString()}</td><td className="p-2 text-right">{m.netValue.toLocaleString()}</td><td className="p-2 text-right">{m.pct}%</td></tr>)}</tbody>
+                </table></div>
+              </div>
+          )}
+          {activeTab === 'By Customer' && (
+              <div className="space-y-6">
+                <input value={customerSearch} onChange={e=>setCustomerSearch(e.target.value)} placeholder="Search customer..." className="p-2 border rounded-lg w-full text-sm" />
+                <div className="overflow-x-auto max-h-[500px] overflow-y-auto"><table className="w-full text-sm">
+                    <thead className="sticky top-0 bg-gray-50 z-10"><tr className="text-xs text-gray-500 uppercase"><th className="p-2 text-left">#</th><th className="p-2 text-left">Customer</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">Value</th></tr></thead>
+                    <tbody>{byCustomer.filter(c=>c.customerName?.toLowerCase().includes(customerSearch.toLowerCase())).map((c, i) => <tr key={i} className="border-b hover:bg-blue-50"><td className="p-2">{i+1}</td><td className="p-2">{c.customerName}</td><td className="p-2 text-right">{c.netQty.toLocaleString()}</td><td className="p-2 text-right">{c.netValue.toLocaleString()}</td></tr>)}</tbody>
+                </table></div>
+              </div>
+          )}
+          {activeTab === 'By Branch' && (
+              <div className="space-y-6">
+                <div className="h-[280px]"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Branch vs Net Qty</h4><ResponsiveContainer><BarChart data={byBranch} layout="vertical" margin={{left: 60}}><XAxis type="number" fontSize={10} /><YAxis dataKey="branch" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netQty" fill="#F59E0B" /></BarChart></ResponsiveContainer></div>
+                  <div className="overflow-x-auto max-h-[500px] overflow-y-auto"><table className="w-full text-sm">
+                      <thead className="sticky top-0 bg-gray-50 z-10"><tr className="text-xs text-gray-500 uppercase"><th className="p-2 text-left">Branch</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">%</th></tr></thead>
+                      <tbody>{byBranch.map(b => <tr key={b.branch} className="border-b hover:bg-blue-50"><td className="p-2 font-semibold">{b.branch}</td><td className="p-2 text-right">{b.netQty.toLocaleString()}</td><td className="p-2 text-right">{b.pct}%</td></tr>)}</tbody>
+                  </table></div>
+              </div>
+          )}
+          {activeTab === 'Trend' && (
+              <div className="space-y-6">
+                <div className="flex gap-2"><button onClick={()=>setTrendGroup('daily')} className={`px-3 py-1 rounded text-xs ${trendGroup==='daily'?'bg-blue-600 text-white':'bg-gray-200'}`}>Daily</button><button onClick={()=>setTrendGroup('monthly')} className={`px-3 py-1 rounded text-xs ${trendGroup==='monthly'?'bg-blue-600 text-white':'bg-gray-200'}`}>Monthly</button></div>
+                <div className="h-[300px]"><ResponsiveContainer><LineChart data={trendData}><XAxis dataKey="period" fontSize={10} /><YAxis fontSize={10} /><Tooltip /><Line type="monotone" dataKey="netQty" stroke="#10B981" /><Line type="monotone" dataKey="netValue" stroke="#3B82F6" /></LineChart></ResponsiveContainer></div>
+              </div>
+          )}
        </div>
-       <footer className="text-center text-[10px] text-gray-400 font-black uppercase tracking-widest mt-12 py-4">
+        <footer className="text-center text-[10px] text-gray-400 font-black uppercase tracking-widest mt-12 py-4">
            ATR SALES ANALYZER v1.0.003
        </footer>
        </div>
