@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   BarChart3, DollarSign, Package, RotateCcw, 
   Grid, Upload, RefreshCw, ChevronLeft, ChevronRight, 
-  ChevronDown, Filter, Users
+  ChevronDown, Filter, Users, Search, X
 } from 'lucide-react';
 
 import * as XLSX from 'xlsx';
@@ -12,12 +12,13 @@ import {
 } from 'recharts';
 
 const APP_VERSION = {
-  version: '3.1.0',
+  version: '3.2.0',
   releaseDate: 'Jun 2025',
-  label: 'Multi-File Upload + Append Mode'
+  label: 'Multi-File Upload Fixed'
 };
 
-const STORAGE_KEY = 'datalens_atr_sales_v1';
+const CACHE_KEY = 'atr_sales_v1';
+
 const SALES_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444'];
 
 const COLUMN_MAP = {
@@ -130,20 +131,97 @@ const DrilldownPanel = ({ invoices, type }) => {
 
 const formatDate = (d) => d.toLocaleDateString('en-EG', {day:'numeric', month:'short', year:'numeric'});
 
-const saveToStorage = (cacheObject) => {
+const DB_NAME = 'DataLensDB';
+const STORE_NAME = 'sales_data';
+
+const initDB = () => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+};
+
+const loadRowsFromStorage = async () => {
   try {
-    const json = JSON.stringify(cacheObject);
-    const sizeMB = json.length / 1024 / 1024;
-    console.log(`Cache size: ${sizeMB.toFixed(2)} MB`);
-    if (sizeMB > 4.5) {
-      const lightCache = { ...cacheObject, rows: [], tooLarge: true };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(lightCache));
-      console.warn('Data too large, saved meta only');
-    } else {
-      localStorage.setItem(STORAGE_KEY, json);
-      console.log('Data saved successfully');
-    }
-  } catch (e) { console.error('Storage save failed:', e); }
+    const db = await initDB();
+    const tx = db.transaction([STORE_NAME], 'readonly');
+    const store = tx.objectStore(STORE_NAME);
+    const rowsReq = store.get(`${CACHE_KEY}_rows`);
+    const metaReq = store.get(`${CACHE_KEY}_meta`);
+
+    return new Promise((resolve, reject) => {
+      let pending = 2;
+      let rowsResult = null;
+      let metaResult = null;
+      let hasError = false;
+
+      const checkDone = () => {
+        if (hasError) return;
+        if (--pending === 0) {
+          if (!rowsResult) resolve({ rows: [], meta: null });
+          else resolve({
+            rows: rowsResult.map(r => ({
+              ...r,
+              invoiceDate: r.invoiceDate ? new Date(r.invoiceDate) : null
+            })),
+            meta: metaResult || null
+          });
+        }
+      };
+
+      rowsReq.onsuccess = () => { rowsResult = rowsReq.result; checkDone(); };
+      rowsReq.onerror = () => { hasError = true; reject(rowsReq.error); };
+      
+      metaReq.onsuccess = () => { metaResult = metaReq.result; checkDone(); };
+      metaReq.onerror = () => { hasError = true; reject(metaReq.error); };
+    });
+  } catch (e) {
+    console.error("IndexedDB load failed", e);
+    return { rows: [], meta: null };
+  }
+};
+
+const saveRowsToStorage = async (rows, fileName) => {
+  try {
+    const db = await initDB();
+    const tx = db.transaction([STORE_NAME], 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    store.put(rows, `${CACHE_KEY}_rows`);
+    store.put({
+      fileName: fileName || "report.xlsx",
+      uploadedAt: new Date().toISOString(),
+      rowCount: rows.length,
+    }, `${CACHE_KEY}_meta`);
+    return new Promise((resolve, reject) => {
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (e) {
+    console.error("IndexedDB save failed", e);
+  }
+};
+
+const clearStorage = async () => {
+  try {
+    const db = await initDB();
+    const tx = db.transaction([STORE_NAME], 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    store.delete(`${CACHE_KEY}_rows`);
+    store.delete(`${CACHE_KEY}_meta`);
+    return new Promise((resolve, reject) => {
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (e) {
+    console.error("IndexedDB clear failed", e);
+  }
 };
 
 const SideFilterSection = ({ label, options, selected, onChange }) => {
@@ -496,6 +574,56 @@ const MRCompareTable = ({
   );
 };
 
+const UploadChoiceModal = ({ onChoose, onCancel, existingCount }) => (
+  <div className="fixed inset-0 z-[100] bg-gray-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl relative">
+      <button 
+        onClick={onCancel}
+        className="absolute top-6 right-6 text-gray-400 hover:text-gray-900 transition-colors">
+        <X size={20}/>
+      </button>
+
+      <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight mb-2">
+        Upload Data
+      </h2>
+      <p className="text-sm text-gray-500 mb-6 font-medium">
+        You already have <strong className="text-gray-800">{existingCount.toLocaleString()}</strong> rows loaded.
+        How would you like to handle the new file?
+      </p>
+
+      <div className="flex flex-col gap-3 mb-6">
+        <button 
+          onClick={() => onChoose('append')}
+          className="flex flex-col text-left p-4 rounded-2xl border-2 border-emerald-100 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-300 transition-colors">
+          <span className="font-black text-emerald-800 text-lg uppercase tracking-tight">
+            ➕ Append Data
+          </span>
+          <span className="text-sm text-emerald-600 mt-1 font-medium">
+            Add new rows. Duplicates will be skipped.
+          </span>
+        </button>
+
+        <button 
+          onClick={() => onChoose('replace')}
+          className="flex flex-col text-left p-4 rounded-2xl border-2 border-blue-100 bg-blue-50 hover:bg-blue-100 hover:border-blue-300 transition-colors">
+          <span className="font-black text-blue-800 text-lg uppercase tracking-tight">
+            🔄 Replace All
+          </span>
+          <span className="text-sm text-blue-600 mt-1 font-medium">
+            Clear existing data and load only the new file.
+          </span>
+        </button>
+      </div>
+
+      <button 
+        onClick={onCancel}
+        className="w-full py-3 text-sm font-bold text-gray-400 hover:text-gray-600 uppercase tracking-widest transition-colors">
+        Cancel Process
+      </button>
+    </div>
+  </div>
+);
+
 const SalesAnalyzer = () => {
   const [data, setData] = useState([]);
   const [parsing, setParsing] = useState(false);
@@ -507,10 +635,12 @@ const SalesAnalyzer = () => {
     data: null,
   });
   const [uploadMode, setUploadMode] = useState('replace');
+  const [currentUploadMode, setCurrentUploadMode] = useState('replace');
   const [appendResult, setAppendResult] = useState(null);
   const [showUploadChoice, setShowUploadChoice] = useState(false);
-  const [pendingFile, setPendingFile] = useState(null);
   const [dataSources, setDataSources] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+
 
   // Period Compare states
   const [periodA, setPeriodA] = useState({from: '', to: '', label: 'Period A'});
@@ -520,7 +650,8 @@ const SalesAnalyzer = () => {
     open: false, type: null, data: null
   });
   
-  const [persistenceInfo, setPersistenceInfo] = useState(null);
+  const [csvMeta, setCsvMeta] = useState(null);
+  const [loadedFromCache, setLoadedFromCache] = useState(false);
   const fileInputRef = useRef(null);
   const [filters, setFilters] = useState({
       branch: [], supervisor: [], mrName: [], 
@@ -529,77 +660,22 @@ const SalesAnalyzer = () => {
       fromDate: '', toDate: ''
   });
   
-const UploadChoiceModal = ({ onChoose, onCancel, existingCount }) => (
-  <div 
-    className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
-    onClick={(e) => {
-      if (e.target === e.currentTarget) onCancel();
-    }}>
-    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6">
-      <div className="flex items-center gap-3 mb-1">
-        <div className="bg-blue-100 p-2.5 rounded-xl">
-          <Upload size={18} className="text-blue-600"/>
-        </div>
-        <h3 className="text-lg font-black text-gray-900">Upload New File</h3>
-      </div>
-      <p className="text-sm text-gray-400 mb-6 ml-1">
-        You have <span className="font-bold text-gray-700">{existingCount.toLocaleString()} rows</span> already loaded. What would you like to do?
-      </p>
-      <div className="flex flex-col gap-3">
-        <button
-          onClick={() => onChoose('append')}
-          className="w-full text-left px-5 py-4 rounded-2xl border-2 border-blue-100 hover:border-blue-500 hover:bg-blue-50 transition-all group">
-          <div className="flex items-start gap-3">
-            <div className="bg-blue-100 p-2 rounded-xl mt-0.5 group-hover:bg-blue-200 transition-colors shrink-0">
-              <span className="text-lg">➕</span>
-            </div>
-            <div>
-              <p className="font-black text-gray-900 text-sm">Add to existing data</p>
-              <p className="text-xs text-gray-400 mt-1 leading-relaxed">
-                Merge new file with current data. Duplicate invoice numbers will be skipped automatically. Best for adding new time periods.
-              </p>
-            </div>
-          </div>
-        </button>
-        <button
-          onClick={() => onChoose('replace')}
-          className="w-full text-left px-5 py-4 rounded-2xl border-2 border-gray-100 hover:border-red-300 hover:bg-red-50 transition-all group">
-          <div className="flex items-start gap-3">
-            <div className="bg-gray-100 p-2 rounded-xl mt-0.5 group-hover:bg-red-100 transition-colors shrink-0">
-              <span className="text-lg">🔄</span>
-            </div>
-            <div>
-              <p className="font-black text-gray-900 text-sm">Replace all data</p>
-              <p className="text-xs text-gray-400 mt-1 leading-relaxed">
-                Delete current data and start fresh with new file.
-              </p>
-            </div>
-          </div>
-        </button>
-      </div>
-      <button onClick={onCancel} className="w-full mt-4 text-sm text-gray-400 hover:text-gray-600 font-semibold py-2 transition-colors">
-        Cancel
-      </button>
-    </div>
-  </div>
-);
-
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (!saved) return;
-    try {
-      const cache = JSON.parse(saved);
-      if (cache.tooLarge || !cache.rows || cache.rows.length === 0) {
-        setPersistenceInfo({ ...cache.meta, fileName: cache.fileName, uploadedAt: cache.uploadedAt, tooLarge: true });
-        return;
+    if (!appendResult) return;
+    const t = setTimeout(() => setAppendResult(null), 6000);
+    return () => clearTimeout(t);
+  }, [appendResult]);
+
+  // Auto-load on mount
+  useEffect(() => {
+    loadRowsFromStorage().then(({ rows, meta }) => {
+      if (rows.length > 0) {
+        setData(rows);
+        setCsvMeta(meta);
+        setLoadedFromCache(true);
+        console.log(`Auto-loaded ${rows.length} rows from cache`);
       }
-      const rows = cache.rows.map(r => ({ supervisor: r.sup, mrName: r.mr, customerType: r.ct, customerId: r.cid, customerName: r.cn, lineName: r.ln, invoiceNo: r.inv, invoiceDate: new Date(r.dt), productCode: r.pc, productName: r.pn, salesQty: r.sq, salesValue: r.sv, returnQty: r.rq, returnValue: r.rv, netQty: r.nq, netValue: r.nv, branch: r.br }));
-      setData(rows);
-      setPersistenceInfo({ fileName: cache.fileName, uploadedAt: cache.uploadedAt, tooLarge: false });
-    } catch (e) {
-      console.error("Failed to load cached data", e);
-      localStorage.removeItem(STORAGE_KEY);
-    }
+    });
   }, []);
 
   const totalProducts = useMemo(() => new Set(data.map(d => d.productName)).size, [data]);
@@ -711,148 +787,127 @@ const UploadChoiceModal = ({ onChoose, onCancel, existingCount }) => (
     if (data.length > 0) {
       setShowUploadChoice(true);
     } else {
+      setCurrentUploadMode('replace');
       fileInputRef.current?.click();
     }
   };
 
   const handleUploadChoice = (mode) => {
-    setUploadMode(mode);
+    setCurrentUploadMode(mode);
     setShowUploadChoice(false);
-    fileInputRef.current?.click();
+    setTimeout(() => {
+      fileInputRef.current?.click();
+    }, 100);
   };
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setPendingFile(file);
-    processFile(file, uploadMode);
     e.target.value = '';
+    processFile(file, currentUploadMode);
   };
 
   const processFile = async (file, mode) => {
+    setIsLoading(true);
+    setParsing(true);
     try {
-      setParsing(true);
       setProgress('Reading file...');
-      const reader = new FileReader();
+      const buffer = await file.arrayBuffer();
+      const wb = XLSX.read(buffer, { type: 'array', cellDates: true });
+      setProgress('Detecting headers...');
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rawData = XLSX.utils.sheet_to_json(ws, { header: 1 });
+      const headerRowIndex = rawData.findIndex(row => row.includes("اسم الصنف") && row.includes("المندوب") && row.includes("رقم الفاتورة"));
+      if (headerRowIndex === -1) { 
+        alert("Could not detect valid headers."); 
+        setParsing(false); 
+        setIsLoading(false);
+        return; 
+      }
+      const headers = rawData[headerRowIndex];
+      const rows = rawData.slice(headerRowIndex + 1);
+      setProgress(`Processing ${rows.length} rows...`);
+      const parsedRows = rows.map(row => {
+          const rowObj = {};
+          headers.forEach((h, i) => { if (COLUMN_MAP[h]) rowObj[COLUMN_MAP[h]] = row[i]; });
+          return rowObj;
+      })
+      .filter(row => row.productName)
+      .map(row => ({
+          ...row,
+          salesQty: parseFloat(row.salesQty) || 0,
+          salesValue: parseFloat(row.salesValue) || 0,
+          discountQty: parseFloat(row.discountQty) || 0,
+          discountValue: parseFloat(row.discountValue) || 0,
+          returnQty: parseFloat(row.returnQty) || 0,
+          returnValue: parseFloat(row.returnValue) || 0,
+          netQty: parseFloat(row.netQty) || 0,
+          netValue: parseFloat(row.netValue) || 0,
+          invoiceDate: row.invoiceDate instanceof Date ? row.invoiceDate : new Date(row.invoiceDate)
+      })).filter(r => r.invoiceNo);
 
-      reader.onload = async (evt) => {
-        try {
-          const bstr = evt.target.result;
-          const wb = XLSX.read(bstr, { type: 'binary', cellDates: true });
-          setProgress('Detecting headers...');
-          const ws = wb.Sheets[wb.SheetNames[0]];
-          const rawData = XLSX.utils.sheet_to_json(ws, { header: 1 });
-          const headerRowIndex = rawData.findIndex(row => row.includes("اسم الصنف") && row.includes("المندوب") && row.includes("رقم الفاتورة"));
-          if (headerRowIndex === -1) { alert("Could not detect valid headers."); setParsing(false); return; }
-          const headers = rawData[headerRowIndex];
-          const rows = rawData.slice(headerRowIndex + 1);
-          setProgress(`Processing ${rows.length} rows...`);
-          const parsedRows = rows.map(row => {
-              const rowObj = {};
-              headers.forEach((h, i) => { if (COLUMN_MAP[h]) rowObj[COLUMN_MAP[h]] = row[i]; });
-              return rowObj;
-          })
-          .filter(row => row.productName)
-          .map(row => ({
-              ...row,
-              salesQty: parseFloat(row.salesQty) || 0,
-              salesValue: parseFloat(row.salesValue) || 0,
-              discountQty: parseFloat(row.discountQty) || 0,
-              discountValue: parseFloat(row.discountValue) || 0,
-              returnQty: parseFloat(row.returnQty) || 0,
-              returnValue: parseFloat(row.returnValue) || 0,
-              netQty: parseFloat(row.netQty) || 0,
-              netValue: parseFloat(row.netValue) || 0,
-              invoiceDate: row.invoiceDate instanceof Date ? row.invoiceDate : new Date(row.invoiceDate)
-          }));
+      if (parsedRows.length === 0) {
+        alert('No valid data found in file.');
+        setParsing(false);
+        setIsLoading(false);
+        return;
+      }
 
-          if (mode === 'append' && data.length > 0) {
-            const existingKeys = new Set(data.map(r => r.invoiceNo));
-            const newRows = parsedRows.filter(r => !existingKeys.has(r.invoiceNo));
-            const skipped = parsedRows.length - newRows.length;
-            const merged = [...data, ...newRows];
+      let finalRows;
+      let resultInfo;
 
-            setData(merged);
-            
-            setAppendResult({
-              mode:    'append',
-              added:   newRows.length,
-              skipped: skipped,
-              total:   merged.length,
-              file:    file.name,
-            });
+      if (mode === 'append' && data.length > 0) {
+        const existingKeys = new Set(data.map(r => `${r.invoiceNo}__${r.productCode}`));
+        const newRows = parsedRows.filter(r => !existingKeys.has(`${r.invoiceNo}__${r.productCode}`));
+        finalRows = [...data, ...newRows];
+        resultInfo = {
+          mode:    'append',
+          file:    file.name,
+          added:   newRows.length,
+          skipped: parsedRows.length - newRows.length,
+          total:   finalRows.length,
+        };
+      } else {
+        finalRows = parsedRows;
+        resultInfo = {
+          mode:  'replace',
+          file:  file.name,
+          added: parsedRows.length,
+          total: parsedRows.length,
+        };
+        setDataSources([]);
+      }
 
-            saveToStorage(buildCachePayload(merged, file.name));
-          } else {
-            setData(parsedRows);
-            
-            setAppendResult({
-              mode:  'replace',
-              added: parsedRows.length,
-              total: parsedRows.length,
-              file:  file.name,
-            });
+      setData(finalRows);
+      setAppendResult(resultInfo);
 
-            saveToStorage(buildCachePayload(parsedRows, file.name));
-          }
+      const fileDates = parsedRows
+        .map(r => r.invoiceDate)
+        .filter(d => d instanceof Date && !isNaN(d))
+        .map(d => d.getTime());
 
-          setDataSources(prev => {
-            const filtered = mode === 'replace' ? [] : prev;
-            const exists = filtered.find(s => s.fileName === file.name);
-            if (exists) return filtered;
-            
-            const fileDates = parsedRows
-              .filter(r => r.invoiceDate instanceof Date)
-              .map(r => r.invoiceDate.getTime());
-            
-            return [...filtered, {
-              fileName:  file.name,
-              rowCount:  parsedRows.length,
-              uploadedAt: new Date().toISOString(),
-              mode:      mode,
-              dateFrom:  fileDates.length ? new Date(Math.min(...fileDates)) : null,
-              dateTo:    fileDates.length ? new Date(Math.max(...fileDates)) : null,
-            }];
-          });
-          setParsing(false);
-        } catch (err) { console.error(err); alert("Error parsing file."); setParsing(false); }
-      };
-      reader.readAsBinaryString(file);
+      setDataSources(prev => {
+        const base = mode === 'replace' ? [] : prev;
+        return [...base, {
+          fileName: file.name,
+          rowCount: parsedRows.length,
+          mode:     mode,
+          dateFrom: fileDates.length ? new Date(Math.min(...fileDates)) : null,
+          dateTo:   fileDates.length ? new Date(Math.max(...fileDates)) : null,
+        }];
+      });
+
+      await saveRowsToStorage(finalRows, file.name);
+      setLoadedFromCache(true);
+      
     } catch (err) {
-      console.error('Parse error:', err);
+      console.error('processFile error:', err);
       alert('Error reading file: ' + err.message);
+    } finally {
+      setIsLoading(false);
       setParsing(false);
     }
   };
-
-  const buildCachePayload = (rows, fileName) => ({
-    savedAt:  new Date().toISOString(),
-    fileName: fileName,
-    rowCount: rows.length,
-    rows:     rows.map(r => ({
-      sup: r.supervisor,
-      mr:  r.mrName,
-      ct:  r.customerType,
-      cid: r.customerId,
-      cn:  r.customerName,
-      ca:  r.customerAddress,
-      psi: r.partySiteId,
-      ec:  r.entityCode,
-      ln:  r.lineName,
-      lc:  r.lineCode,
-      inv: r.invoiceNo,
-      dt:  r.invoiceDate instanceof Date ? r.invoiceDate.getTime() : null,
-      pc:  r.productCode,
-      pn:  r.productName,
-      sq:  r.salesQty   || 0,
-      sv:  r.salesValue || 0,
-      rq:  r.returnQty  || 0,
-      rv:  r.returnValue|| 0,
-      nq:  r.netQty     || 0,
-      nv:  r.netValue   || 0,
-      br:  r.branch,
-    }))
-  });
 
   const fmt = (date) => (!date || !(date instanceof Date)) ? '—' : date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
@@ -1685,13 +1740,13 @@ const UploadChoiceModal = ({ onChoose, onCancel, existingCount }) => (
   }, [filteredData, trendGroup]);
 
 
-  useEffect(() => {
-    if (!appendResult) return;
-    const t = setTimeout(() => setAppendResult(null), 6000);
-    return () => clearTimeout(t);
-  }, [appendResult]);
-
-  const handleReset = () => { localStorage.removeItem(STORAGE_KEY); setData([]); setPersistenceInfo(null); setDataSources([]); setFilters({branch: [], supervisor: [], mrName: [], line: [], customerType: [], product: [], customer: [], fromDate: '', toDate: ''}); };
+  const handleReset = async () => { 
+    await clearStorage(); 
+    setData([]); 
+    setCsvMeta(null); 
+    setDataSources([]); 
+    setFilters({branch: [], supervisor: [], mrName: [], line: [], customerType: [], product: [], customer: [], fromDate: '', toDate: ''}); 
+  };
 
   if (parsing) return <div className="flex flex-col items-center justify-center h-screen"><div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" /><h3 className="text-xl font-black">{progress}</h3></div>;
 
@@ -1726,39 +1781,31 @@ const UploadChoiceModal = ({ onChoose, onCancel, existingCount }) => (
           fmt={fmt}
         />
       )}
+      {/* Upload Toast */}
       {appendResult && (
-        <div className="fixed bottom-6 right-6 z-50 bg-gray-900 text-white px-5 py-4 rounded-2xl shadow-2xl flex items-start gap-3 max-w-sm">
-          <span className="text-2xl shrink-0">
-            {appendResult.mode === 'append' ? '✅' : '🔄'}
-          </span>
-          <div className="flex-1 min-w-0">
-            <p className="font-black text-sm">
-              {appendResult.mode === 'append' ? 'Data Appended' : 'Data Replaced'}
-            </p>
-            <p className="text-xs text-gray-400 mt-1 truncate">
-              📄 {appendResult.file}
-            </p>
-            {appendResult.mode === 'append' && (
-              <>
-                <p className="text-xs text-emerald-400 font-semibold mt-1">
-                  +{appendResult.added.toLocaleString()} new rows
-                </p>
-                {appendResult.skipped > 0 && (
-                  <p className="text-xs text-gray-500">
-                    {appendResult.skipped.toLocaleString()} duplicates skipped
-                  </p>
+        <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-5">
+          <div className="bg-gray-900 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-start gap-4 max-w-sm">
+            <div className="bg-emerald-500/20 p-2 rounded-xl shrink-0 mt-0.5">
+              <span className="text-emerald-400 text-lg font-bold">✓</span>
+            </div>
+            <div>
+              <p className="font-bold text-sm">
+                {appendResult.mode === 'append' ? 'Data Appended' : 'Data Loaded'}
+              </p>
+              <div className="text-xs text-gray-300 mt-1 space-y-0.5">
+                <p>Added: <span className="font-bold text-white">{appendResult.added.toLocaleString()}</span> rows</p>
+                {appendResult.mode === 'append' && (
+                  <p>Skipped (dupes): <span className="text-gray-400">{appendResult.skipped.toLocaleString()}</span></p>
                 )}
-              </>
-            )}
-            <p className="text-xs text-gray-300 font-bold mt-1">
-              Total: {appendResult.total.toLocaleString()} rows
-            </p>
+                <p>Total: <span className="font-bold text-white">{appendResult.total.toLocaleString()}</span> rows</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => setAppendResult(null)}
+              className="text-gray-400 hover:text-white transition-colors ml-auto">
+              ✕
+            </button>
           </div>
-          <button
-            onClick={() => setAppendResult(null)}
-            className="text-gray-500 hover:text-white shrink-0">
-            ✕
-          </button>
         </div>
       )}
       
@@ -1770,53 +1817,64 @@ const UploadChoiceModal = ({ onChoose, onCancel, existingCount }) => (
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={handleUploadClick}
-            className="flex items-center gap-2 text-xs font-black uppercase tracking-widest bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl transition-all shadow-sm">
-            <Upload size={13}/>
-            {data.length > 0 ? 'Add / Replace File' : 'Upload File'}
-          </button>
+          {/* Hidden file input */}
           <input
             ref={fileInputRef}
             type="file"
             accept=".xlsx,.xls,.csv"
             onChange={handleFileChange}
             className="hidden"
-            multiple={false}
           />
+
+          {/* Always visible upload button */}
+          <button
+            onClick={handleUploadClick}
+            disabled={isLoading}
+            className="flex items-center gap-2 
+                       bg-blue-600 hover:bg-blue-700
+                       disabled:bg-blue-300
+                       text-white text-xs font-black 
+                       uppercase tracking-widest
+                       px-4 py-2.5 rounded-xl 
+                       transition-all shadow-sm
+                       shrink-0">
+            {isLoading 
+              ? <span className="animate-spin">⏳</span>
+              : <Upload size={13}/>
+            }
+            {isLoading 
+              ? 'Processing...'
+              : data.length > 0 
+                ? 'Add / Replace' 
+                : 'Upload File'
+            }
+          </button>
           <button onClick={() => setFilters(f=>({...f, fromDate:'', toDate:''}))} className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:border-blue-400 hover:text-blue-600 transition-all font-semibold">📅 Full Period</button>
           <button onClick={handleReset} className="text-xs font-black uppercase tracking-widest bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-all shadow-sm flex items-center gap-2"><RefreshCw size={12}/> Reset</button>
         </div>
       </div>
 
       {dataSources.length > 0 && (
-        <div className="flex items-center gap-3 px-6 py-2 bg-gray-50 border-b border-gray-100 shrink-0 overflow-x-auto">
+        <div className="flex items-center gap-2 px-6 py-2 bg-gray-50 border-b border-gray-100 shrink-0 overflow-x-auto rounded-3xl mt-4">
           <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest shrink-0">
-            Loaded:
+            Files:
           </span>
           {dataSources.map((src, i) => (
-            <div key={i} className="flex items-center gap-2 bg-white border border-gray-200 px-3 py-1.5 rounded-full shrink-0 shadow-sm">
-              <span className="text-[10px] text-blue-500">
-                {src.mode === 'append' ? '➕' : '📄'}
-              </span>
-              <span className="text-[11px] font-semibold text-gray-700 max-w-[120px] truncate" title={src.fileName}>
+            <span key={i} className="flex items-center gap-1.5 bg-white border border-gray-200 px-3 py-1 rounded-full shrink-0 text-[11px] shadow-sm">
+              <span>{src.mode === 'append' ? '➕' : '📄'}</span>
+              <span className="font-semibold text-gray-700 max-w-[100px] truncate" title={src.fileName}>
                 {src.fileName.replace(/\.(xlsx|xls|csv)$/i, '')}
               </span>
               {src.dateFrom && src.dateTo && (
-                <span className="text-[10px] text-gray-400">
-                  {src.dateFrom.toLocaleDateString('en-GB', { month:'short', year:'2-digit' })}
-                  {' → '}
-                  {src.dateTo.toLocaleDateString('en-GB', { month:'short', year:'2-digit' })}
+                <span className="text-gray-400">
+                  {src.dateFrom.toLocaleDateString('en-GB', { month:'short', year:'2-digit' })} → {src.dateTo.toLocaleDateString('en-GB', { month:'short', year:'2-digit' })}
                 </span>
               )}
-              <span className="text-[10px] text-gray-300">
-                {src.rowCount.toLocaleString()} rows
-              </span>
-            </div>
+            </span>
           ))}
           {dataSources.length > 1 && (
-            <span className="text-[10px] font-black text-emerald-600 shrink-0 ml-1">
-              Total: {data.length.toLocaleString()} rows
+            <span className="text-[11px] font-black text-emerald-600 ml-2">
+              {data.length.toLocaleString()} total rows
             </span>
           )}
         </div>

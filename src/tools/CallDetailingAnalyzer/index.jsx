@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { X, Search, GraduationCap, Hospital, Pill, Users, TrendingUp, SearchIcon } from 'lucide-react';
+import { X, Search, GraduationCap, Hospital, Pill, Users, TrendingUp, SearchIcon, Upload } from 'lucide-react';
 import CSVUploader from '../../components/shared/CSVUploader';
 import AutoInsights from '../../components/shared/AutoInsights.jsx';
 import VirtualTable from '../../components/shared/VirtualTable';
@@ -16,6 +16,11 @@ import InteractionAnalysis from './InteractionAnalysis';
 import CoachingAnalysis from './CoachingAnalysis';
 import CoachingSection from './CoachingSection';
 import InlineCalendar from './InlineCalendar';
+
+const APP_VERSION = {
+  version: '2.0.0',
+  label: 'MR Isolation Filter + Multi-File'
+};
 
 const StickyToolbar = ({
   activeTab, setActiveTab, tabs,
@@ -223,7 +228,72 @@ const saveRowsToStorage = (rows, fileName) => {
   }
 };
 
+import * as XLSX from 'xlsx';
+import Papa from "papaparse";
+import { cleanRows } from '../../utils/safeCSV';
+
+const CACHE_KEY = 'call_detailing_v1';
+
+const UploadChoiceModal = ({ onChoose, onCancel, existingCount }) => (
+  <div className="fixed inset-0 z-[100] bg-gray-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl relative">
+      <button 
+        onClick={onCancel}
+        className="absolute top-6 right-6 text-gray-400 hover:text-gray-900 transition-colors">
+        <X size={20}/>
+      </button>
+
+      <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight mb-2">
+        Upload Data
+      </h2>
+      <p className="text-sm text-gray-500 mb-6 font-medium">
+        You already have <strong className="text-gray-800">{existingCount.toLocaleString()}</strong> rows loaded.
+        How would you like to handle the new file?
+      </p>
+
+      <div className="flex flex-col gap-3 mb-6">
+        <button 
+          onClick={() => onChoose('append')}
+          className="flex flex-col text-left p-4 rounded-2xl border-2 border-emerald-100 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-300 transition-colors">
+          <span className="font-black text-emerald-800 text-lg uppercase tracking-tight">
+            ➕ Append Data
+          </span>
+          <span className="text-sm text-emerald-600 mt-1 font-medium">
+            Add new rows. Duplicates will be skipped.
+          </span>
+        </button>
+
+        <button 
+          onClick={() => onChoose('replace')}
+          className="flex flex-col text-left p-4 rounded-2xl border-2 border-blue-100 bg-blue-50 hover:bg-blue-100 hover:border-blue-300 transition-colors">
+          <span className="font-black text-blue-800 text-lg uppercase tracking-tight">
+            🔄 Replace All
+          </span>
+          <span className="text-sm text-blue-600 mt-1 font-medium">
+            Clear existing data and load only the new file.
+          </span>
+        </button>
+      </div>
+
+      <button 
+        onClick={onCancel}
+        className="w-full py-3 text-sm font-bold text-gray-400 hover:text-gray-600 uppercase tracking-widest transition-colors">
+        Cancel Process
+      </button>
+    </div>
+  </div>
+);
+
 const CallDetailingAnalyzer = () => {
+  const fileInputRef = React.useRef(null);
+  const [showUploadChoice, setShowUploadChoice] = useState(false);
+  const [currentUploadMode, setCurrentUploadMode] = useState('replace');
+  const [appendResult, setAppendResult] = useState(null);
+  const [dataSources, setDataSources] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [parsing, setParsing] = useState(false);
+  const [progress, setProgress] = useState('');
+
   const [rawData, setRawData] = useState([]);
   const [csvMeta, setCsvMeta] = useState(null);
   const [loadedFromCache, setLoadedFromCache] = useState(false);
@@ -234,11 +304,137 @@ const CallDetailingAnalyzer = () => {
   const [selectedMRForCalendar, setSelectedMRForCalendar] = useState(null);
   const [activeTab, setActiveTab] = useState('performance');
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [selectedMR, setSelectedMR] = useState('');
   const [globalSearch, setGlobalSearch] = useState("");
   const [searchFilter, setSearchFilter] = useState("All");
+
+  const mrList = useMemo(() => {
+    if (!Array.isArray(rawData) || rawData.length === 0) return [];
+    return [...new Set(rawData.map(r => r.MrName))].filter(Boolean).sort();
+  }, [rawData]);
   const [onlyCoached, setOnlyCoached] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [insightsOpen, setInsightsOpen] = useState(false);
+
+  const handleUploadClick = () => {
+    if (rawData.length > 0) {
+      setShowUploadChoice(true);
+    } else {
+      setCurrentUploadMode('replace');
+      fileInputRef.current?.click();
+    }
+  };
+
+  const handleUploadChoice = (mode) => {
+    setCurrentUploadMode(mode);
+    setShowUploadChoice(false);
+    setTimeout(() => {
+      fileInputRef.current?.click();
+    }, 100);
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    processFile(file, currentUploadMode);
+  };
+
+  const processFile = async (file, mode) => {
+    setIsLoading(true);
+    setParsing(true);
+    try {
+      setProgress('Reading file...');
+      
+      const fileText = await file.text();
+      setProgress('Parsing data...');
+      
+      Papa.parse(fileText, {
+        header: true,
+        skipEmptyLines: true,
+        transformHeader: h => h.replace(/^\uFEFF/, "").replace(/\r/g, "").trim(),
+        complete: (results) => {
+          const cleaned = cleanRows(results.data);
+          
+          if (cleaned.length === 0) {
+            alert('No valid data found in file.');
+            setParsing(false);
+            setIsLoading(false);
+            return;
+          }
+
+          let finalRows;
+          let resultInfo;
+
+          if (mode === 'append' && rawData.length > 0) {
+            const existingKeys = new Set(rawData.map(r => String(r.InteractionId)));
+            const newRows = cleaned.filter(r => !existingKeys.has(String(r.InteractionId)));
+            finalRows = [...rawData, ...newRows];
+            resultInfo = {
+              mode:    'append',
+              file:    file.name,
+              added:   newRows.length,
+              skipped: cleaned.length - newRows.length,
+              total:   finalRows.length,
+            };
+          } else {
+            finalRows = cleaned;
+            resultInfo = {
+              mode:  'replace',
+              file:  file.name,
+              added: cleaned.length,
+              total: cleaned.length,
+            };
+            setDataSources([]);
+          }
+
+          setRawData(finalRows);
+          setAppendResult(resultInfo);
+
+          const fileDates = cleaned
+            .map(r => r.ReportDate)
+            .filter(d => Boolean(d))
+            .map(d => new Date(d).getTime())
+            .filter(t => !isNaN(t));
+
+          setDataSources(prev => {
+            const base = mode === 'replace' ? [] : prev;
+            return [...base, {
+              fileName: file.name,
+              rowCount: cleaned.length,
+              mode:     mode,
+              dateFrom: fileDates.length ? new Date(Math.min(...fileDates)) : null,
+              dateTo:   fileDates.length ? new Date(Math.max(...fileDates)) : null,
+            }];
+          });
+
+          saveRowsToStorage(finalRows, file.name);
+          setLoadedFromCache(true);
+          
+          setParsing(false);
+          setIsLoading(false);
+        },
+        error: (err) => {
+          console.error("CSV Error:", err);
+          alert('Error parsing file: ' + err.message);
+          setParsing(false);
+          setIsLoading(false);
+        }
+      });
+      
+    } catch (err) {
+      console.error('processFile error:', err);
+      alert('Error reading file: ' + err.message);
+      setIsLoading(false);
+      setParsing(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!appendResult) return;
+    const t = setTimeout(() => setAppendResult(null), 6000);
+    return () => clearTimeout(t);
+  }, [appendResult]);
 
   // Auto-load on mount
   useEffect(() => {
@@ -378,6 +574,9 @@ const CallDetailingAnalyzer = () => {
     setDateTo("");
     setSelectedMonths(null);
     setSelectedMRForCalendar(null);
+    setSelectedMR('');
+    setDataSources([]);
+    setAppendResult(null);
   };
 
   const handleDataLoaded = useCallback((data, fileIdentifier) => {
@@ -395,6 +594,7 @@ const CallDetailingAnalyzer = () => {
     setDateTo("");
     setSelectedMonths(null);
     setSelectedMRForCalendar(null);
+    setSelectedMR('');
 
     // 2. Save new
     saveRowsToStorage(data, fileIdentifier);
@@ -461,7 +661,7 @@ const CallDetailingAnalyzer = () => {
     });
   }, [rawData, selectedMonths]);
 
-  const filteredData = useMemo(() => {
+  const dateFilteredData = useMemo(() => {
     if (!monthFilteredRows.length) return [];
 
     if (!dateFrom && !dateTo) return monthFilteredRows;
@@ -475,6 +675,13 @@ const CallDetailingAnalyzer = () => {
       return false;
     });
   }, [monthFilteredRows, dateFrom, dateTo, minDate, maxDate]);
+
+  const filteredData = useMemo(() => {
+    if (!selectedMR) return dateFilteredData;
+    return (dateFilteredData ?? []).filter(
+      r => r.MrName === selectedMR
+    );
+  }, [dateFilteredData, selectedMR]);
 
   const mrStats = useMemo(() => calculateMRStats(filteredData), [filteredData]);
   const metrics = useMemo(() => calculateKPICards(mrStats), [mrStats]);
@@ -577,10 +784,25 @@ const CallDetailingAnalyzer = () => {
   return (
     <div className="space-y-6 pb-24 relative max-w-7xl mx-auto px-4">
       
-      {/* 2. UPLOAD BANNER / DROPZONE */}
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".csv"
+        onChange={handleFileChange}
+        className="hidden"
+      />
+
       {!hasData ? (
-        <div className="py-12">
-          <CSVUploader onDataLoaded={handleDataLoaded} toolName="Call Detailing" storageKey={null} />
+        <div className="py-12 px-4 max-w-2xl mx-auto text-center">
+          <div className="mb-8">
+             <h2 className="text-4xl font-black text-gray-900 tracking-tighter uppercase italic">Call Detailing Analyzer</h2>
+          </div>
+          <div className="p-12 bg-white border-2 border-dashed border-gray-300 rounded-3xl flex flex-col items-center justify-center text-center cursor-pointer hover:border-accent hover:bg-accent/5 transition-colors" onClick={handleUploadClick}>
+              <Upload size={48} className="text-gray-400 mb-4" />
+              <h3 className="text-lg font-bold text-gray-700">Drop CSV file here</h3>
+              <p className="text-gray-400 text-sm mt-1">or click to browse</p>
+          </div>
         </div>
       ) : (
         <div className="bg-white border-2 border-accent/20 rounded-3xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 shadow-xl animate-in fade-in slide-in-from-top-4 duration-500">
@@ -588,71 +810,90 @@ const CallDetailingAnalyzer = () => {
               <div className="w-12 h-12 rounded-2xl bg-accent/10 flex items-center justify-center text-2xl">📂</div>
               <div>
                  <h3 className="font-black text-gray-900 uppercase tracking-tight flex items-center gap-2">
-                    {csvMeta?.fileName || "report.csv"}
-                    {loadedFromCache && (
-                      <span className="text-[10px] text-yellow-600 bg-yellow-100 px-2 py-0.5 rounded-full uppercase tracking-widest font-black">
-                        Cached
-                      </span>
-                    )}
+                    Call Detailing Data
                  </h3>
                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest flex items-center gap-1.5 mt-0.5">
                     {rawData.length.toLocaleString()} rows
-                    {csvMeta?.uploadedAt && (
-                      <span className="text-gray-300">
-                        • {new Date(csvMeta.uploadedAt).toLocaleDateString("en-GB", { day: 'numeric', month: 'short', year: 'numeric' })}
-                      </span>
-                    )}
                  </p>
               </div>
            </div>
            <div className="flex gap-2">
               <button 
                 onClick={handleClearData}
-                className="px-6 py-2.5 bg-red-50 text-red-600 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-red-100 hover:bg-red-100 transition-colors"
+                disabled={isLoading}
+                className="px-6 py-2.5 bg-red-50 text-red-600 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-red-100 hover:bg-red-100 transition-colors disabled:opacity-50"
               >
                 Clear Data
               </button>
               <button 
-                onClick={() => setIsUploadModalOpen(true)}
-                className="px-6 py-2.5 bg-gray-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-colors shadow-lg"
+                onClick={handleUploadClick}
+                disabled={isLoading}
+                className="px-6 py-2.5 bg-gray-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-colors shadow-lg disabled:opacity-50 flex items-center gap-2"
               >
-                Upload New File
+                {isLoading ? <span className="animate-spin">⏳</span> : <Upload size={14}/>}
+                {isLoading ? 'Processing...' : 'Add / Replace'}
               </button>
            </div>
         </div>
       )}
 
-      {/* UPLOAD MODAL OVERLAY */}
-      {isUploadModalOpen && (
-        <div className="fixed inset-0 z-[1000] bg-gray-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-           <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-2xl relative shadow-2xl animate-in zoom-in-95 duration-300">
-              <button 
-                onClick={() => setIsUploadModalOpen(false)}
-                className="absolute top-6 right-6 p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-gray-900"
-              >
-                <X size={24}/>
-              </button>
-              <div className="mb-8">
-                 <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tight">Upload <span className="text-accent underline decoration-accent/20">Interactions</span></h2>
-                 <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] mt-1">Select a new CSV export to analyze</p>
-                 <div className="mt-4 p-3 bg-red-50 border border-red-100 rounded-2xl text-[10px] font-bold text-red-600 uppercase tracking-wide">
-                    ⚠️ Warning: Uploading a new file will clear all current session data.
-                 </div>
-              </div>
-              <CSVUploader 
-                onDataLoaded={handleDataLoaded} 
-                toolName="Call Detailing" 
-                storageKey={null}
-              />
-              <div className="mt-6 text-center">
-                 <button 
-                   onClick={() => setIsUploadModalOpen(false)}
-                   className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-colors"
-                 >
-                   Cancel and return to Dashboard
-                 </button>
-              </div>
-           </div>
+      {dataSources.length > 0 && (
+        <div className="flex items-center gap-2 px-6 py-2 bg-gray-50 border-b border-gray-100 shrink-0 overflow-x-auto rounded-3xl mt-4">
+          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest shrink-0">
+            Files:
+          </span>
+          {dataSources.map((src, i) => (
+            <span key={i} className="flex items-center gap-1.5 bg-white border border-gray-200 px-3 py-1 rounded-full shrink-0 text-[11px] shadow-sm">
+              <span>{src.mode === 'append' ? '➕' : '📄'}</span>
+              <span className="font-semibold text-gray-700 max-w-[100px] truncate" title={src.fileName}>
+                {src.fileName.replace(/\.(csv)$/i, '')}
+              </span>
+              {src.dateFrom && src.dateTo && (
+                <span className="text-gray-400">
+                  {src.dateFrom.toLocaleDateString('en-GB', { month:'short', year:'2-digit' })} → {src.dateTo.toLocaleDateString('en-GB', { month:'short', year:'2-digit' })}
+                </span>
+              )}
+            </span>
+          ))}
+          {dataSources.length > 1 && (
+            <span className="text-[11px] font-black text-emerald-600 ml-2">
+              {rawData.length.toLocaleString()} total rows
+            </span>
+          )}
+        </div>
+      )}
+
+      {showUploadChoice && (
+        <UploadChoiceModal 
+          onChoose={handleUploadChoice} 
+          onCancel={() => setShowUploadChoice(false)} 
+          existingCount={rawData.length} 
+        />
+      )}
+
+      {appendResult && (
+        <div className="fixed bottom-6 right-6 z-50 max-w-sm w-full bg-gray-900 text-white rounded-2xl shadow-2xl p-4 flex gap-3">
+          <span className="text-xl shrink-0">
+            {appendResult.mode === 'append' ? '✅' : '🔄'}
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className="font-black text-sm">
+              {appendResult.mode === 'append' ? 'Data Appended!' : 'Data Replaced!'}
+            </p>
+            <p className="text-[11px] text-gray-400 truncate mt-0.5">
+              {appendResult.file}
+            </p>
+            {appendResult.mode === 'append' && (
+              <p className="text-[11px] text-emerald-400 font-semibold mt-1">
+                +{appendResult.added.toLocaleString()} new rows
+                {appendResult.skipped > 0 && ` · ${appendResult.skipped.toLocaleString()} skipped`}
+              </p>
+            )}
+            <p className="text-[11px] text-gray-300 font-bold mt-0.5">
+              Total: {appendResult.total.toLocaleString()} rows
+            </p>
+          </div>
+          <button onClick={() => setAppendResult(null)} className="text-gray-500 hover:text-white shrink-0">✕</button>
         </div>
       )}
 
@@ -793,6 +1034,56 @@ const CallDetailingAnalyzer = () => {
                    Full Period
                 </button>
              </div>
+          </div>
+
+          <div className="px-6 py-3 bg-white border-b border-gray-100 shrink-0 shadow-sm rounded-3xl">
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest shrink-0">
+                View MR:
+              </span>
+              <button
+                onClick={() => setSelectedMR('')}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all shrink-0 ${
+                  !selectedMR
+                    ? 'bg-gray-900 text-white border-gray-900'
+                    : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
+                }`}>
+                👥 All Team
+              </button>
+              <div className="w-px h-5 bg-gray-200 shrink-0"/>
+              <div className="flex gap-2 overflow-x-auto flex-1 scrollbar-hide pb-0.5">
+                {mrList.map(mr => (
+                  <button
+                    key={mr}
+                    onClick={() => setSelectedMR(selectedMR === mr ? '' : mr)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all whitespace-nowrap shrink-0 ${
+                      selectedMR === mr
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                        : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600'
+                    }`}>
+                    {mr}
+                  </button>
+                ))}
+              </div>
+              {selectedMR && (
+                <button
+                  onClick={() => setSelectedMR('')}
+                  className="text-xs text-red-400 font-bold hover:text-red-600 shrink-0 flex items-center gap-1">
+                  ✕ Clear
+                </button>
+              )}
+            </div>
+            {selectedMR && (
+              <div className="mt-2.5 flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-xl border border-blue-100">
+                <span className="text-sm">👤</span>
+                <p className="text-xs font-black text-blue-800">
+                  Showing data for: {selectedMR}
+                </p>
+                <span className="text-[10px] text-blue-400 ml-auto">
+                  All charts & tables filtered
+                </span>
+              </div>
+            )}
           </div>
 
           <StickyToolbar

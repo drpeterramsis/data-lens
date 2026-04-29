@@ -3,9 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from '../context/AuthContext';
 
 const APP_VERSION = {
-  version: '3.1.1',
+  version: '3.2.0',
   releaseDate: 'Jun 2025',
-  label: 'Search Inside Drilldown Modal'
+  label: 'Multi-File Upload Fixed'
 };
 
 export default function Footer() {
@@ -38,7 +38,7 @@ export default function Footer() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 opacity-80 hover:opacity-100 transition-all cursor-default group">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] group-hover:scale-125 transition-transform"></span>
-            <span className="text-[9px] text-white font-black uppercase tracking-widest leading-none">V1.0.416 - Data Lens Live</span>
+            <span className="text-[9px] text-white font-black uppercase tracking-widest leading-none">V1.0.418 - Data Lens Live</span>
           </div>
           <div className="h-4 w-[1px] bg-white/10 mx-1 hidden sm:block" />
           <span className="text-[10px] sm:text-xs text-white font-medium">
