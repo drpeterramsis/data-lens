@@ -42,8 +42,25 @@ const COLUMN_MAP = {
 
 const formatDate = (d) => d.toLocaleDateString('en-EG', {day:'numeric', month:'short', year:'numeric'});
 
+const saveToStorage = (cacheObject) => {
+  try {
+    const json = JSON.stringify(cacheObject);
+    const sizeMB = json.length / 1024 / 1024;
+    console.log(`Cache size: ${sizeMB.toFixed(2)} MB`);
+    if (sizeMB > 4.5) {
+      const lightCache = { ...cacheObject, rows: [], tooLarge: true };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(lightCache));
+      console.warn('Data too large, saved meta only');
+    } else {
+      localStorage.setItem(STORAGE_KEY, json);
+      console.log('Data saved successfully');
+    }
+  } catch (e) { console.error('Storage save failed:', e); }
+};
+
 const SideFilterSection = ({ label, options, selected, onChange }) => {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
 
   const toggle = (val) => {
     if (selected.includes(val))
@@ -52,10 +69,18 @@ const SideFilterSection = ({ label, options, selected, onChange }) => {
       onChange([...selected, val]);
   };
 
+  const visibleOptions = options.filter(opt =>
+    opt?.toString().toLowerCase()
+      .includes(search.toLowerCase())
+  );
+
   return (
     <div className="border-b border-gray-100">
       <button
-        onClick={() => setOpen(!open)}
+        onClick={() => {
+            if (open) setSearch('');
+            setOpen(!open);
+        }}
         className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-gray-50 transition-colors">
         <div className="flex items-center gap-2">
           <span className="text-[11px] font-bold text-gray-600 uppercase tracking-widest">
@@ -74,37 +99,78 @@ const SideFilterSection = ({ label, options, selected, onChange }) => {
       </button>
 
       {open && (
-        <div className="pb-1 max-h-[200px] overflow-y-auto">
-          <div className="flex gap-3 px-4 py-1">
-            <button
-              onClick={() => onChange(options)}
-              className="text-[10px] text-blue-600 font-semibold hover:underline">
-              All
-            </button>
-            <button
-              onClick={() => onChange([])}
-              className="text-[10px] text-gray-400 font-semibold hover:underline">
-              None
-            </button>
-          </div>
-
-          {options.map(opt => (
-            <label
-              key={opt}
-              className="flex items-center gap-2.5 px-4 py-1.5 hover:bg-blue-50 cursor-pointer transition-colors">
+        <div className="px-4 pt-2 pb-1">
+            {options.length > 5 && (
               <input
-                type="checkbox"
-                checked={selected.includes(opt)}
-                onChange={() => toggle(opt)}
-                className="accent-blue-600 w-3.5 h-3.5 shrink-0"
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder={`Search ${label}...`}
+                className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-700 focus:border-blue-400 outline-none placeholder:text-gray-300"
               />
-              <span className="text-xs text-gray-700 truncate leading-tight" title={opt}>
-                {opt}
-              </span>
-            </label>
-          ))}
+            )}
+
+            <div className="flex gap-3 py-1">
+                <button
+                onClick={() => onChange(options)}
+                className="text-[10px] text-blue-600 font-semibold hover:underline">
+                All
+                </button>
+                <button
+                onClick={() => onChange([])}
+                className="text-[10px] text-gray-400 font-semibold hover:underline">
+                None
+                </button>
+            </div>
+
+            <div className="max-h-[180px] overflow-y-auto">
+                {visibleOptions.length === 0 ? (
+                    <p className="text-[11px] text-gray-300 py-2 text-center">No results</p>
+                ) : (
+                    visibleOptions.map(opt => (
+                        <label key={opt}
+                            className="flex items-center gap-2.5 py-1.5 hover:bg-blue-50 cursor-pointer transition-colors rounded-lg px-1">
+                            <input
+                                type="checkbox"
+                                checked={selected.includes(opt)}
+                                onChange={() => toggle(opt)}
+                                className="accent-blue-600 w-3.5 h-3.5 shrink-0"
+                            />
+                            <span className="text-xs text-gray-700 truncate leading-tight" title={opt}>
+                                {opt}
+                            </span>
+                        </label>
+                    ))
+                )}
+            </div>
         </div>
       )}
+    </div>
+  );
+};
+
+const ActiveFiltersBar = ({ filters, setFilters }) => {
+  const tags = [];
+  if (filters.fromDate || filters.toDate) {
+    tags.push({ key: 'date', label: `📅 ${filters.fromDate || '...'} → ${filters.toDate || '...'}`, clear: () => setFilters(f => ({...f, fromDate: '', toDate: ''})) });
+  }
+  [ { key: 'branch', label: 'Branch' }, { key: 'supervisor', label: 'Supervisor' }, { key: 'mrName', label: 'MR' }, { key: 'line', label: 'Line' }, { key: 'customerType', label: 'Type' }, { key: 'product', label: 'Product' } ].forEach(({ key, label }) => {
+    const val = filters[key];
+    if (val && val.length > 0) {
+      tags.push({ key, label: `${label}: ${val.length === 1 ? val[0] : val.length + ' selected'}`, clear: () => setFilters(f => ({...f, [key]: []})) });
+    }
+  });
+  if (tags.length === 0) return null;
+  return (
+    <div className="flex items-center gap-2 flex-wrap px-6 py-2.5 bg-blue-50 border-b border-blue-100 shrink-0">
+      <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest shrink-0">Filtered by:</span>
+      {tags.map(tag => (
+        <div key={tag.key} className="flex items-center gap-1.5 bg-white border border-blue-200 text-blue-700 text-xs font-semibold px-2.5 py-1 rounded-full shadow-sm">
+          <span>{tag.label}</span>
+          <button onClick={tag.clear} className="text-blue-400 hover:text-red-500 transition-colors leading-none font-bold ml-0.5">✕</button>
+        </div>
+      ))}
+      <button onClick={() => setFilters({ branch:[], supervisor:[], mrName:[], line:[], customerType:[], product:[], fromDate:'', toDate:'' })} className="text-[10px] text-red-500 font-bold hover:underline ml-auto uppercase tracking-wide">Clear All</button>
     </div>
   );
 };
@@ -290,7 +356,7 @@ const SalesAnalyzer = () => {
     filteredData.forEach(row => {
         const key = row.customerId || row.customerName;
         if (!map[key]) {
-            map[key] = { customerName: row.customerName, customerType: row.customerType, mrName: row.mrName, branch: row.branch, netQty: 0, netValue: 0, returnQty: 0, returnValue: 0, products: new Set(), invoices: new Set() };
+            map[key] = { customerName: row.customerName, customerType: row.customerType, mrName: row.mrName, branch: row.branch, netQty: 0, netValue: 0, returnQty: 0, returnValue: 0, products: new Set(), invoices: new Set(), dates: [] };
         }
         const c = map[key];
         c.netQty += row.netQty;
@@ -299,9 +365,13 @@ const SalesAnalyzer = () => {
         c.returnValue += Math.abs(row.returnValue);
         c.products.add(row.productName);
         c.invoices.add(row.invoiceNo);
+        if (row.invoiceDate instanceof Date && !isNaN(row.invoiceDate)) c.dates.push(row.invoiceDate.getTime());
     });
-    return Object.values(map).map(r => ({ ...r, productCount: r.products.size, invoiceCount: r.invoices.size })).sort((a,b) => b.netQty - a.netQty);
+    return Object.values(map).map(r => ({ ...r, productCount: r.products.size, invoiceCount: r.invoices.size, firstDate: r.dates.length > 0 ? new Date(Math.min(...r.dates)) : null, lastDate: r.dates.length > 0 ? new Date(Math.max(...r.dates)) : null })).sort((a,b) => b.netQty - a.netQty);
   }, [filteredData]);
+
+  const fmt = (date) => (!date || !(date instanceof Date)) ? '—' : date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
 
   const byBranch = useMemo(() => {
     const map = {};
@@ -424,6 +494,7 @@ const SalesAnalyzer = () => {
       <div className="flex flex-1 overflow-hidden">
         <SideFiltersPanel filters={filters} setFilters={setFilters} filterOptions={filterOptions} activeFilterCount={activeFilterCount} />
         <div className="flex flex-col flex-1 overflow-hidden">
+          <ActiveFiltersBar filters={filters} setFilters={setFilters} />
           <div className="grid grid-cols-4 gap-3 px-6 pt-4 pb-3 shrink-0">
             {[
               { label: 'Net Quantity', value: kpis.netQty.toLocaleString(), suffix: 'units', icon: Package, color: 'text-emerald-600', bg: 'bg-emerald-50', negative: kpis.netQty < 0 },
@@ -462,50 +533,67 @@ const SalesAnalyzer = () => {
                       </div>
                   </div>
               )}
-              {activeTab === 'By Product' && (
+                      {activeTab === 'By Product' && (
                   <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="h-[280px]"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 Products (Qty)</h4><ResponsiveContainer><BarChart data={byProduct.slice(0,10)} layout="vertical" margin={{left: 40}}><XAxis type="number" fontSize={10} /><YAxis dataKey="productName" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netQty" fill="#10B981" /></BarChart></ResponsiveContainer></div>
-                        <div className="h-[280px]"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 Products (Value)</h4><ResponsiveContainer><BarChart data={byProduct.slice(0,10)} layout="vertical" margin={{left: 40}}><XAxis type="number" fontSize={10} /><YAxis dataKey="productName" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netValue" fill="#3B82F6" /></BarChart></ResponsiveContainer></div>
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div className="px-5 py-4 border-b border-gray-100"><h3 className="font-bold text-gray-800">Product Breakdown</h3><p className="text-xs text-gray-400 mt-0.5">{filteredData.length} records</p></div>
+                        <div className="overflow-x-auto max-h-[420px] overflow-y-auto"><table className="w-full text-sm">
+                            <thead className="sticky top-0 bg-gray-50 z-10"><tr className="text-xs text-gray-500 uppercase"><th className="p-2 text-left">#</th><th className="p-2 text-left">Product</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">Value</th><th className="p-2 text-right">%</th></tr></thead>
+                            <tbody>{byProduct.map((p, i) => <tr key={p.productName} className={`border-b ${i<3 ? (i===0?'border-l-4 border-l-yellow-400':i===1?'border-l-4 border-l-gray-400':'border-l-4 border-l-orange-400'):''} hover:bg-blue-50`}>
+                                <td className="p-2">{i+1}</td><td className="p-2 font-semibold">{p.productName}</td><td className="p-2 text-right">{p.netQty.toLocaleString()}</td><td className="p-2 text-right">{p.netValue.toLocaleString()}</td><td className="p-2 text-right">{p.pct}%</td></tr>)}</tbody>
+                        </table></div>
                     </div>
-                    <div className="overflow-x-auto max-h-[500px] overflow-y-auto"><table className="w-full text-sm">
-                        <thead className="sticky top-0 bg-gray-50 z-10"><tr className="text-xs text-gray-500 uppercase"><th className="p-2 text-left">#</th><th className="p-2 text-left">Product</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">Value</th><th className="p-2 text-right">%</th></tr></thead>
-                        <tbody>{byProduct.map((p, i) => <tr key={p.productName} className={`border-b ${i<3 ? (i===0?'border-l-4 border-l-yellow-400':i===1?'border-l-4 border-l-gray-400':'border-l-4 border-l-orange-400'):''} hover:bg-blue-50`}>
-                            <td className="p-2">{i+1}</td><td className="p-2 font-semibold">{p.productName}</td><td className="p-2 text-right">{p.netQty.toLocaleString()}</td><td className="p-2 text-right">{p.netValue.toLocaleString()}</td><td className="p-2 text-right">{p.pct}%</td></tr>)}</tbody>
-                    </table></div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 Products (Qty)</h4><ResponsiveContainer height={260}><BarChart data={byProduct.slice(0,10)} layout="vertical" margin={{left: 40}}><XAxis type="number" fontSize={10} /><YAxis dataKey="productName" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netQty" fill="#10B981" /></BarChart></ResponsiveContainer></div>
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 Products (Value)</h4><ResponsiveContainer height={260}><BarChart data={byProduct.slice(0,10)} layout="vertical" margin={{left: 40}}><XAxis type="number" fontSize={10} /><YAxis dataKey="productName" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netValue" fill="#3B82F6" /></BarChart></ResponsiveContainer></div>
+                    </div>
                   </div>
               )}
               {activeTab === 'By MR' && (
                   <div className="space-y-6">
-                    <div className="h-[280px]"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 MRs (Net Qty)</h4><ResponsiveContainer><BarChart data={byMR.slice(0,10)} layout="vertical" margin={{left: 60}}><XAxis type="number" fontSize={10} /><YAxis dataKey="mrName" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netQty" fill="#8B5CF6" /></BarChart></ResponsiveContainer></div>
-                    <div className="overflow-x-auto max-h-[500px] overflow-y-auto"><table className="w-full text-sm">
-                        <thead className="sticky top-0 bg-gray-50 z-10"><tr className="text-xs text-gray-500 uppercase"><th className="p-2 text-left">#</th><th className="p-2 text-left">MR</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">Value</th><th className="p-2 text-right">%</th></tr></thead>
-                        <tbody>{byMR.map((m, i) => <tr key={m.mrName} className="border-b hover:bg-blue-50"><td className="p-2">{i+1}</td><td className="p-2 font-semibold">{m.mrName}</td><td className="p-2 text-right">{m.netQty.toLocaleString()}</td><td className="p-2 text-right">{m.netValue.toLocaleString()}</td><td className="p-2 text-right">{m.pct}%</td></tr>)}</tbody>
-                    </table></div>
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div className="px-5 py-4 border-b border-gray-100"><h3 className="font-bold text-gray-800">MR Breakdown</h3><p className="text-xs text-gray-400 mt-0.5">{filteredData.length} records</p></div>
+                        <div className="overflow-x-auto max-h-[420px] overflow-y-auto"><table className="w-full text-sm">
+                            <thead className="sticky top-0 bg-gray-50 z-10"><tr className="text-xs text-gray-500 uppercase"><th className="p-2 text-left">#</th><th className="p-2 text-left">MR</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">Value</th><th className="p-2 text-right">%</th></tr></thead>
+                            <tbody>{byMR.map((m, i) => <tr key={m.mrName} className="border-b hover:bg-blue-50"><td className="p-2">{i+1}</td><td className="p-2 font-semibold">{m.mrName}</td><td className="p-2 text-right">{m.netQty.toLocaleString()}</td><td className="p-2 text-right">{m.netValue.toLocaleString()}</td><td className="p-2 text-right">{m.pct}%</td></tr>)}</tbody>
+                        </table></div>
+                    </div>
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 MRs (Net Qty)</h4><ResponsiveContainer height={260}><BarChart data={byMR.slice(0,10)} layout="vertical" margin={{left: 60}}><XAxis type="number" fontSize={10} /><YAxis dataKey="mrName" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netQty" fill="#8B5CF6" /></BarChart></ResponsiveContainer></div>
                   </div>
               )}
               {activeTab === 'By Customer' && (
                   <div className="space-y-6">
-                    <input value={customerSearch} onChange={e=>setCustomerSearch(e.target.value)} placeholder="Search customer..." className="p-2 border rounded-lg w-full text-sm" />
-                    <div className="overflow-x-auto max-h-[500px] overflow-y-auto"><table className="w-full text-sm">
-                        <thead className="sticky top-0 bg-gray-50 z-10"><tr className="text-xs text-gray-500 uppercase"><th className="p-2 text-left">#</th><th className="p-2 text-left">Customer</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">Value</th></tr></thead>
-                        <tbody>{byCustomer.filter(c=>c.customerName?.toLowerCase().includes(customerSearch.toLowerCase())).map((c, i) => <tr key={i} className="border-b hover:bg-blue-50"><td className="p-2">{i+1}</td><td className="p-2">{c.customerName}</td><td className="p-2 text-right">{c.netQty.toLocaleString()}</td><td className="p-2 text-right">{c.netValue.toLocaleString()}</td></tr>)}</tbody>
-                    </table></div>
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div className="px-5 py-4 border-b border-gray-100"><h3 className="font-bold text-gray-800">Customer Breakdown</h3><input value={customerSearch} onChange={e=>setCustomerSearch(e.target.value)} placeholder="Search customer..." className="p-2 border rounded-lg w-full text-xs mt-2" /></div>
+                        <div className="overflow-x-auto max-h-[420px] overflow-y-auto"><table className="w-full text-sm">
+                            <thead className="sticky top-0 bg-gray-50 z-10"><tr className="text-xs text-gray-500 uppercase"><th className="p-2 text-left">#</th><th className="p-2 text-left">Name</th><th className="p-2 text-left">Type</th><th className="p-2 text-left">MR</th><th className="p-2 text-left">Branch</th><th className="p-2 text-right">Invoices</th><th className="p-2 text-left">First</th><th className="p-2 text-left">Last</th><th className="p-2 text-right">Prods</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">Value</th><th className="p-2 text-right">Ret.Qty</th><th className="p-2 text-right">Ret.Val</th></tr></thead>
+                            <tbody>{byCustomer.filter(c=>c.customerName?.toLowerCase().includes(customerSearch.toLowerCase())).slice(0, 50).map((c, i) => <tr key={i} className="border-b hover:bg-blue-50"><td className="p-2">{i+1}</td><td className="p-2">{c.customerName}</td><td className="p-2">{c.customerType}</td><td className="p-2">{c.mrName}</td><td className="p-2">{c.branch}</td><td className="p-2 text-right font-mono">{c.invoiceCount.toLocaleString()}</td><td className="p-2">{fmt(c.firstDate)}</td><td className="p-2">{fmt(c.lastDate)}</td><td className="p-2 text-right font-mono">{c.productCount}</td><td className="p-2 text-right font-mono font-semibold text-emerald-700">{c.netQty.toLocaleString()}</td><td className="p-2 text-right font-mono">{c.netValue.toLocaleString()}</td><td className="p-2 text-right font-mono text-red-500">{c.returnQty.toLocaleString()}</td><td className="p-2 text-right font-mono text-red-400">{c.returnValue.toLocaleString()}</td></tr>)}</tbody>
+                        </table></div>
+                    </div>
                   </div>
               )}
               {activeTab === 'By Branch' && (
                   <div className="space-y-6">
-                    <div className="h-[280px]"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Branch vs Net Qty</h4><ResponsiveContainer><BarChart data={byBranch} layout="vertical" margin={{left: 60}}><XAxis type="number" fontSize={10} /><YAxis dataKey="branch" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netQty" fill="#F59E0B" /></BarChart></ResponsiveContainer></div>
-                      <div className="overflow-x-auto max-h-[500px] overflow-y-auto"><table className="w-full text-sm">
-                          <thead className="sticky top-0 bg-gray-50 z-10"><tr className="text-xs text-gray-500 uppercase"><th className="p-2 text-left">Branch</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">%</th></tr></thead>
-                          <tbody>{byBranch.map(b => <tr key={b.branch} className="border-b hover:bg-blue-50"><td className="p-2 font-semibold">{b.branch}</td><td className="p-2 text-right">{b.netQty.toLocaleString()}</td><td className="p-2 text-right">{b.pct}%</td></tr>)}</tbody>
-                      </table></div>
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div className="px-5 py-4 border-b border-gray-100"><h3 className="font-bold text-gray-800">Branch Breakdown</h3><p className="text-xs text-gray-400 mt-0.5">{filteredData.length} records</p></div>
+                        <div className="overflow-x-auto max-h-[420px] overflow-y-auto"><table className="w-full text-sm">
+                            <thead className="sticky top-0 bg-gray-50 z-10"><tr className="text-xs text-gray-500 uppercase"><th className="p-2 text-left">Branch</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">%</th></tr></thead>
+                            <tbody>{byBranch.map(b => <tr key={b.branch} className="border-b hover:bg-blue-50"><td className="p-2 font-semibold">{b.branch}</td><td className="p-2 text-right">{b.netQty.toLocaleString()}</td><td className="p-2 text-right">{b.pct}%</td></tr>)}</tbody>
+                        </table></div>
+                    </div>
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Branch vs Net Qty</h4><ResponsiveContainer height={260}><BarChart data={byBranch} layout="vertical" margin={{left: 60}}><XAxis type="number" fontSize={10} /><YAxis dataKey="branch" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netQty" fill="#F59E0B" /></BarChart></ResponsiveContainer></div>
                   </div>
               )}
               {activeTab === 'Trend' && (
                   <div className="space-y-6">
-                    <div className="flex gap-2"><button onClick={()=>setTrendGroup('daily')} className={`px-3 py-1 rounded text-xs ${trendGroup==='daily'?'bg-blue-600 text-white':'bg-gray-200'}`}>Daily</button><button onClick={()=>setTrendGroup('monthly')} className={`px-3 py-1 rounded text-xs ${trendGroup==='monthly'?'bg-blue-600 text-white':'bg-gray-200'}`}>Monthly</button></div>
-                    <div className="h-[300px]"><ResponsiveContainer><LineChart data={trendData}><XAxis dataKey="period" fontSize={10} /><YAxis fontSize={10} /><Tooltip /><Line type="monotone" dataKey="netQty" stroke="#10B981" /><Line type="monotone" dataKey="netValue" stroke="#3B82F6" /></LineChart></ResponsiveContainer></div>
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div className="px-5 py-4 border-b border-gray-100"><h3 className="font-bold text-gray-800">Trend Data</h3><div className="flex gap-2 mt-2"><button onClick={()=>setTrendGroup('daily')} className={`px-3 py-1 rounded text-xs ${trendGroup==='daily'?'bg-blue-600 text-white':'bg-gray-200'}`}>Daily</button><button onClick={()=>setTrendGroup('monthly')} className={`px-3 py-1 rounded text-xs ${trendGroup==='monthly'?'bg-blue-600 text-white':'bg-gray-200'}`}>Monthly</button></div></div>
+                        <div className="overflow-x-auto max-h-[420px] overflow-y-auto"><table className="w-full text-sm">
+                            <thead className="sticky top-0 bg-gray-50 z-10"><tr className="text-xs text-gray-500 uppercase"><th className="p-2 text-left">Period</th><th className="p-2 text-right">Invoices</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">Value</th></tr></thead>
+                            <tbody>{trendData.map(t => <tr key={t.period} className="border-b hover:bg-blue-50"><td className="p-2 font-semibold">{t.period}</td><td className="p-2 text-right">{t.invoiceCount.toLocaleString()}</td><td className="p-2 text-right">{t.netQty.toLocaleString()}</td><td className="p-2 text-right">{t.netValue.toLocaleString()}</td></tr>)}</tbody>
+                        </table></div>
+                    </div>
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Trend Chart</h4><ResponsiveContainer height={300}><LineChart data={trendData}><XAxis dataKey="period" fontSize={10} /><YAxis fontSize={10} /><Tooltip /><Line type="monotone" dataKey="netQty" stroke="#10B981" /><Line type="monotone" dataKey="netValue" stroke="#3B82F6" /></LineChart></ResponsiveContainer></div>
                   </div>
               )}
             </div>
