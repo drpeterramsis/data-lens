@@ -42,6 +42,9 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 
 ## Version History
 
+- **v1.0.424:** Increased bottom padding in `Sales Analyzer` (main content and side filters) to 200px to prevent footer overlap and improve scroll clarity.
+- **v1.0.423:** Refined KPI cards in `CoachingSection` (compact row grid). Fixed Coaching Day logic to count HCP-only sessions (>= 4). Added sorting to all tables in `Sales Analyzer`. Improved filter logic for comparison tool. Finalized footer overlap fixes and state safety guards.
+- **v1.0.422:** Fixed critical `TypeError: Cannot read properties of undefined (reading 'length')` in `CoachingSection` and `InlineCalendar` components by implementing advanced null-safety guards. Improved data resilience in `InlineCalendar` month initialization and hardened string manipulation in `CoachingSection` search filters.
 - **v1.0.421:** Added "Avg HCP Coaching / Day" KPI card with logic for approved days (>= 4 HCP visits). Fixed footer overlapping content by adding bottom padding to main content and sidebar, adjusted footer z-index to 30.
 - **v1.0.412:** Removed click/hover functionality from the "X d coached" tag in MR cards.
 - **v1.0.411:** Removed status labels from MR cards. Cleaner Team Overview table with color-coded rates and coaching indicators based on targets. Added disableHover support for tooltip component and applied it to MR card coaching tags.
@@ -79,4 +82,4 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 - **v1.0.001:** Initial release. Authentication, CSV parsing, Analysis tools, and Admin panel implemented.
 
 ---
-© 2026 Data Lens Analytics | version 1.0.421
+© 2026 Data Lens Analytics | version 1.0.424

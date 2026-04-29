@@ -422,7 +422,7 @@ const SideFiltersPanel = ({ filters, setFilters, filterOptions, activeFilterCoun
   }
 
   return (
-    <div className="flex flex-col w-64 bg-white border-r border-gray-200 overflow-y-auto shrink-0">
+    <div className="flex flex-col w-64 bg-white border-r border-gray-200 overflow-y-auto shrink-0 pb-[200px]">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 sticky top-0 bg-white z-10">
         <div className="flex items-center gap-2">
           <Filter size={14} className="text-gray-500"/>
@@ -434,7 +434,17 @@ const SideFiltersPanel = ({ filters, setFilters, filterOptions, activeFilterCoun
         <div className="flex items-center gap-2">
           {activeFilterCount > 0 && (
             <button
-              onClick={() => setFilters({ branch:[], supervisor:[], mrName:[], line:[], customerType:[], product:[], fromDate:'', toDate:'' })}
+              onClick={() => setFilters({
+                branch:       [],
+                supervisor:   [],
+                mrName:       [],
+                line:         [],
+                customerType: [],
+                product:      [],
+                customer:     [],
+                fromDate:     '',
+                toDate:       ''
+              })}
               className="text-[10px] text-red-500 font-bold hover:text-red-700 uppercase tracking-wide">
               Clear
             </button>
@@ -693,17 +703,46 @@ const SalesAnalyzer = () => {
   }, [data]);
 
   const filteredData = useMemo(() => {
-      let filtered = data;
-      if (filters.branch.length > 0) filtered = filtered.filter(f => filters.branch.includes(f.branch));
-      if (filters.supervisor.length > 0) filtered = filtered.filter(f => filters.supervisor.includes(f.supervisor));
-      if (filters.mrName.length > 0) filtered = filtered.filter(f => filters.mrName.includes(f.mrName));
-      if (filters.line.length > 0) filtered = filtered.filter(f => filters.line.includes(f.lineName));
-      if (filters.customerType.length > 0) filtered = filtered.filter(f => filters.customerType.includes(f.customerType));
-      if (filters.customer.length > 0) filtered = filtered.filter(f => filters.customer.includes(f.customerName));
-      if (filters.product.length > 0) filtered = filtered.filter(f => filters.product.includes(f.productName));
-      if (filters.fromDate) filtered = filtered.filter(f => f.invoiceDate >= new Date(filters.fromDate));
-      if (filters.toDate) filtered = filtered.filter(f => f.invoiceDate <= new Date(filters.toDate));
-      return filtered;
+    if (!data || data.length === 0) return [];
+    let filtered = [...data];
+    
+    if ((filters.branch ?? []).length > 0) 
+      filtered = filtered.filter(f => 
+        filters.branch.includes(f.branch));
+    
+    if ((filters.supervisor ?? []).length > 0) 
+      filtered = filtered.filter(f => 
+        filters.supervisor.includes(f.supervisor));
+    
+    if ((filters.mrName ?? []).length > 0) 
+      filtered = filtered.filter(f => 
+        filters.mrName.includes(f.mrName));
+    
+    if ((filters.line ?? []).length > 0) 
+      filtered = filtered.filter(f => 
+        filters.line.includes(f.lineName));
+    
+    if ((filters.customerType ?? []).length > 0) 
+      filtered = filtered.filter(f => 
+        filters.customerType.includes(f.customerType));
+    
+    if ((filters.customer ?? []).length > 0) 
+      filtered = filtered.filter(f => 
+        filters.customer.includes(f.customerName));
+    
+    if ((filters.product ?? []).length > 0) 
+      filtered = filtered.filter(f => 
+        filters.product.includes(f.productName));
+    
+    if (filters.fromDate) 
+      filtered = filtered.filter(f => 
+        f.invoiceDate >= new Date(filters.fromDate));
+    
+    if (filters.toDate) 
+      filtered = filtered.filter(f => 
+        f.invoiceDate <= new Date(filters.toDate));
+    
+    return filtered;
   }, [data, filters]);
 
   const valColor = (n) => (n < 0 ? 'text-red-600' : 'text-gray-900');
@@ -737,8 +776,10 @@ const SalesAnalyzer = () => {
       map[row.productName].invoices.add(row.invoiceNo);
     });
     const total = Object.values(map).reduce((s,r) => s + r.netValue, 0);
-    return Object.values(map).map(r => ({ ...r, invoiceCount: r.invoices.size, pct: total > 0 ? ((r.netValue/total)*100).toFixed(1) : '0.0' })).sort((a,b) => b.netQty - a.netQty);
+    return Object.values(map).map(r => ({ ...r, invoiceCount: r.invoices.size, pct: total > 0 ? ((r.netValue/total)*100).toFixed(1) : '0.0' }));
   }, [filteredData]);
+
+  const { sorted: sortedProducts, sortKey: prodSortKey, sortDir: prodSortDir, toggle: prodToggle } = useSortableTable(byProduct, 'netQty', 'desc');
 
   const topProductsByVal = useMemo(() => byProduct.slice(0, 10).map(p => ({name: p.productName.substring(0,20), val: p.netValue})), [byProduct]);
   const topProductsByQty = useMemo(() => byProduct.slice(0, 10).map(p => ({name: p.productName.substring(0,20), val: p.netQty})), [byProduct]);
@@ -760,8 +801,10 @@ const SalesAnalyzer = () => {
         m.invoices.add(row.invoiceNo);
     });
     const total = Object.values(map).reduce((s,r) => s + r.netValue, 0);
-    return Object.values(map).map(r => ({ ...r, customerCount: r.customers.size, invoiceCount: r.invoices.size, pct: total > 0 ? ((r.netValue/total)*100).toFixed(1) : '0.0' })).sort((a,b) => b.netQty - a.netQty);
+    return Object.values(map).map(r => ({ ...r, customerCount: r.customers.size, invoiceCount: r.invoices.size, pct: total > 0 ? ((r.netValue/total)*100).toFixed(1) : '0.0' }));
   }, [filteredData]);
+
+  const { sorted: sortedMR, sortKey: mrSortKey, sortDir: mrSortDir, toggle: mrToggle } = useSortableTable(byMR, 'netQty', 'desc');
 
   const byCustomer = useMemo(() => {
     if (!filteredData || filteredData.length === 0) return [];
@@ -780,8 +823,10 @@ const SalesAnalyzer = () => {
         c.invoices.add(row.invoiceNo);
         if (row.invoiceDate instanceof Date && !isNaN(row.invoiceDate)) c.dates.push(row.invoiceDate.getTime());
     });
-    return Object.values(map).map(r => ({ ...r, productCount: r.products.size, invoiceCount: r.invoices.size, firstDate: r.dates.length > 0 ? new Date(Math.min(...r.dates)) : null, lastDate: r.dates.length > 0 ? new Date(Math.max(...r.dates)) : null })).sort((a,b) => b.netQty - a.netQty);
+    return Object.values(map).map(r => ({ ...r, productCount: r.products.size, invoiceCount: r.invoices.size, firstDate: r.dates.length > 0 ? new Date(Math.min(...r.dates)) : null, lastDate: r.dates.length > 0 ? new Date(Math.max(...r.dates)) : null }));
   }, [filteredData]);
+
+  const { sorted: sortedCustomers, sortKey: custSortKey, sortDir: custSortDir, toggle: custToggle } = useSortableTable(byCustomer, 'netQty', 'desc');
 
   const handleUploadClick = () => {
     if (data.length > 0) {
@@ -1692,8 +1737,10 @@ const SalesAnalyzer = () => {
         b.invoices.add(row.invoiceNo);
     });
     const total = Object.values(map).reduce((s,r) => s + r.netValue, 0);
-    return Object.values(map).map(r => ({ ...r, mrCount: r.mrs.size, customerCount: r.customers.size, invoiceCount: r.invoices.size, pct: total > 0 ? ((r.netValue/total)*100).toFixed(1) : '0.0' })).sort((a,b) => b.netQty - a.netQty);
+    return Object.values(map).map(r => ({ ...r, mrCount: r.mrs.size, customerCount: r.customers.size, invoiceCount: r.invoices.size, pct: total > 0 ? ((r.netValue/total)*100).toFixed(1) : '0.0' }));
   }, [filteredData]);
+
+  const { sorted: sortedBranch, sortKey: branchSortKey, sortDir: branchSortDir, toggle: branchToggle } = useSortableTable(byBranch, 'netQty', 'desc');
 
   // Comparison Logic
   const periodAData = useMemo(() => {
@@ -1701,16 +1748,16 @@ const SalesAnalyzer = () => {
     const from = new Date(periodA.from);
     const to   = new Date(periodA.to);
     to.setHours(23,59,59);
-    return data.filter(r => r.invoiceDate >= from && r.invoiceDate <= to);
-  }, [data, periodA]);
+    return filteredData.filter(r => r.invoiceDate >= from && r.invoiceDate <= to);
+  }, [filteredData, periodA]);
 
   const periodBData = useMemo(() => {
     if (!periodB.from || !periodB.to) return [];
     const from = new Date(periodB.from);
     const to   = new Date(periodB.to);
     to.setHours(23,59,59);
-    return data.filter(r => r.invoiceDate >= from && r.invoiceDate <= to);
-  }, [data, periodB]);
+    return filteredData.filter(r => r.invoiceDate >= from && r.invoiceDate <= to);
+  }, [filteredData, periodB]);
 
   const compareMetrics = useMemo(() => {
     if (!periodAData.length && !periodBData.length) return null;
@@ -1949,7 +1996,7 @@ const SalesAnalyzer = () => {
             ))}
           </div>
 
-          <div className="flex-1 overflow-y-auto px-6 pb-20">
+          <div className="flex-1 overflow-y-auto px-6 pb-[200px]">
             <div className="bg-white p-6 rounded-3xl border border-gray-200">
               {activeTab === 'Overview' && (
                   <div className="space-y-8">
@@ -1970,14 +2017,22 @@ const SalesAnalyzer = () => {
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                         <div className="px-5 py-4 border-b border-gray-100"><h3 className="font-bold text-gray-800">Product Breakdown</h3><p className="text-xs text-gray-400 mt-0.5">{filteredData.length} records</p></div>
                         <div className="overflow-x-auto max-h-[420px] overflow-y-auto"><table className="w-full text-sm">
-                            <thead className="sticky top-0 bg-gray-50 z-10"><tr className="text-xs text-gray-500 uppercase"><th className="p-2 text-left">#</th><th className="p-2 text-left">Product</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">Value</th><th className="p-2 text-right">%</th></tr></thead>
-                            <tbody>{byProduct.map((p, i) => <tr key={p.productName} className={`border-b ${i<3 ? (i===0?'border-l-4 border-l-yellow-400':i===1?'border-l-4 border-l-gray-400':'border-l-4 border-l-orange-400'):''} hover:bg-blue-50`}>
+                            <thead className="sticky top-0 bg-gray-50 z-10">
+                              <tr className="text-xs text-gray-500 uppercase">
+                                <th className="p-2 text-left">#</th>
+                                <SortableTH label="Product" sortKey="productName" currentKey={prodSortKey} dir={prodSortDir} onSort={prodToggle} />
+                                <SortableTH label="Qty" sortKey="netQty" currentKey={prodSortKey} dir={prodSortDir} onSort={prodToggle} className="text-right" />
+                                <SortableTH label="Value" sortKey="netValue" currentKey={prodSortKey} dir={prodSortDir} onSort={prodToggle} className="text-right" />
+                                <SortableTH label="%" sortKey="pct" currentKey={prodSortKey} dir={prodSortDir} onSort={prodToggle} className="text-right" />
+                              </tr>
+                            </thead>
+                            <tbody>{sortedProducts.map((p, i) => <tr key={p.productName} className={`border-b ${i<3 ? (i===0?'border-l-4 border-l-yellow-400':i===1?'border-l-4 border-l-gray-400':'border-l-4 border-l-orange-400'):''} hover:bg-blue-50`}>
                                 <td className="p-2">{i+1}</td><td className="p-2 font-semibold">{p.productName}</td><td className="p-2 text-right">{p.netQty.toLocaleString()}</td><td className="p-2 text-right">{p.netValue.toLocaleString()}</td><td className="p-2 text-right">{p.pct}%</td></tr>)}</tbody>
                         </table></div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 Products (Qty)</h4><ResponsiveContainer height={260}><BarChart data={byProduct.slice(0,10)} layout="vertical" margin={{left: 40}}><XAxis type="number" fontSize={10} /><YAxis dataKey="productName" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netQty" fill="#10B981" /></BarChart></ResponsiveContainer></div>
-                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 Products (Value)</h4><ResponsiveContainer height={260}><BarChart data={byProduct.slice(0,10)} layout="vertical" margin={{left: 40}}><XAxis type="number" fontSize={10} /><YAxis dataKey="productName" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netValue" fill="#3B82F6" /></BarChart></ResponsiveContainer></div>
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 Products (Qty)</h4><ResponsiveContainer height={260}><BarChart data={sortedProducts.slice(0,10)} layout="vertical" margin={{left: 40}}><XAxis type="number" fontSize={10} /><YAxis dataKey="productName" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netQty" fill="#10B981" /></BarChart></ResponsiveContainer></div>
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 Products (Value)</h4><ResponsiveContainer height={260}><BarChart data={sortedProducts.slice(0,10)} layout="vertical" margin={{left: 40}}><XAxis type="number" fontSize={10} /><YAxis dataKey="productName" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netValue" fill="#3B82F6" /></BarChart></ResponsiveContainer></div>
                     </div>
                   </div>
               )}
@@ -1986,8 +2041,16 @@ const SalesAnalyzer = () => {
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                         <div className="px-5 py-4 border-b border-gray-100"><h3 className="font-bold text-gray-800">MR Breakdown</h3><p className="text-xs text-gray-400 mt-0.5">{filteredData.length} records</p></div>
                         <div className="overflow-x-auto max-h-[420px] overflow-y-auto"><table className="w-full text-sm">
-                            <thead className="sticky top-0 bg-gray-50 z-10"><tr className="text-xs text-gray-500 uppercase"><th className="p-2 text-left">#</th><th className="p-2 text-left">MR</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">Value</th><th className="p-2 text-right">%</th></tr></thead>
-                            <tbody>{byMR.map((m, i) => (
+                            <thead className="sticky top-0 bg-gray-50 z-10">
+                              <tr className="text-xs text-gray-500 uppercase">
+                                <th className="p-2 text-left">#</th>
+                                <SortableTH label="MR" sortKey="mrName" currentKey={mrSortKey} dir={mrSortDir} onSort={mrToggle} />
+                                <SortableTH label="Qty" sortKey="netQty" currentKey={mrSortKey} dir={mrSortDir} onSort={mrToggle} className="text-right" />
+                                <SortableTH label="Value" sortKey="netValue" currentKey={mrSortKey} dir={mrSortDir} onSort={mrToggle} className="text-right" />
+                                <SortableTH label="%" sortKey="pct" currentKey={mrSortKey} dir={mrSortDir} onSort={mrToggle} className="text-right" />
+                              </tr>
+                            </thead>
+                            <tbody>{sortedMR.map((m, i) => (
                               <tr key={m.mrName} 
                                 onClick={() => setDrillModal({ open: true, type: 'mr', data: m })}
                                 className="border-b hover:bg-blue-50 cursor-pointer">
@@ -2005,7 +2068,7 @@ const SalesAnalyzer = () => {
                             ))}</tbody>
                         </table></div>
                     </div>
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 MRs (Net Qty)</h4><ResponsiveContainer height={260}><BarChart data={byMR.slice(0,10)} layout="vertical" margin={{left: 60}}><XAxis type="number" fontSize={10} /><YAxis dataKey="mrName" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netQty" fill="#8B5CF6" /></BarChart></ResponsiveContainer></div>
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 MRs (Net Qty)</h4><ResponsiveContainer height={260}><BarChart data={sortedMR.slice(0,10)} layout="vertical" margin={{left: 60}}><XAxis type="number" fontSize={10} /><YAxis dataKey="mrName" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netQty" fill="#8B5CF6" /></BarChart></ResponsiveContainer></div>
                   </div>
               )}
               {activeTab === 'By Customer' && (
@@ -2013,8 +2076,24 @@ const SalesAnalyzer = () => {
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                         <div className="px-5 py-4 border-b border-gray-100"><h3 className="font-bold text-gray-800">Customer Breakdown</h3><input value={customerSearch} onChange={e=>setCustomerSearch(e.target.value)} placeholder="Search customer..." className="p-2 border rounded-lg w-full text-xs mt-2" /></div>
                         <div className="overflow-x-auto max-h-[420px] overflow-y-auto"><table className="w-full text-sm">
-                            <thead className="sticky top-0 bg-gray-50 z-10"><tr className="text-xs text-gray-500 uppercase"><th className="p-2 text-left">#</th><th className="p-2 text-left">Name</th><th className="p-2 text-left">Type</th><th className="p-2 text-left">MR</th><th className="p-2 text-left">Branch</th><th className="p-2 text-right">Invoices</th><th className="p-2 text-left">First</th><th className="p-2 text-left">Last</th><th className="p-2 text-right">Prods</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">Value</th><th className="p-2 text-right">Ret.Qty</th><th className="p-2 text-right">Ret.Val</th></tr></thead>
-                            <tbody>{(byCustomer || []).filter(c=>c.customerName?.toLowerCase().includes(customerSearch.toLowerCase())).slice(0, 50).map((c, i) => (
+                            <thead className="sticky top-0 bg-gray-50 z-10">
+                              <tr className="text-xs text-gray-500 uppercase">
+                                <th className="p-2 text-left">#</th>
+                                <SortableTH label="Name" sortKey="customerName" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} />
+                                <SortableTH label="Type" sortKey="customerType" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} />
+                                <SortableTH label="MR" sortKey="mrName" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} />
+                                <SortableTH label="Branch" sortKey="branch" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} />
+                                <SortableTH label="Invoices" sortKey="invoiceCount" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} className="text-right" />
+                                <SortableTH label="First" sortKey="firstDate" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} />
+                                <SortableTH label="Last" sortKey="lastDate" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} />
+                                <SortableTH label="Prods" sortKey="productCount" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} className="text-right" />
+                                <SortableTH label="Qty" sortKey="netQty" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} className="text-right" />
+                                <SortableTH label="Value" sortKey="netValue" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} className="text-right" />
+                                <SortableTH label="Ret.Qty" sortKey="returnQty" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} className="text-right" />
+                                <SortableTH label="Ret.Val" sortKey="returnValue" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} className="text-right" />
+                              </tr>
+                            </thead>
+                            <tbody>{(sortedCustomers || []).filter(c=>c.customerName?.toLowerCase().includes(customerSearch.toLowerCase())).slice(0, 50).map((c, i) => (
                               <tr key={i}
                                 onClick={() => setDrillModal({ open: true, type: 'customer', data: c })}
                                 className="border-b hover:bg-blue-50 cursor-pointer">
@@ -2047,11 +2126,17 @@ const SalesAnalyzer = () => {
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                         <div className="px-5 py-4 border-b border-gray-100"><h3 className="font-bold text-gray-800">Branch Breakdown</h3><p className="text-xs text-gray-400 mt-0.5">{filteredData.length} records</p></div>
                         <div className="overflow-x-auto max-h-[420px] overflow-y-auto"><table className="w-full text-sm">
-                            <thead className="sticky top-0 bg-gray-50 z-10"><tr className="text-xs text-gray-500 uppercase"><th className="p-2 text-left">Branch</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">%</th></tr></thead>
-                            <tbody>{byBranch.map(b => <tr key={b.branch} className="border-b hover:bg-blue-50"><td className="p-2 font-semibold">{b.branch}</td><td className="p-2 text-right">{b.netQty.toLocaleString()}</td><td className="p-2 text-right">{b.pct}%</td></tr>)}</tbody>
+                            <thead className="sticky top-0 bg-gray-50 z-10">
+                              <tr className="text-xs text-gray-500 uppercase">
+                                <SortableTH label="Branch" sortKey="branch" currentKey={branchSortKey} dir={branchSortDir} onSort={branchToggle} />
+                                <SortableTH label="Qty" sortKey="netQty" currentKey={branchSortKey} dir={branchSortDir} onSort={branchToggle} className="text-right" />
+                                <SortableTH label="%" sortKey="pct" currentKey={branchSortKey} dir={branchSortDir} onSort={branchToggle} className="text-right" />
+                              </tr>
+                            </thead>
+                            <tbody>{sortedBranch.map(b => <tr key={b.branch} className="border-b hover:bg-blue-50"><td className="p-2 font-semibold">{b.branch}</td><td className="p-2 text-right">{b.netQty.toLocaleString()}</td><td className="p-2 text-right">{b.pct}%</td></tr>)}</tbody>
                         </table></div>
                     </div>
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Branch vs Net Qty</h4><ResponsiveContainer height={260}><BarChart data={byBranch} layout="vertical" margin={{left: 60}}><XAxis type="number" fontSize={10} /><YAxis dataKey="branch" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netQty" fill="#F59E0B" /></BarChart></ResponsiveContainer></div>
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Branch vs Net Qty</h4><ResponsiveContainer height={260}><BarChart data={sortedBranch} layout="vertical" margin={{left: 60}}><XAxis type="number" fontSize={10} /><YAxis dataKey="branch" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netQty" fill="#F59E0B" /></BarChart></ResponsiveContainer></div>
                   </div>
               )}
               {activeTab === 'Trend' && (

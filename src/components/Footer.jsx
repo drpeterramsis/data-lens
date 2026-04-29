@@ -3,9 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from '../context/AuthContext';
 
 const APP_VERSION_DATA = {
-  version: '1.0.421',
+  version: '1.0.424',
   releaseDate: 'Apr 2026',
-  label: 'HCP Metrics Update'
+  label: 'Maximized Padding Fix'
 };
 
 export default function Footer() {

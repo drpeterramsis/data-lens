@@ -3,7 +3,8 @@ import { X, Search, ChevronLeft, ChevronRight, GraduationCap, Hospital, Pill, Us
 
 export default function InlineCalendar({ mr, targets, onClose }) {
   const [currentMonth, setCurrentMonth] = useState(() => {
-    const lastDate = mr.allDates[mr.allDates.length - 1];
+    const dates = mr?.allDates || [];
+    const lastDate = dates.length > 0 ? dates[dates.length - 1] : null;
     return lastDate ? new Date(lastDate + "T00:00:00") : new Date();
   });
   const [selectedDate, setSelectedDate] = useState(null);

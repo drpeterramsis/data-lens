@@ -82,10 +82,10 @@ const CoachingSection = ({ data }) => {
     if (!searchQ.trim()) return coachingSessions;
     const q = searchQ.toLowerCase();
     return coachingSessions.filter(s => 
-      s.mrName.toLowerCase().includes(q) ||
-      s.date.includes(q) ||
+      (s.mrName || "").toLowerCase().includes(q) ||
+      (s.date || "").includes(q) ||
       (s.coachType || "").toLowerCase().includes(q) ||
-      s.visits.some(v => 
+      (s.visits || []).some(v => 
         (v.customerName || "").toLowerCase().includes(q) ||
         (v.customerId || "").includes(q)
       )
@@ -146,72 +146,147 @@ const CoachingSection = ({ data }) => {
       </div>
 
       {/* Stats Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-10">
-        <div className="bg-white border-2 border-yellow-400/20 rounded-[2rem] p-6 text-center shadow-sm">
-           <p className="text-3xl font-black text-gray-900">{stats.totalDays}</p>
-           <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Coaching Days</p>
-        </div>
-        <div className="bg-white border-2 border-gray-100 rounded-[2rem] p-6 text-center shadow-sm">
-           <p className="text-3xl font-black text-gray-900">{stats.totalVisits}</p>
-           <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Coached Visits</p>
-        </div>
-        <div className="bg-green-50 border-2 border-green-100 rounded-[2rem] p-6 text-center shadow-sm">
-           <p className="text-3xl font-black text-green-700">{stats.hco}</p>
-           <p className="text-[10px] font-black text-green-400 uppercase tracking-widest mt-1">HCO Focused</p>
-        </div>
-        <div className="bg-purple-50 border-2 border-purple-100 rounded-[2rem] p-6 text-center shadow-sm">
-           <p className="text-3xl font-black text-purple-700">{stats.ph}</p>
-           <p className="text-[10px] font-black text-purple-400 uppercase tracking-widest mt-1">Pharmacy Focus</p>
-        </div>
-        <div className="bg-blue-50 border-2 border-blue-100 rounded-[2rem] p-6 text-center shadow-sm">
-           <p className="text-3xl font-black text-blue-700">{stats.hcp}</p>
-           <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mt-1">HCP Focused</p>
+      <div className="grid grid-cols-6 gap-3 mb-6">
+
+        {/* Card 1 — Coaching Days */}
+        <div className="bg-white rounded-xl 
+                        border-2 border-yellow-100 
+                        p-3 flex flex-col 
+                        items-center gap-0.5">
+          <p className="text-xl font-black 
+                        text-yellow-500">
+            {stats.totalDays}
+          </p>
+          <p className="text-[10px] font-bold 
+                        text-gray-400 uppercase 
+                        tracking-wider text-center">
+            Coaching Days
+          </p>
         </div>
 
-        {/* New KPI Card: Avg HCP Coaching */}
-        <div className="bg-white rounded-2xl border-2 border-purple-100 p-4 flex flex-col items-center gap-1 relative overflow-hidden">
-          {/* Background glow */}
-          <div className={`absolute inset-0 opacity-30 rounded-2xl ${stats.isOnTarget ? 'bg-emerald-50' : 'bg-red-50'}`} />
-          
-          {/* Icon */}
-          <span className="text-xl relative z-10">🎯</span>
-          
-          {/* Main Value */}
-          <p className={`text-2xl font-black relative z-10 ${stats.isOnTarget ? 'text-emerald-600' : stats.avgHCPPerDay > 0 ? 'text-amber-500' : 'text-gray-300'}`}>
-            {stats.avgHCPPerDay > 0 ? stats.avgHCPPerDay.toFixed(1) : '—'}
+        {/* Card 2 — Coached Visits */}
+        <div className="bg-white rounded-xl 
+                        border-2 border-gray-100 
+                        p-3 flex flex-col 
+                        items-center gap-0.5">
+          <p className="text-xl font-black 
+                        text-gray-700">
+            {stats.totalVisits}
           </p>
+          <p className="text-[10px] font-bold 
+                        text-gray-400 uppercase 
+                        tracking-wider text-center">
+            Coached Visits
+          </p>
+        </div>
+
+        {/* Card 3 — HCO */}
+        <div className="bg-green-50 rounded-xl 
+                        border-2 border-green-100 
+                        p-3 flex flex-col 
+                        items-center gap-0.5">
+          <p className="text-xl font-black 
+                        text-green-600">
+            {stats.hco}
+          </p>
+          <p className="text-[10px] font-bold 
+                        text-green-400 uppercase 
+                        tracking-wider text-center">
+            HCO Focused
+          </p>
+        </div>
+
+        {/* Card 4 — Pharmacy */}
+        <div className="bg-purple-50 rounded-xl 
+                        border-2 border-purple-100 
+                        p-3 flex flex-col 
+                        items-center gap-0.5">
+          <p className="text-xl font-black 
+                        text-purple-500">
+            {stats.ph}
+          </p>
+          <p className="text-[10px] font-bold 
+                        text-purple-400 uppercase 
+                        tracking-wider text-center">
+            Pharmacy Focus
+          </p>
+        </div>
+
+        {/* Card 5 — HCP */}
+        <div className="bg-blue-50 rounded-xl 
+                        border-2 border-blue-100 
+                        p-3 flex flex-col 
+                        items-center gap-0.5">
+          <p className="text-xl font-black 
+                        text-blue-600">
+            {stats.hcp}
+          </p>
+          <p className="text-[10px] font-bold 
+                        text-blue-400 uppercase 
+                        tracking-wider text-center">
+            HCP Focused
+          </p>
+        </div>
+
+        {/* Card 6 — Avg HCP Coaching/Day */}
+        <div className={`rounded-xl border-2 p-3 
+                         flex flex-col items-center 
+                         gap-0.5 relative overflow-hidden
+          ${stats.isOnTarget 
+            ? 'bg-emerald-50 border-emerald-200' 
+            : 'bg-red-50 border-red-100'}`}>
           
-          {/* Label */}
-          <p className="text-[11px] font-bold text-gray-600 text-center relative z-10">
-            Avg HCP Coaching/Day
+          <p className={`text-xl font-black
+            ${stats.isOnTarget 
+              ? 'text-emerald-600' 
+              : stats.avgHCPPerDay > 0 
+                ? 'text-amber-500' 
+                : 'text-gray-300'}`}>
+            {stats.avgHCPPerDay > 0 
+              ? stats.avgHCPPerDay.toFixed(1) 
+              : '—'}
           </p>
 
-          {/* Target badge */}
-          <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full relative z-10 ${stats.isOnTarget ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-500'}`}>
+          <p className="text-[10px] font-bold 
+                        text-gray-500 uppercase 
+                        tracking-wider text-center">
+            Avg HCP/Day
+          </p>
+
+          <span className={`text-[9px] font-black 
+            px-1.5 py-0.5 rounded-full
+            ${stats.isOnTarget 
+              ? 'bg-emerald-200 text-emerald-700' 
+              : 'bg-red-200 text-red-600'}`}>
             {stats.isOnTarget ? '✓ On Target' : '✗ Below 4'}
           </span>
 
-          {/* Breakdown */}
-          <div className="text-[9px] text-gray-400 text-center relative z-10 mt-1 space-y-0.5">
-            <p>{stats.hcp} HCP calls</p>
-            <p>÷ {stats.approvedDays} approved days</p>
-          </div>
-
           {/* Mini progress bar */}
-          <div className="w-full h-1 bg-gray-100 rounded-full mt-1 relative z-10 overflow-hidden">
+          <div className="w-full h-1 bg-white/60 
+                          rounded-full mt-1 
+                          overflow-hidden">
             <div
-              className={`h-full rounded-full transition-all duration-700 ${stats.isOnTarget ? 'bg-emerald-500' : 'bg-amber-400'}`}
-              style={{ width: `${Math.min((stats.avgHCPPerDay / 8) * 100, 100)}%` }}
+              className={`h-full rounded-full 
+                transition-all duration-700
+                ${stats.isOnTarget 
+                  ? 'bg-emerald-500' 
+                  : 'bg-amber-400'}`}
+              style={{ 
+                width: `${Math.min(
+                  (stats.avgHCPPerDay / 8) * 100, 
+                  100
+                )}%` 
+              }}
             />
           </div>
 
-          {/* Scale labels */}
-          <div className="w-full flex justify-between relative z-10">
-            <span className="text-[8px] text-gray-300">0</span>
-            <span className="text-[8px] text-gray-400 font-bold">▲4</span>
-            <span className="text-[8px] text-gray-300">8+</span>
-          </div>
+          <p className="text-[8px] text-gray-400 
+                        text-center">
+            {stats.hcp} calls ÷ {stats.approvedDays} days
+          </p>
+
         </div>
+
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
