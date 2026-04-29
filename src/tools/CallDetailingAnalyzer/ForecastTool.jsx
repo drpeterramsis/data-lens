@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { TrendingUp, Trash2, Calendar, ShieldCheck, AlertCircle } from 'lucide-react';
 import { calculateForecast, STATUS_CONFIG } from '../../utils/forecastEngine';
+import StatusTooltip from '../../components/shared/StatusTooltip';
+import { buildRequiredTooltip } from '../../utils/mrCalculations';
 
 const ForecastTool = ({ data, targets, mrStats }) => {
   const getRequiredColor = (required, target, status) => {
@@ -33,29 +35,41 @@ const ForecastTool = ({ data, targets, mrStats }) => {
     };
   };
 
-  const RequiredCell = ({ required, target, status, done, totalTarget, remDays }) => {
+  const RequiredCell = ({ required, target, status, done, totalTarget, remDays, label }) => {
     const colors = getRequiredColor(required, target, status);
+    const tipInfo = buildRequiredTooltip(
+      required, target, status,
+      done, totalTarget, remDays,
+      label // "HCO" | "PH" | "HCP"
+    );
 
     return (
       <td className={`p-3 text-center border-b border-t ${colors.border} ${colors.bg}`}>
-        <div className={`text-lg font-black ${colors.text}`}>
-          {status === "achieved"
-            ? "✅"
-            : status === "impossible"
-              ? "❌"
-              : `${required?.toFixed(1) ?? "—"}`
-          }
-        </div>
-        <div className={`text-[10px] mt-0.5 ${colors.text} opacity-80`}>
-          {status === "achieved"
-            ? "Target achieved"
-            : status === "impossible"
-              ? "No days left"
-              : required <= target
-                ? `≤ ${target} ✓`
-                : `> ${target} target`
-          }
-        </div>
+        <StatusTooltip
+          title={tipInfo.title}
+          lines={tipInfo.lines}
+          color={tipInfo.color}>
+          <div className="cursor-help">
+            <div className={`text-lg font-black ${colors.text}`}>
+              {status === "achieved"
+                ? "✅"
+                : status === "impossible"
+                  ? "❌"
+                  : `${required?.toFixed(1) ?? "—"}`
+              }
+            </div>
+            <div className={`text-[10px] mt-0.5 ${colors.text} opacity-80`}>
+              {status === "achieved"
+                ? "Target achieved"
+                : status === "impossible"
+                  ? "No days left"
+                  : required <= target
+                    ? `≤ ${target} ✓`
+                    : `> ${target} target`
+              }
+            </div>
+          </div>
+        </StatusTooltip>
         {status !== "achieved" && status !== "impossible" && remDays > 0 && (
           <div className={`mt-1 text-[9px] px-1.5 py-0.5 rounded-full inline-block ${colors.badge}`}>
             {remDays} days left
@@ -617,7 +631,20 @@ const ForecastTool = ({ data, targets, mrStats }) => {
                                     <td className="p-3 text-center text-sm text-gray-700 border-r border-b border-gray-200">{row.hcoWorkedDays}d</td>
                                     <td className={`p-3 text-center text-sm font-bold border-r border-b border-gray-200 ${
                                       row.hcoActualRate >= hcoTarget ? "text-green-700" : row.hcoActualRate >= hcoTarget * 0.9 ? "text-yellow-600" : "text-red-600"
-                                    }`}>{row.hcoActualRate}</td>
+                                    }`}>
+                                      <StatusTooltip
+                                        title="🏥 HCO Daily Rate"
+                                        color={row.hcoActualRate >= hcoTarget ? "green" : row.hcoActualRate >= hcoTarget * 0.9 ? "yellow" : "red"}
+                                        lines={[
+                                          `Reported HCO Rate: ${row.hcoActualRate}/day`,
+                                          `Target HCO Rate: ${hcoTarget}/day`,
+                                          `Achievement: ${Math.round((row.hcoActualRate / hcoTarget) * 100)}%`,
+                                          `Total HCO visits: ${row.hcoDone}`,
+                                          `Worked days: ${row.hcoWorkedDays}`
+                                        ]}>
+                                        <div className="cursor-help">{row.hcoActualRate}</div>
+                                      </StatusTooltip>
+                                    </td>
                                     <RequiredCell
                                       required={row.hcoRequired}
                                       target={hcoTarget}
@@ -625,6 +652,7 @@ const ForecastTool = ({ data, targets, mrStats }) => {
                                       done={row.hcoDone}
                                       totalTarget={row.hcoTotalTarget}
                                       remDays={row.hcoRemDays}
+                                      label="HCO"
                                     />
 
                                     {/* PH */}
@@ -632,7 +660,20 @@ const ForecastTool = ({ data, targets, mrStats }) => {
                                     <td className="p-3 text-center text-sm text-gray-700 border-r border-b border-gray-200">{row.phWorkedDays}d</td>
                                     <td className={`p-3 text-center text-sm font-bold border-r border-b border-gray-200 ${
                                       row.phActualRate >= phTarget ? "text-green-700" : row.phActualRate >= phTarget * 0.9 ? "text-yellow-600" : "text-red-600"
-                                    }`}>{row.phActualRate}</td>
+                                    }`}>
+                                      <StatusTooltip
+                                        title="💊 PH Daily Rate"
+                                        color={row.phActualRate >= phTarget ? "green" : row.phActualRate >= phTarget * 0.9 ? "yellow" : "red"}
+                                        lines={[
+                                          `Reported PH Rate: ${row.phActualRate}/day`,
+                                          `Target PH Rate: ${phTarget}/day`,
+                                          `Achievement: ${Math.round((row.phActualRate / phTarget) * 100)}%`,
+                                          `Total PH visits: ${row.phDone}`,
+                                          `Worked days: ${row.phWorkedDays}`
+                                        ]}>
+                                        <div className="cursor-help">{row.phActualRate}</div>
+                                      </StatusTooltip>
+                                    </td>
                                     <RequiredCell
                                       required={row.phRequired}
                                       target={phTarget}
@@ -640,6 +681,7 @@ const ForecastTool = ({ data, targets, mrStats }) => {
                                       done={row.phDone}
                                       totalTarget={row.phTotalTarget}
                                       remDays={row.phRemDays}
+                                      label="PH"
                                     />
 
                                     {/* HCP */}
@@ -647,7 +689,20 @@ const ForecastTool = ({ data, targets, mrStats }) => {
                                     <td className="p-3 text-center text-sm text-gray-700 border-r border-b border-gray-200">{row.hcpWorkedDays}d</td>
                                     <td className={`p-3 text-center text-sm font-bold border-r border-b border-gray-200 ${
                                       row.hcpActualRate >= hcpTarget ? "text-green-700" : row.hcpActualRate >= hcpTarget * 0.9 ? "text-yellow-600" : "text-red-600"
-                                    }`}>{row.hcpActualRate}</td>
+                                    }`}>
+                                      <StatusTooltip
+                                        title="👤 HCP Daily Rate"
+                                        color={row.hcpActualRate >= hcpTarget ? "green" : row.hcpActualRate >= hcpTarget * 0.9 ? "yellow" : "red"}
+                                        lines={[
+                                          `Reported HCP Rate: ${row.hcpActualRate}/day`,
+                                          `Target HCP Rate: ${hcpTarget}/day`,
+                                          `Achievement: ${Math.round((row.hcpActualRate / hcpTarget) * 100)}%`,
+                                          `Total HCP visits: ${row.hcpDone}`,
+                                          `Worked days: ${row.hcpWorkedDays}`
+                                        ]}>
+                                        <div className="cursor-help">{row.hcpActualRate}</div>
+                                      </StatusTooltip>
+                                    </td>
                                     <RequiredCell
                                       required={row.hcpRequired}
                                       target={hcpTarget}
@@ -655,6 +710,7 @@ const ForecastTool = ({ data, targets, mrStats }) => {
                                       done={row.hcpDone}
                                       totalTarget={row.hcpTotalTarget}
                                       remDays={row.hcpRemDays}
+                                      label="HCP"
                                     />
                                  </tr>
                                );

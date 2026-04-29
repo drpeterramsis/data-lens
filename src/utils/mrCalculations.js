@@ -176,6 +176,173 @@ export const calculateMRStats = (filteredRows) => {
   });
 };
 
+/**
+ * v4.9 Status Logic — WHAT EACH LABEL MEANS
+ */
+export const getStatusInfo = (mr, targets) => {
+  const hcoPct = targets.hcoPerDay > 0
+    ? Math.round((mr.hcoActualRate / targets.hcoPerDay) * 100)
+    : 100;
+
+  const phPct = targets.phPerDay > 0
+    ? Math.round((mr.phActualRate / targets.phPerDay) * 100)
+    : 100;
+
+  const hcpPct = targets.hcpPerDay > 0
+    ? Math.round((mr.hcpActualRate / targets.hcpPerDay) * 100)
+    : 100;
+
+  const worstPct = Math.min(hcoPct, phPct, hcpPct);
+
+  // ── ACHIEVED ──
+  // All types: done >= total target
+  if (
+    mr.totalHCO >= targets.hcoPerDay * mr.hcoDays &&
+    mr.totalPH >= targets.phPerDay * mr.phDays &&
+    mr.totalHCP >= targets.hcpPerDay * mr.hcpDays
+  ) {
+    return "achieved";
+  }
+
+  // ── ON TRACK ──
+  // Worst performing type >= 90% of target rate
+  if (worstPct >= 90) return "on_track";
+
+  // ── WARNING ──
+  // Worst >= 75% but < 90%
+  if (worstPct >= 75) return "warning";
+
+  // ── AT RISK ──
+  // Worst >= 50% but < 75%
+  if (worstPct >= 50) return "at_risk";
+
+  // ── CRITICAL ──
+  // Worst < 50% of target rate
+  return "critical";
+};
+
+/**
+ * v4.9 Tooltip Content Builder for Overall Status
+ */
+const formatDate = (d) => {
+  if (!d) return "—";
+  try {
+    return new Date(d + "T00:00:00").toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric"
+    });
+  } catch { return d; }
+};
+
+export const buildStatusTooltip = (mr, targets, status) => {
+  const hcoPct = targets.hcoPerDay > 0
+    ? Math.round((mr.hcoActualRate / targets.hcoPerDay) * 100)
+    : 100;
+  const phPct = targets.phPerDay > 0
+    ? Math.round((mr.phActualRate / targets.phPerDay) * 100)
+    : 100;
+  const hcpPct = targets.hcpPerDay > 0
+    ? Math.round((mr.hcpActualRate / targets.hcpPerDay) * 100)
+    : 100;
+
+  const worstPct = Math.min(hcoPct, phPct, hcpPct);
+
+  const colorMap = {
+    achieved: "green",
+    on_track: "green",
+    warning:  "yellow",
+    at_risk:  "orange",
+    critical: "red",
+  };
+
+  const titleMap = {
+    achieved: "✅ Why Achieved?",
+    on_track: "🟢 Why On Track?",
+    warning:  "🟡 Why Warning?",
+    at_risk:  "🟠 Why At Risk?",
+    critical: "🔴 Why Critical?",
+  };
+
+  const thresholdLine = {
+    achieved: "All visit types met their total target",
+    on_track: "Lowest performing type ≥ 90% of daily target",
+    warning:  "Lowest performing type is 75–89% of daily target",
+    at_risk:  "Lowest performing type is 50–74% of daily target",
+    critical: "Lowest performing type is below 50% of daily target",
+  };
+
+  const lines = [
+    `Rule: ${thresholdLine[status]}`,
+    "─────────────────────",
+    `🏥 HCO: ${mr.hcoActualRate}/day vs target ${targets.hcoPerDay}/day = ${hcoPct}%` +
+      (mr.hcoRequired ? ` · needs ${mr.hcoRequired}/day` : ""),
+    `💊 PH: ${mr.phActualRate}/day vs target ${targets.phPerDay}/day = ${phPct}%` +
+      (mr.phRequired ? ` · needs ${mr.phRequired}/day` : ""),
+    `👤 HCP: ${mr.hcpActualRate}/day vs target ${targets.hcpPerDay}/day = ${hcpPct}%` +
+      (mr.hcpRequired ? ` · needs ${mr.hcpRequired}/day` : ""),
+    "─────────────────────",
+    `Weakest: ${worstPct}% achievement rate`,
+    `Worked: ${mr.workedDays} days · Last visit: ${formatDate(mr.lastDate)}`,
+  ];
+
+  return {
+    title: titleMap[status],
+    color: colorMap[status],
+    lines,
+  };
+};
+
+/**
+ * v4.9 Tooltip Content Builder for Forecast Required Cell
+ */
+export const buildRequiredTooltip = (
+  required, target, status,
+  done, totalTarget, remDays, type
+) => {
+  if (status === "achieved") return {
+    title: "✅ Already Achieved",
+    color: "green",
+    lines: [
+      `${type} visits done: ${done}`,
+      `Total target was: ${totalTarget}`,
+      `Done ≥ target → no more visits needed`,
+    ],
+  };
+
+  if (status === "impossible" || remDays === 0)
+    return {
+      title: "❌ No Remaining Days",
+      color: "gray",
+      lines: [
+        `No working days left in period`,
+        `${type} done: ${done} / ${totalTarget}`,
+        `Period has ended for this MR`,
+      ],
+    };
+
+  const deficit = totalTarget - done;
+  const color   = required <= target ? "green" : "red";
+  const feasible = required <= target ? "Achievable ✓" : "Hard to achieve ✗";
+
+  return {
+    title: required <= target ? `✅ ${type} Rate Achievable` : `⚠️ ${type} Rate Too High`,
+    color,
+    lines: [
+      `Visits done so far: ${done}`,
+      `Total target for period: ${totalTarget}`,
+      `Still needed: ${deficit} more visits`,
+      `Remaining working days: ${remDays}`,
+      `Required rate: ${deficit} ÷ ${remDays} = ${required.toFixed(1)}/day`,
+      `Daily target: ${target}/day`,
+      `Status: ${feasible}`,
+      required > target
+        ? `Exceeds target by ${(required - target).toFixed(1)}/day`
+        : `Within target — keep current pace`,
+    ],
+  };
+};
+
 export const calculateKPICards = (mrStats) => {
   if (!mrStats?.length) return {
     coachingDays: 0,

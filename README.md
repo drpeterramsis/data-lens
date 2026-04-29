@@ -42,6 +42,7 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 
 ## Version History
 
+- **v1.0.409:** Implemented Status Labels with Hover Tooltips (v4.9). Every badge and status cell now includes a math-backed explanation tooltip with real-time performance breakdowns. Unified status logic with standardized thresholds.
 - **v1.0.408:** Implemented MR Card Coaching Style with yellow highlighting and emoji collage. Added multi-column sorting to the Forecast Table.
 - **v1.0.404:** Fixed critical bug preventing "Clear Data" and "Upload New File" operations where CSVUploader's local storage backup overrode intentionally cleared states. Ensured full isolation of caching strategies between analysis modules and correctly plumbed fileName downstream to metadata.
 - **v1.0.403:** Implemented a new multi-month filtering system for the Call Detailing Analyzer. Added an interactive month selector, tooltip summaries, calendar multi-month default sorting, period banner reflection for selected months, and localized persistent storage. Fixed target calculations in the Forecast Table with a dedicated "Required Rate" column and updated table layout formatting.
@@ -76,4 +77,4 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 - **v1.0.001:** Initial release. Authentication, CSV parsing, Analysis tools, and Admin panel implemented.
 
 ---
-© 2026 Data Lens Analytics | version 1.0.408
+© 2026 Data Lens Analytics | version 1.0.409

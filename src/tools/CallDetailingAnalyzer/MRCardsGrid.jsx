@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Search, MapPin, Calendar, TrendingUp, GraduationCap } from 'lucide-react';
-import { getRateStatus } from '../../utils/mrCalculations';
+import { getRateStatus, getStatusInfo, buildStatusTooltip } from '../../utils/mrCalculations';
+import StatusTooltip from '../../components/shared/StatusTooltip';
 
 const STATUS_VARIANTS = {
   green: "text-green-700 bg-green-50 border-green-100 shadow-green-100/20",
@@ -127,6 +128,8 @@ const MRCard = ({ mr, isExpanded, onToggle, targets, onOpenCalendar }) => {
     };
   };
 
+  const tooltipInfo = buildStatusTooltip(mr, targets, mr.overallStatus);
+
   return (
     <div className={`
       rounded-2xl border shadow-sm transition-all duration-200 overflow-hidden
@@ -143,27 +146,39 @@ const MRCard = ({ mr, isExpanded, onToggle, targets, onOpenCalendar }) => {
       >
         {/* ── COACHING BANNER (top strip) ── */}
         {isCoached && (
-          <div className="flex items-center justify-between px-4 py-1.5 bg-yellow-400">
-            {/* Emoji collage */}
-            <div className="flex items-center gap-1">
-              <span className="text-base">🎓</span>
-              <span className="text-base">📋</span>
-              <span className="text-base">👥</span>
-              <span className="text-sm font-black text-gray-900 ml-1">
-                COACHED
-              </span>
+          <StatusTooltip
+            title="🎓 Coaching Activity"
+            color="yellow"
+            lines={[
+              `Coached on ${mr.coachingDays} unique day(s)`,
+              `Total coached interactions: ${mr.coachedVisits}`,
+              `An MR is marked "Coached" when`,
+              `IsMRCoachingSubmitted = true OR`,
+              `IsManagerCoachingSubmitted = true`,
+              `on that visit record`,
+            ]}>
+            <div className="flex items-center justify-between px-4 py-1.5 bg-yellow-400">
+              {/* Emoji collage */}
+              <div className="flex items-center gap-1">
+                <span className="text-base">🎓</span>
+                <span className="text-base">📋</span>
+                <span className="text-base">👥</span>
+                <span className="text-sm font-black text-gray-900 ml-1">
+                  COACHED
+                </span>
+              </div>
+              {/* Days + visits count */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-gray-800 bg-yellow-300 px-2 py-0.5 rounded-full">
+                  {mr.coachingDays}
+                  {mr.coachingDays === 1 ? " day" : " days"}
+                </span>
+                <span className="text-[10px] text-gray-700">
+                  {mr.coachedVisits} visits
+                </span>
+              </div>
             </div>
-            {/* Days + visits count */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-gray-800 bg-yellow-300 px-2 py-0.5 rounded-full">
-                {mr.coachingDays}
-                {mr.coachingDays === 1 ? " day" : " days"}
-              </span>
-              <span className="text-[10px] text-gray-700">
-                {mr.coachedVisits} visits
-              </span>
-            </div>
-          </div>
+          </StatusTooltip>
         )}
 
         {/* ── CARD BODY (HEADER) ── */}
@@ -184,28 +199,33 @@ const MRCard = ({ mr, isExpanded, onToggle, targets, onOpenCalendar }) => {
             </div>
 
             {/* Status badge — top right */}
-            <span className={`flex-shrink-0 text-[10px] font-bold px-2 py-1 rounded-full
-              ${mr.overallStatus === "on_track"
-                ? "bg-green-100 text-green-800"
-                : mr.overallStatus === "warning"
-                  ? "bg-yellow-100 text-yellow-800"
-                  : mr.overallStatus === "at_risk"
-                    ? "bg-orange-100 text-orange-800"
-                    : mr.overallStatus === "critical"
-                      ? "bg-red-100 text-red-800"
-                      : "bg-gray-100 text-gray-600"
-              }`}>
-              {mr.overallStatus === "on_track"
-                ? "🟢 On Track"
-                : mr.overallStatus === "warning"
-                  ? "🟡 Warning"
-                  : mr.overallStatus === "at_risk"
-                    ? "🟠 At Risk"
-                    : mr.overallStatus === "critical"
-                      ? "🔴 Critical"
-                      : "⚪ Gray"
-              }
-            </span>
+            <StatusTooltip
+              title={tooltipInfo.title}
+              lines={tooltipInfo.lines}
+              color={tooltipInfo.color}>
+              <span className={`flex-shrink-0 text-[10px] font-bold px-2 py-1 rounded-full cursor-help
+                ${mr.overallStatus === "on_track"
+                  ? "bg-green-100 text-green-800"
+                  : mr.overallStatus === "warning"
+                    ? "bg-yellow-100 text-yellow-800"
+                    : mr.overallStatus === "at_risk"
+                      ? "bg-orange-100 text-orange-800"
+                      : mr.overallStatus === "critical"
+                        ? "bg-red-100 text-red-800"
+                        : "bg-gray-100 text-gray-600"
+                }`}>
+                {mr.overallStatus === "on_track"
+                  ? "🟢 On Track"
+                  : mr.overallStatus === "warning"
+                    ? "🟡 Warning"
+                    : mr.overallStatus === "at_risk"
+                      ? "🟠 At Risk"
+                      : mr.overallStatus === "critical"
+                        ? "🔴 Critical"
+                        : "⚪ Gray"
+                }
+              </span>
+            </StatusTooltip>
           </div>
 
           <div className={`absolute right-4 top-14 w-6 h-6 rounded-full flex items-center justify-center text-gray-400 transition-all duration-300 ${isExpanded ? 'rotate-180 text-yellow-600 bg-yellow-100' : 'bg-gray-50'}`}>
@@ -268,9 +288,21 @@ const MRCard = ({ mr, isExpanded, onToggle, targets, onOpenCalendar }) => {
             </span>
             {/* Coaching mini tag */}
             {isCoached && (
-              <span className="flex items-center gap-1 text-[10px] font-semibold text-yellow-700 bg-yellow-100 px-1.5 py-0.5 rounded-full">
-                🎓 {mr.coachingDays}d coached
-              </span>
+              <StatusTooltip
+                title="🎓 Coaching Activity"
+                color="yellow"
+                lines={[
+                  `Coached on ${mr.coachingDays} unique day(s)`,
+                  `Total coached interactions: ${mr.coachedVisits}`,
+                  `An MR is marked "Coached" when`,
+                  `IsMRCoachingSubmitted = true OR`,
+                  `IsManagerCoachingSubmitted = true`,
+                  `on that visit record`,
+                ]}>
+                <span className="flex items-center gap-1 text-[10px] font-semibold text-yellow-700 bg-yellow-100 px-1.5 py-0.5 rounded-full cursor-help">
+                  🎓 {mr.coachingDays}d coached
+                </span>
+              </StatusTooltip>
             )}
           </div>
         </div>
@@ -370,7 +402,9 @@ const MRCardsGrid = ({ data, targets, mrStats, onSelectMRForCalendar }) => {
 
   const sortedStats = useMemo(() => {
     if (!mrStats) return [];
-    let parsed = [...mrStats].map(mr => {
+    let parsed = mrStats.map(mr => {
+      const overallStatus = getStatusInfo(mr, targets || { hcpPerDay: 0, hcoPerDay: 0, phPerDay: 0 });
+      
       let overallAch = 0;
       let hcpAch = targets?.hcpPerDay ? (mr.hcpRate / targets.hcpPerDay) * 100 : 0;
       let hcoAch = targets?.hcoPerDay ? (mr.hcoRate / targets.hcoPerDay) * 100 : 0;
@@ -382,12 +416,6 @@ const MRCardsGrid = ({ data, targets, mrStats, onSelectMRForCalendar }) => {
       } else {
          overallAch = mr.totalCalls; 
       }
-
-      let overallStatus = "gray";
-      if (overallAch >= 100) overallStatus = "on_track";
-      else if (overallAch >= 90) overallStatus = "warning";
-      else if (overallAch >= 70) overallStatus = "at_risk";
-      else if (overallAch > 0) overallStatus = "critical";
 
       return { ...mr, overallAch, overallStatus };
     });
