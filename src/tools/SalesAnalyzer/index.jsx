@@ -634,7 +634,6 @@ const SalesAnalyzer = () => {
     type: null,
     data: null,
   });
-  const [uploadMode, setUploadMode] = useState('replace');
   const [currentUploadMode, setCurrentUploadMode] = useState('replace');
   const [appendResult, setAppendResult] = useState(null);
   const [showUploadChoice, setShowUploadChoice] = useState(false);
@@ -857,8 +856,8 @@ const SalesAnalyzer = () => {
       let resultInfo;
 
       if (mode === 'append' && data.length > 0) {
-        const existingKeys = new Set(data.map(r => `${r.invoiceNo}__${r.productCode}`));
-        const newRows = parsedRows.filter(r => !existingKeys.has(`${r.invoiceNo}__${r.productCode}`));
+        const existingKeys = new Set(data.map(r => `${String(r.invoiceNo).trim()}__${String(r.productCode).trim()}`));
+        const newRows = parsedRows.filter(r => !existingKeys.has(`${String(r.invoiceNo).trim()}__${String(r.productCode).trim()}`));
         finalRows = [...data, ...newRows];
         resultInfo = {
           mode:    'append',
