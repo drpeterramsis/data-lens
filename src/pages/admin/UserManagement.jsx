@@ -4,6 +4,27 @@ import { Plus, UserPlus, Edit, Power, Shield, Settings, Mail, X, Check, Search, 
 import { useAuth } from '../../context/AuthContext';
 import Toast, { useToast } from '../../components/Toast';
 
+const AVAILABLE_TOOLS = [
+  { 
+    id: 'call-detailing', 
+    label: 'Call Detailing Analyzer',
+    icon: '📋',
+    desc: 'Field call analysis & coaching'
+  },
+  { 
+    id: 'sales-analyzer', 
+    label: 'ATR Sales Analyzer',
+    icon: '📊',
+    desc: 'ATR invoices & sales performance'
+  },
+  { 
+    id: 'routing-analyzer', 
+    label: 'Routing Analyzer',
+    icon: '🗺️',
+    desc: 'Customer routing & coverage map'
+  },
+];
+
 const UserManagement = () => {
   const { users, updateUsers, user: currentUser } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -168,11 +189,20 @@ const UserManagement = () => {
                   </td>
                   <td className="px-6 py-5">
                     <div className="flex flex-wrap gap-1.5">
-                      {(u.tools || []).map(tool => (
-                        <span key={tool} className="text-[10px] font-black uppercase tracking-tighter bg-white border border-gray-200 text-gray-500 px-2.5 py-0.5 rounded shadow-sm">
-                          {tool.replace(/-/g, ' ')}
-                        </span>
-                      ))}
+                      {(u.tools || []).map(toolId => {
+                        const tool = AVAILABLE_TOOLS.find(
+                          t => t.id === toolId
+                        );
+                        return (
+                          <span
+                            key={toolId}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-600 rounded-lg text-[10px] font-black border border-gray-200"
+                          >
+                            <span>{tool?.icon || '🔧'}</span>
+                            {tool?.label || toolId}
+                          </span>
+                        );
+                      })}
                     </div>
                   </td>
                   <td className="px-6 py-5 text-right">
@@ -302,25 +332,63 @@ const UserManagement = () => {
                   </div>
                 </div>
 
-                <div className="py-2">
-                  <label className="block text-[10px] uppercase font-black text-gray-400 tracking-widest mb-4 ml-1">Analysis Module Authorizations</label>
-                  <div className="flex items-center gap-6 px-1">
-                    {['call-detailing', 'sales-analyzer'].map(tool => (
-                      <label key={tool} className="flex items-center gap-3 cursor-pointer group">
-                        <div 
-                          onClick={() => {
-                            const newTools = formData.tools.includes(tool)
-                              ? formData.tools.filter(t => t !== tool)
-                              : [...formData.tools, tool];
-                            setFormData({...formData, tools: newTools});
-                          }}
-                          className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all shadow-sm ${
-                            formData.tools.includes(tool) ? 'bg-accent border-accent text-accent-dark' : 'bg-white border-gray-200 group-hover:border-accent/40'
+                <div className="mt-4">
+                  <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-3">
+                    Tool Access
+                  </label>
+                  <div className="space-y-2">
+                    {AVAILABLE_TOOLS.map(tool => (
+                      <label
+                        key={tool.id}
+                        className={`flex items-center gap-3 p-3 rounded-2xl border-2 cursor-pointer transition-all ${
+                          (formData.tools || []).includes(tool.id)
+                            ? 'border-yellow-400 bg-yellow-50'
+                            : 'border-gray-100 bg-gray-50 hover:border-gray-200'
+                        }`}
+                      >
+                        {/* Custom Checkbox */}
+                        <div
+                          className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                            (formData.tools || []).includes(tool.id)
+                              ? 'bg-yellow-400 border-yellow-400'
+                              : 'border-gray-300'
                           }`}
                         >
-                          {formData.tools.includes(tool) && <Check size={16} strokeWidth={4} />}
+                          {(formData.tools || []).includes(tool.id) && (
+                            <Check className="w-3 h-3 text-black font-black" />
+                          )}
                         </div>
-                        <span className="text-xs font-black text-gray-700 uppercase tracking-tight capitalize">{tool.replace(/-/g, ' ')}</span>
+
+                        <input
+                          type="checkbox"
+                          className="hidden"
+                          checked={(formData.tools || []).includes(tool.id)}
+                          onChange={() => {
+                            const current = formData.tools || [];
+                            const next = current.includes(tool.id)
+                              ? current.filter(t => t !== tool.id)
+                              : [...current, tool.id];
+                            setFormData(prev => ({
+                              ...prev,
+                              tools: next
+                            }));
+                          }}
+                        />
+
+                        {/* Tool Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-base">
+                              {tool.icon}
+                            </span>
+                            <span className="text-sm font-black text-gray-900">
+                              {tool.label}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-gray-400 font-medium mt-0.5">
+                            {tool.desc}
+                          </p>
+                        </div>
                       </label>
                     ))}
                   </div>

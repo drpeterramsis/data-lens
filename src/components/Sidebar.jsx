@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Settings, ChevronRight, Activity, BarChart3, Shield } from 'lucide-react';
+import { LayoutDashboard, Settings, ChevronRight, Activity, BarChart3, Shield, Map } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSidebar } from '../context/SidebarContext';
 
@@ -11,7 +11,8 @@ const Sidebar = () => {
   const menuItems = [
     { title: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, role: 'all' },
     { title: 'Call Detailing', path: '/tools/call-detailing', icon: Activity, role: 'user' },
-    { title: 'Sales Analyzer', path: '/tools/sales-analyzer', icon: BarChart3, role: 'user' },
+    { title: 'ATR Sales Analyzer', path: '/tools/sales-analyzer', icon: BarChart3, role: 'user' },
+    { title: 'Routing Analyzer', path: '/routing-analyzer', icon: Map, role: 'user' },
     { title: 'User Management', path: '/admin/users', icon: Settings, role: 'admin' },
   ];
 

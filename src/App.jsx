@@ -58,11 +58,16 @@ const AppRoutes = () => {
         </ProtectedRoute>
       } />
 
-      <Route path="/tools/routing-analyzer" element={
-        <ProtectedRoute>
-          <AppLayout><RoutingAnalyzer /></AppLayout>
-        </ProtectedRoute>
-      } />
+      <Route
+        path="/routing-analyzer"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <RoutingAnalyzer />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
 
       {/* Admin Route still protected for adminOnly check */}
       <Route path="/admin/users" element={
