@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   BarChart3, DollarSign, Package, RotateCcw, 
   Grid, Upload, RefreshCw, ChevronLeft, ChevronRight, 
-  ChevronDown, Filter
+  ChevronDown, Filter, Users
 } from 'lucide-react';
 
 import * as XLSX from 'xlsx';
@@ -83,7 +83,7 @@ const DrilldownPanel = ({ invoices, type }) => {
   return (
     <div className="px-6 py-4 border-t-2 border-blue-200">
       <div className="flex gap-6 mb-3 flex-wrap">
-        <div className="text-xs"><span className="text-gray-400">Invoices: </span><span className="font-bold text-gray-800 ml-1">{invoices.length}</span></div>
+        <div className="text-xs"><span className="text-gray-400">Invoices: </span><span className="font-bold text-gray-800 ml-1">{(invoices || []).length}</span></div>
         <div className="text-xs"><span className="text-gray-400">Net Qty: </span><span className="font-bold text-emerald-700 ml-1">{total.netQty.toLocaleString()}</span></div>
         <div className="text-xs"><span className="text-gray-400">Net Value: </span><span className="font-bold text-gray-800 ml-1">{total.netValue.toLocaleString()} EGP</span></div>
         <div className="text-xs"><span className="text-gray-400">Returns: </span><span className="font-bold text-red-500 ml-1">{total.returnQty.toLocaleString()} units</span></div>
@@ -168,9 +168,9 @@ const SideFilterSection = ({ label, options, selected, onChange }) => {
           <span className="text-[11px] font-bold text-gray-600 uppercase tracking-widest">
             {label}
           </span>
-          {selected.length > 0 && (
+          {(selected || []).length > 0 && (
             <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-              {selected.length}
+              {(selected || []).length}
             </span>
           )}
         </div>
@@ -182,7 +182,7 @@ const SideFilterSection = ({ label, options, selected, onChange }) => {
 
       {open && (
         <div className="px-4 pt-2 pb-1">
-            {options.length > 5 && (
+            {(options || []).length > 5 && (
               <input
                 type="text"
                 value={search}
@@ -206,7 +206,7 @@ const SideFilterSection = ({ label, options, selected, onChange }) => {
             </div>
 
             <div className="max-h-[180px] overflow-y-auto">
-                {visibleOptions.length === 0 ? (
+                {(visibleOptions || []).length === 0 ? (
                     <p className="text-[11px] text-gray-300 py-2 text-center">No results</p>
                 ) : (
                     visibleOptions.map(opt => (
@@ -323,11 +323,137 @@ const SideFiltersPanel = ({ filters, setFilters, filterOptions, activeFilterCoun
   );
 };
 
+const MRCompareTable = ({ 
+  periodAData, periodBData, labelA, labelB 
+}) => {
+
+  const buildMRMap = (rows) => {
+    const map = {};
+    rows.forEach(r => {
+      if (!map[r.mrName]) map[r.mrName] = {
+        netQty: 0, netValue: 0, 
+        customers: new Set()
+      };
+      map[r.mrName].netQty    += r.netQty;
+      map[r.mrName].netValue  += r.netValue;
+      map[r.mrName].customers.add(r.customerName);
+    });
+    return map;
+  };
+
+  const mapA = buildMRMap(periodAData);
+  const mapB = buildMRMap(periodBData);
+
+  const allMRs = [...new Set([
+    ...Object.keys(mapA), 
+    ...Object.keys(mapB)
+  ])].sort();
+
+  const rows = allMRs.map(mr => {
+    const a = mapA[mr] || 
+      { netQty: 0, netValue: 0, customers: new Set() };
+    const b = mapB[mr] || 
+      { netQty: 0, netValue: 0, customers: new Set() };
+    const pct = a.netQty === 0 ? null
+      : (((b.netQty - a.netQty) / 
+          Math.abs(a.netQty)) * 100).toFixed(1);
+    return {
+      mr,
+      aQty:   a.netQty,
+      bQty:   b.netQty,
+      aValue: a.netValue,
+      bValue: b.netValue,
+      aCust:  a.customers.size,
+      bCust:  b.customers.size,
+      pct:    pct,
+    };
+  }).sort((a,b) => b.bQty - a.bQty);
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="px-5 py-4 border-b border-gray-100">
+        <h3 className="font-bold text-gray-800">
+          MR Performance Comparison
+        </h3>
+        <p className="text-xs text-gray-400 mt-0.5">
+          {allMRs.length} MRs · 
+          sorted by {labelB} Net Qty
+        </p>
+      </div>
+      <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
+        <table className="w-full text-xs border-collapse">
+          <thead className="sticky top-0 bg-gray-50">
+            <tr>
+              <th className="px-3 py-2.5 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider">MR Name</th>
+              <th className="px-3 py-2.5 text-right text-[10px] font-bold text-blue-500 uppercase tracking-wider">{labelA} Qty</th>
+              <th className="px-3 py-2.5 text-right text-[10px] font-bold text-purple-500 uppercase tracking-wider">{labelB} Qty</th>
+              <th className="px-3 py-2.5 text-right text-[10px] font-bold text-gray-500 uppercase tracking-wider">Change</th>
+              <th className="px-3 py-2.5 text-right text-[10px] font-bold text-gray-500 uppercase tracking-wider">{labelA} Val</th>
+              <th className="px-3 py-2.5 text-right text-[10px] font-bold text-gray-500 uppercase tracking-wider">{labelB} Val</th>
+              <th className="px-3 py-2.5 text-right text-[10px] font-bold text-gray-500 uppercase tracking-wider">{labelA} Cust</th>
+              <th className="px-3 py-2.5 text-right text-[10px] font-bold text-gray-500 uppercase tracking-wider">{labelB} Cust</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => {
+              const change = parseFloat(row.pct);
+              const isNew  = row.aQty === 0 && row.bQty > 0;
+              const isGone = row.bQty === 0 && row.aQty > 0;
+              return (
+                <tr key={row.mr} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                  <td className="px-3 py-2 font-semibold text-gray-800">
+                    {row.mr}
+                    {isNew && <span className="ml-2 text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-bold">NEW</span>}
+                    {isGone && <span className="ml-2 text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-bold">GONE</span>}
+                  </td>
+                  <td className="px-3 py-2 text-right text-blue-700 font-mono">{row.aQty.toLocaleString()}</td>
+                  <td className="px-3 py-2 text-right text-purple-700 font-mono">{row.bQty.toLocaleString()}</td>
+                  <td className="px-3 py-2 text-right">
+                    {row.pct === null ? (
+                      <span className="text-gray-300">—</span>
+                    ) : (
+                      <span className={`font-bold text-xs px-2 py-0.5 rounded-full ${change >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+                        {change >= 0 ? '▲' : '▼'}{Math.abs(change)}%
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 text-right font-mono text-gray-600">{row.aValue.toLocaleString()}</td>
+                  <td className="px-3 py-2 text-right font-mono text-gray-600">{row.bValue.toLocaleString()}</td>
+                  <td className="px-3 py-2 text-right text-gray-500">{row.aCust}</td>
+                  <td className="px-3 py-2 text-right text-gray-500">{row.bCust}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
 const SalesAnalyzer = () => {
   const [data, setData] = useState([]);
   const [parsing, setParsing] = useState(false);
   const [progress, setProgress] = useState('');
   const [activeTab, setActiveTab] = useState('Overview');
+  const [drillModal, setDrillModal] = useState({
+    open: false,
+    type: null,
+    data: null,
+  });
+  const [uploadMode, setUploadMode] = useState('replace');
+  const [appendResult, setAppendResult] = useState(null);
+  const [showUploadChoice, setShowUploadChoice] = useState(false);
+  const [dataSources, setDataSources] = useState([]);
+
+  // Period Compare states
+  const [periodA, setPeriodA] = useState({from: '', to: '', label: 'Period A'});
+  const [periodB, setPeriodB] = useState({from: '', to: '', label: 'Period B'});
+
+  const closeDrill = () => setDrillModal({
+    open: false, type: null, data: null
+  });
+  
   const [persistenceInfo, setPersistenceInfo] = useState(null);
   const fileInputRef = useRef(null);
   const [filters, setFilters] = useState({
@@ -336,6 +462,36 @@ const SalesAnalyzer = () => {
       customer: [],
       fromDate: '', toDate: ''
   });
+  
+const UploadModeModal = ({ onChoose, onCancel, existingCount }) => (
+  <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6">
+      <h3 className="text-lg font-black text-gray-900 mb-1">Upload New File</h3>
+      <p className="text-sm text-gray-400 mb-6">You have {existingCount.toLocaleString()} rows loaded. What do you want to do?</p>
+      <div className="flex flex-col gap-3">
+        <button onClick={() => onChoose('append')} className="w-full text-left px-5 py-4 rounded-2xl border-2 border-blue-200 hover:border-blue-500 hover:bg-blue-50 transition-all group">
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-100 p-2.5 rounded-xl group-hover:bg-blue-200 transition-colors"><span>➕</span></div>
+            <div>
+              <p className="font-black text-gray-900">Append to existing data</p>
+              <p className="text-xs text-gray-400 mt-0.5">Merge new file with current data. Duplicate invoices will be skipped.</p>
+            </div>
+          </div>
+        </button>
+        <button onClick={() => onChoose('replace')} className="w-full text-left px-5 py-4 rounded-2xl border-2 border-gray-200 hover:border-red-300 hover:bg-red-50 transition-all group">
+          <div className="flex items-center gap-3">
+            <div className="bg-gray-100 p-2.5 rounded-xl group-hover:bg-red-100 transition-colors"><span>🔄</span></div>
+            <div>
+              <p className="font-black text-gray-900">Replace all data</p>
+              <p className="text-xs text-gray-400 mt-0.5">Delete current data and load new file fresh.</p>
+            </div>
+          </div>
+        </button>
+      </div>
+      <button onClick={onCancel} className="w-full mt-4 text-sm text-gray-400 hover:text-gray-600 font-semibold py-2">Cancel</button>
+    </div>
+  </div>
+);
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -401,6 +557,7 @@ const SalesAnalyzer = () => {
   const endDate = useMemo(() => data.length > 0 ? new Date(Math.max(...data.map(d => d.invoiceDate))) : new Date(), [data]);
 
   const byProduct = useMemo(() => {
+    if (!filteredData || filteredData.length === 0) return [];
     const map = {};
     filteredData.forEach(row => {
       if (!map[row.productName]) {
@@ -421,6 +578,7 @@ const SalesAnalyzer = () => {
   const customerTypeData = useMemo(() => [...new Set(filteredData.map(d=>d.customerType))].map(t => ({name: t, val: filteredData.filter(d=>d.customerType===t).reduce((acc,f)=>acc+f.netValue,0)})), [filteredData]);
 
   const byMR = useMemo(() => {
+    if (!filteredData || filteredData.length === 0) return [];
     const map = {};
     filteredData.forEach(row => {
         if (!map[row.mrName]) {
@@ -439,6 +597,7 @@ const SalesAnalyzer = () => {
   }, [filteredData]);
 
   const byCustomer = useMemo(() => {
+    if (!filteredData || filteredData.length === 0) return [];
     const map = {};
     filteredData.forEach(row => {
         const key = row.customerId || row.customerName;
@@ -457,10 +616,595 @@ const SalesAnalyzer = () => {
     return Object.values(map).map(r => ({ ...r, productCount: r.products.size, invoiceCount: r.invoices.size, firstDate: r.dates.length > 0 ? new Date(Math.min(...r.dates)) : null, lastDate: r.dates.length > 0 ? new Date(Math.max(...r.dates)) : null })).sort((a,b) => b.netQty - a.netQty);
   }, [filteredData]);
 
+  const handleUploadClick = () => {
+    if (data.length > 0) {
+      setShowUploadChoice(true);
+    } else {
+      setUploadMode('replace');
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleUploadChoice = (mode) => {
+    setUploadMode(mode);
+    setShowUploadChoice(false);
+    fileInputRef.current.click();
+  };
+
   const fmt = (date) => (!date || !(date instanceof Date)) ? '—' : date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+  const drillInvoices = useMemo(() => {
+    if (!drillModal?.open || !drillModal?.data) return [];
+    if (!filteredData || filteredData.length === 0) return [];
+    
+    const rows = drillModal.type === 'mr'
+      ? filteredData.filter(r => 
+          r.mrName === drillModal.data.mrName)
+      : filteredData.filter(r =>
+          r.customerName === drillModal.data.customerName);
+  
+    // Group by invoice
+    const invMap = {};
+    rows.forEach(row => {
+      const k = row.invoiceNo;
+      if (!invMap[k]) {
+        invMap[k] = {
+          invoiceNo:    row.invoiceNo,
+          invoiceDate:  row.invoiceDate,
+          customerName: row.customerName,
+          customerId:   row.customerId,
+          customerType: row.customerType,
+          mrName:       row.mrName,
+          supervisor:   row.supervisor,
+          branch:       row.branch,
+          lineName:     row.lineName,
+          address:      row.customerAddress,
+          netQty:       0,
+          netValue:     0,
+          returnQty:    0,
+          returnValue:  0,
+          salesQty:     0,
+          salesValue:   0,
+          products:     [],
+        };
+      }
+      invMap[k].netQty      += row.netQty;
+      invMap[k].netValue    += row.netValue;
+      invMap[k].returnQty   += Math.abs(row.returnQty);
+      invMap[k].returnValue += Math.abs(row.returnValue);
+      invMap[k].salesQty    += row.salesQty;
+      invMap[k].salesValue  += row.salesValue;
+      invMap[k].products.push({
+        productCode: row.productCode,
+        productName: row.productName,
+        netQty:      row.netQty,
+        netValue:    row.netValue,
+        salesQty:    row.salesQty,
+        salesValue:  row.salesValue,
+        returnQty:   Math.abs(row.returnQty),
+        returnValue: Math.abs(row.returnValue),
+      });
+    });
+  
+    return Object.values(invMap)
+      .sort((a,b) => b.invoiceDate - a.invoiceDate);
+  
+  }, [drillModal, filteredData]);
+  
+  const DrilldownModal = ({ 
+    type, row, invoices = [], onClose, fmt 
+  }) => {
+  
+    const [activeInvoice, setActiveInvoice] = 
+      useState(null);
+  
+    const [invSort, setInvSort] = useState({
+      key: 'invoiceDate', dir: 'desc'
+    });
+  
+    const sortedInvoices = useMemo(() => {
+      return [...invoices].sort((a, b) => {
+        const av = a[invSort.key];
+        const bv = b[invSort.key];
+        if (av == null) return 1;
+        if (bv == null) return -1;
+        const cmp = typeof av === 'string'
+          ? av.localeCompare(bv)
+          : av - bv;
+        return invSort.dir === 'asc' ? cmp : -cmp;
+      });
+    }, [invoices, invSort]);
+  
+    const toggleSort = (key) => {
+      setInvSort(prev => ({
+        key,
+        dir: prev.key === key && 
+             prev.dir === 'desc' ? 'asc' : 'desc'
+      }));
+    };
+  
+    // Summary totals
+    const totals = (invoices || []).reduce((acc, inv) => ({
+      netQty:      acc.netQty + (inv.netQty || 0),
+      netValue:    acc.netValue + (inv.netValue || 0),
+      returnQty:   acc.returnQty + (inv.returnQty || 0),
+      returnValue: acc.returnValue + (inv.returnValue || 0),
+      salesQty:    acc.salesQty + (inv.salesQty || 0),
+      salesValue:  acc.salesValue + (inv.salesValue || 0),
+    }), { 
+      netQty:0, netValue:0, returnQty:0, 
+      returnValue:0, salesQty:0, salesValue:0 
+    });
+  
+    // Close on backdrop click
+    const handleBackdrop = (e) => {
+      if (e.target === e.currentTarget) onClose();
+    };
+  
+    // Close on Escape key
+    useEffect(() => {
+      const handler = (e) => {
+        if (e.key === 'Escape') onClose();
+      };
+      window.addEventListener('keydown', handler);
+      return () => window.removeEventListener(
+        'keydown', handler);
+    }, [onClose]);
+  
+    const title = type === 'mr'
+      ? row.mrName
+      : row.customerName;
+  
+    const subtitle = type === 'mr'
+      ? `${row.supervisor} · ${row.branch}`
+      : `${row.customerType} · ${row.branch}`;
+  
+    return (
+      <div
+        onClick={handleBackdrop}
+        className="fixed inset-0 z-50 
+                   bg-black/40 backdrop-blur-sm
+                   flex items-center justify-center
+                   p-4">
+  
+        <div className="bg-white rounded-3xl 
+                        shadow-2xl w-full 
+                        max-w-5xl max-h-[90vh] 
+                        flex flex-col
+                        overflow-hidden">
+  
+          {/* ── MODAL HEADER ── */}
+          <div className="flex items-start 
+                          justify-between 
+                          px-6 py-5 
+                          border-b border-gray-100
+                          shrink-0">
+            <div>
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-xl
+                  ${type === 'mr' 
+                    ? 'bg-purple-100' 
+                    : 'bg-blue-100'}`}>
+                  {type === 'mr'
+                    ? <Users size={18} 
+                        className="text-purple-600"/>
+                    : <Package size={18} 
+                        className="text-blue-600"/>
+                  }
+                </div>
+                <div>
+                  <h2 className="text-lg font-black 
+                                 text-gray-900">
+                    {title}
+                  </h2>
+                  <p className="text-sm text-gray-400">
+                    {subtitle}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="text-gray-400 
+                         hover:text-gray-700
+                         hover:bg-gray-100
+                         p-2 rounded-xl 
+                         transition-all">
+              ✕
+            </button>
+          </div>
+  
+          {/* ── SUMMARY STRIP ── */}
+          <div className="grid grid-cols-3 
+                          md:grid-cols-6 
+                          gap-0 
+                          border-b border-gray-100
+                          shrink-0">
+            {[
+              { label: 'Invoices', 
+                value: invoices?.length || 0,
+                color: 'text-gray-900' },
+              { label: 'Sales Qty',
+                value: totals.salesQty
+                        .toLocaleString(),
+                color: 'text-blue-700' },
+              { label: 'Net Qty',
+                value: totals.netQty
+                        .toLocaleString(),
+                color: 'text-emerald-700' },
+              { label: 'Net Value',
+                value: totals.netValue
+                        .toLocaleString(),
+                color: 'text-gray-900',
+                suffix: 'EGP' },
+              { label: 'Return Qty',
+                value: totals.returnQty
+                        .toLocaleString(),
+                color: 'text-red-600' },
+              { label: 'Return Value',
+                value: totals.returnValue
+                        .toLocaleString(),
+                color: 'text-red-500',
+                suffix: 'EGP' },
+            ].map((s, i) => (
+              <div key={s.label}
+                className={`px-4 py-3 
+                  ${i < 5 
+                    ? 'border-r border-gray-100' 
+                    : ''}`}>
+                <p className="text-[9px] font-bold 
+                              text-gray-400 uppercase 
+                              tracking-widest">
+                  {s.label}
+                </p>
+                <p className={`text-base font-black 
+                               mt-0.5 ${s.color}`}>
+                  {s.value}
+                  {s.suffix && (
+                    <span className="text-xs 
+                                     font-normal 
+                                     text-gray-400 
+                                     ml-1">
+                      {s.suffix}
+                    </span>
+                  )}
+                </p>
+              </div>
+            ))}
+          </div>
+  
+          {/* ── BODY: INVOICE LIST + DETAIL ── */}
+          <div className="flex flex-1 
+                          overflow-hidden">
+  
+            {/* LEFT — Invoice List */}
+            <div className="w-[420px] shrink-0 
+                            border-r border-gray-100
+                            overflow-y-auto">
+              
+              {/* Table header */}
+              <table className="w-full text-xs 
+                                border-collapse">
+                <thead className="sticky top-0 
+                                  bg-gray-50 z-10">
+                  <tr>
+                    {[
+                      { label: 'Invoice #', 
+                        key: 'invoiceNo' },
+                      { label: 'Date',      
+                        key: 'invoiceDate' },
+                      type === 'mr'
+                        ? { label: 'Customer',  
+                            key: 'customerName' }
+                        : { label: 'MR',        
+                            key: 'mrName' },
+                      { label: 'Net Qty',   
+                        key: 'netQty' },
+                      { label: 'Net Val',   
+                        key: 'netValue' },
+                    ].map(col => (
+                      <th
+                        key={col.key}
+                        onClick={() => 
+                          toggleSort(col.key)}
+                        className="px-3 py-2.5 
+                          text-left text-[10px] 
+                          font-bold text-gray-500 
+                          uppercase tracking-wider
+                          cursor-pointer 
+                          hover:bg-gray-100
+                          select-none
+                          whitespace-nowrap">
+                        <div className="flex 
+                          items-center gap-1">
+                          {col.label}
+                          <span className="text-gray-300">
+                            {invSort.key === col.key
+                              ? invSort.dir === 'asc'
+                                ? '↑' : '↓'
+                              : '↕'}
+                          </span>
+                        </div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedInvoices.map((inv, i) => (
+                    <tr
+                      key={inv.invoiceNo}
+                      onClick={() => 
+                        setActiveInvoice(
+                          activeInvoice?.invoiceNo === 
+                          inv.invoiceNo ? null : inv
+                        )}
+                      className={`border-b 
+                        border-gray-50 
+                        cursor-pointer 
+                        transition-colors
+                        ${activeInvoice?.invoiceNo === 
+                          inv.invoiceNo
+                          ? 'bg-blue-50 border-l-2 border-l-blue-500'
+                          : i % 2 === 0 
+                            ? 'bg-white hover:bg-blue-50/50'
+                            : 'bg-gray-50/50 hover:bg-blue-50/50'
+                        }`}>
+                      <td className="px-3 py-2 
+                                     font-mono 
+                                     text-gray-700
+                                     whitespace-nowrap">
+                        {inv.invoiceNo}
+                      </td>
+                      <td className="px-3 py-2 
+                                     text-gray-500
+                                     whitespace-nowrap">
+                        {fmt(inv.invoiceDate)}
+                      </td>
+                      <td className="px-3 py-2 
+                                     text-gray-700 
+                                     max-w-[130px] 
+                                     truncate">
+                        {type === 'mr'
+                          ? inv.customerName
+                          : inv.mrName}
+                      </td>
+                      <td className="px-3 py-2 
+                                     text-right 
+                                     font-semibold 
+                                     text-emerald-700">
+                        {inv.netQty.toLocaleString()}
+                      </td>
+                      <td className="px-3 py-2 
+                                     text-right 
+                                     text-gray-700">
+                        {inv.netValue.toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+  
+            {/* RIGHT — Invoice Detail */}
+            <div className="flex-1 overflow-y-auto 
+                            p-5">
+              {!activeInvoice ? (
+                <div className="h-full flex 
+                  items-center justify-center 
+                  text-gray-300">
+                  <div className="text-center">
+                    <p className="text-4xl mb-2">
+                      🧾
+                    </p>
+                    <p className="font-semibold 
+                                  text-sm">
+                      Click an invoice
+                    </p>
+                    <p className="text-xs mt-1">
+                      to see full product breakdown
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-4">
+  
+                  {/* Invoice Meta */}
+                  <div className="bg-gray-50 
+                                  rounded-2xl p-4">
+                    <div className="flex items-center 
+                      justify-between mb-3">
+                      <h3 className="font-black 
+                                     text-gray-900">
+                        Invoice {activeInvoice.invoiceNo}
+                      </h3>
+                      <span className="text-xs 
+                        text-gray-500 bg-white 
+                        px-3 py-1 rounded-full 
+                        border border-gray-200">
+                        {fmt(activeInvoice.invoiceDate)}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 
+                                    gap-2">
+                      {[
+                        { label: 'Customer', 
+                          value: activeInvoice
+                                  .customerName },
+                        { label: 'Customer ID', 
+                          value: activeInvoice
+                                  .customerId || '—' },
+                        { label: 'Type', 
+                          value: activeInvoice
+                                  .customerType },
+                        { label: 'MR', 
+                          value: activeInvoice
+                                  .mrName },
+                        { label: 'Branch', 
+                          value: activeInvoice
+                                  .branch },
+                        { label: 'Line', 
+                          value: activeInvoice
+                                  .lineName },
+                        { label: 'Address', 
+                          value: activeInvoice
+                                  .address || '—' },
+                        { label: 'Supervisor', 
+                          value: activeInvoice
+                                  .supervisor },
+                      ].map(item => (
+                        <div key={item.label}
+                          className="bg-white 
+                                     rounded-xl 
+                                     px-3 py-2">
+                          <p className="text-[9px] 
+                            font-bold text-gray-400 
+                            uppercase tracking-widest">
+                            {item.label}
+                          </p>
+                          <p className="text-xs 
+                            font-semibold 
+                            text-gray-800 mt-0.5">
+                            {item.value}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+  
+                  {/* Products Breakdown */}
+                  <div className="bg-white rounded-2xl 
+                                  border border-gray-100 
+                                  overflow-hidden">
+                    <div className="px-4 py-3 
+                                    border-b 
+                                    border-gray-100">
+                      <h4 className="font-bold 
+                                     text-sm 
+                                     text-gray-800">
+                        Products Breakdown
+                      </h4>
+                      <p className="text-[10px] 
+                                    text-gray-400">
+                        {activeInvoice.products.length} 
+                        products in this invoice
+                      </p>
+                    </div>
+                    <table className="w-full text-xs 
+                                      border-collapse">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          {['Product','Code',
+                            'Sales Qty','Net Qty',
+                            'Net Value','Return Qty']
+                            .map(h => (
+                            <th key={h}
+                              className="px-3 py-2 
+                                text-left text-[10px] 
+                                font-bold text-gray-500 
+                                uppercase tracking-wider
+                                whitespace-nowrap">
+                              {h}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {activeInvoice.products
+                          .map((p, i) => (
+                          <tr key={i}
+                            className={i % 2 === 0
+                              ? 'bg-white'
+                              : 'bg-gray-50'}>
+                            <td className="px-3 py-2 
+                              text-gray-800 font-medium
+                              max-w-[160px] truncate"
+                              title={p.productName}>
+                              {p.productName}
+                            </td>
+                            <td className="px-3 py-2 
+                              font-mono text-gray-500 
+                              text-[10px]">
+                              {p.productCode || '—'}
+                            </td>
+                            <td className="px-3 py-2 
+                              text-right text-blue-700 
+                              font-semibold">
+                              {p.salesQty
+                                .toLocaleString()}
+                            </td>
+                            <td className="px-3 py-2 
+                              text-right 
+                              text-emerald-700 
+                              font-semibold">
+                              {p.netQty.toLocaleString()}
+                            </td>
+                            <td className="px-3 py-2 
+                              text-right text-gray-700">
+                              {p.netValue
+                                .toLocaleString()}
+                            </td>
+                            <td className="px-3 py-2 
+                              text-right text-red-500">
+                              {p.returnQty > 0
+                                ? p.returnQty
+                                    .toLocaleString()
+                                : '—'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      {/* Totals row */}
+                      <tfoot className="bg-gray-100 
+                                        font-bold 
+                                        border-t-2 
+                                        border-gray-200">
+                        <tr>
+                          <td className="px-3 py-2 
+                            font-black text-gray-700" 
+                            colSpan={2}>
+                            TOTAL
+                          </td>
+                          <td className="px-3 py-2 
+                            text-right text-blue-700">
+                            {activeInvoice.salesQty
+                              .toLocaleString()}
+                          </td>
+                          <td className="px-3 py-2 
+                            text-right 
+                            text-emerald-700">
+                            {activeInvoice.netQty
+                              .toLocaleString()}
+                          </td>
+                          <td className="px-3 py-2 
+                            text-right text-gray-800">
+                            {activeInvoice.netValue
+                              .toLocaleString()}
+                          </td>
+                          <td className="px-3 py-2 
+                            text-right text-red-500">
+                            {activeInvoice.returnQty > 0
+                              ? activeInvoice.returnQty
+                                  .toLocaleString()
+                              : '—'}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+  
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+    
 
 
   const byBranch = useMemo(() => {
+    if (!filteredData || filteredData.length === 0) return [];
     const map = {};
     filteredData.forEach(row => {
         if (!map[row.branch]) {
@@ -478,7 +1222,52 @@ const SalesAnalyzer = () => {
     return Object.values(map).map(r => ({ ...r, mrCount: r.mrs.size, customerCount: r.customers.size, invoiceCount: r.invoices.size, pct: total > 0 ? ((r.netValue/total)*100).toFixed(1) : '0.0' })).sort((a,b) => b.netQty - a.netQty);
   }, [filteredData]);
 
+  // Comparison Logic
+  const periodAData = useMemo(() => {
+    if (!periodA.from || !periodA.to) return [];
+    const from = new Date(periodA.from);
+    const to   = new Date(periodA.to);
+    to.setHours(23,59,59);
+    return data.filter(r => r.invoiceDate >= from && r.invoiceDate <= to);
+  }, [data, periodA]);
+
+  const periodBData = useMemo(() => {
+    if (!periodB.from || !periodB.to) return [];
+    const from = new Date(periodB.from);
+    const to   = new Date(periodB.to);
+    to.setHours(23,59,59);
+    return data.filter(r => r.invoiceDate >= from && r.invoiceDate <= to);
+  }, [data, periodB]);
+
+  const compareMetrics = useMemo(() => {
+    if (!periodAData.length && !periodBData.length) return null;
+
+    const calc = (rows) => ({
+      invoices: new Set(rows.map(r => r.invoiceNo)).size,
+      netQty:    rows.reduce((s,r) => s + r.netQty, 0),
+      netValue:  rows.reduce((s,r) => s + r.netValue, 0),
+      returnQty: rows.reduce((s,r) => s + Math.abs(r.returnQty), 0),
+      customers: new Set(rows.map(r => r.customerName)).size,
+      mrs:       new Set(rows.map(r => r.mrName)).size,
+      products:  new Set(rows.map(r => r.productName)).size,
+    });
+
+    const a = calc(periodAData);
+    const b = calc(periodBData);
+    const pct = (a, b) => { if (a === 0) return b > 0 ? 100 : 0; return (((b - a) / Math.abs(a)) * 100).toFixed(1); };
+
+    return { a, b, changes: {
+      invoices:  pct(a.invoices,  b.invoices),
+      netQty:    pct(a.netQty,    b.netQty),
+      netValue:  pct(a.netValue,  b.netValue),
+      returnQty: pct(a.returnQty, b.returnQty),
+      customers: pct(a.customers, b.customers),
+      mrs:       pct(a.mrs,       b.mrs),
+    }};
+  }, [periodAData, periodBData]);
+
   const trendData = useMemo(() => {
+    if (!filteredData || filteredData.length === 0) return [];
       const map = {};
       filteredData.forEach(row => {
           const d = row.invoiceDate;
@@ -498,7 +1287,8 @@ const SalesAnalyzer = () => {
     setParsing(true);
     setProgress('Reading file...');
     const reader = new FileReader();
-    reader.onload = (evt) => {
+
+    reader.onload = async (evt) => {
       try {
         const bstr = evt.target.result;
         const wb = XLSX.read(bstr, { type: 'binary', cellDates: true });
@@ -528,19 +1318,51 @@ const SalesAnalyzer = () => {
             netValue: parseFloat(row.netValue) || 0,
             invoiceDate: row.invoiceDate instanceof Date ? row.invoiceDate : new Date(row.invoiceDate)
         }));
-        setData(parsedRows);
+
+        let finalRows = parsedRows;
+        let addedCount = parsedRows.length;
+        let skippedCount = 0;
+
+        if (uploadMode === 'append' && data.length > 0) {
+            const existingInvoices = new Set(data.map(r => r.invoiceNo));
+            const newRows = parsedRows.filter(r => !existingInvoices.has(r.invoiceNo));
+            skippedCount = parsedRows.length - newRows.length;
+            finalRows = [...data, ...newRows];
+            addedCount = newRows.length;
+            setAppendResult({ added: addedCount, skipped: skippedCount, total: finalRows.length });
+        } else {
+            setData(parsedRows);
+        }
+
+        setData(finalRows);
+        setDataSources(prev => {
+            const exists = prev.find(s => s.fileName === file.name);
+            if (exists) return prev;
+            return [...prev, {
+                fileName: file.name,
+                rowCount: parsedRows.length,
+                uploadedAt: new Date().toISOString(),
+                mode: uploadMode,
+                dateRange: {
+                    from: Math.min(...parsedRows.filter(r => r.invoiceDate).map(r => r.invoiceDate.getTime())),
+                    to: Math.max(...parsedRows.filter(r => r.invoiceDate).map(r => r.invoiceDate.getTime())),
+                }
+            }];
+        });
+
         setParsing(false);
         const cacheObject = {
             uploadedAt: new Date().toISOString(),
             fileName: file.name,
-            meta: { totalInvoices: parsedRows.length, dateRange: { from: Math.min(...parsedRows.map(r => r.invoiceDate.getTime())), to: Math.max(...parsedRows.map(r => r.invoiceDate.getTime())) } },
-            rows: parsedRows.map(r => ({ sup: r.supervisor, mr: r.mrName, ct: r.customerType, cid: r.customerId, cn: r.customerName, ln: r.lineName, inv: r.invoiceNo, dt: r.invoiceDate.getTime(), pc: r.productCode, pn: r.productName, sq: r.salesQty, sv: r.salesValue, rq: r.returnQty, rv: r.returnValue, nq: r.netQty, nv: r.netValue, br: r.branch }))
+            meta: { totalInvoices: finalRows.length, dateRange: { from: Math.min(...finalRows.map(r => r.invoiceDate.getTime())), to: Math.max(...finalRows.map(r => r.invoiceDate.getTime())) } },
+            rows: finalRows.map(r => ({ sup: r.supervisor, mr: r.mrName, ct: r.customerType, cid: r.customerId, cn: r.customerName, ln: r.lineName, inv: r.invoiceNo, dt: r.invoiceDate.getTime(), pc: r.productCode, pn: r.productName, sq: r.salesQty, sv: r.salesValue, rq: r.returnQty, rv: r.returnValue, nq: r.netQty, nv: r.netValue, br: r.branch }))
         };
         saveToStorage(cacheObject);
       } catch (err) { console.error(err); alert("Error parsing file."); setParsing(false); }
     };
     reader.readAsBinaryString(file);
   };
+
   const handleReset = () => { localStorage.removeItem(STORAGE_KEY); setData([]); setPersistenceInfo(null); };
 
   if (parsing) return <div className="flex flex-col items-center justify-center h-screen"><div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" /><h3 className="text-xl font-black">{progress}</h3></div>;
@@ -553,21 +1375,55 @@ const SalesAnalyzer = () => {
            <h2 className="text-4xl font-black text-gray-900 tracking-tighter uppercase italic">ATR SALES ANALYZER</h2>
            <p className="text-gray-500 text-sm font-medium uppercase tracking-[0.2em] mt-2">v1.0.005</p>
         </div>
-        <div className="p-12 bg-white border-2 border-dashed border-gray-300 rounded-3xl flex flex-col items-center justify-center text-center cursor-pointer hover:border-blue-500 transition-colors" onClick={() => fileInputRef.current.click()}>
+        <div className="p-12 bg-white border-2 border-dashed border-gray-300 rounded-3xl flex flex-col items-center justify-center text-center cursor-pointer hover:border-blue-500 transition-colors" onClick={handleUploadClick}>
             <Upload size={48} className="text-gray-400 mb-4" />
             <h3 className="text-lg font-bold text-gray-700">Drop XLSX or CSV file here</h3>
             <p className="text-gray-400 text-sm mt-1">or click to browse</p>
             <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xlsx,.csv" className="hidden" />
         </div>
+        {showUploadChoice && <UploadModeModal onChoose={handleUploadChoice} onCancel={() => setShowUploadChoice(false)} existingCount={data.length} />}
+
       </div>
     );
   }
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-gray-50">
+      {drillModal.open && (
+        <DrilldownModal
+          type={drillModal.type}
+          row={drillModal.data}
+          invoices={drillInvoices}
+          onClose={closeDrill}
+          fmt={fmt}
+        />
+      )}
+      {appendResult && (
+        <div className="fixed bottom-6 right-6 z-50 bg-gray-900 text-white px-5 py-4 rounded-2xl shadow-2xl flex items-start gap-3 animate-in slide-in-from-bottom-4">
+          <span className="text-2xl">✅</span>
+          <div>
+            <p className="font-black text-sm">Data Appended Successfully</p>
+            <p className="text-xs text-gray-400 mt-1">+{appendResult.added.toLocaleString()} new rows added</p>
+            <p className="text-xs text-gray-400">{appendResult.skipped > 0 && `${appendResult.skipped} duplicate invoices skipped`}</p>
+            <p className="text-xs text-emerald-400 font-bold mt-1">Total: {appendResult.total.toLocaleString()} rows in database</p>
+          </div>
+          <button onClick={() => setAppendResult(null)} className="text-gray-500 hover:text-white ml-2">✕</button>
+        </div>
+      )}
+      
       <div className="flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 shrink-0">
         <div>
           <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">ATR Sales Analysis</h2>
+          {dataSources.length > 0 && (
+            <div className="flex items-center gap-1.5 flex-wrap mt-2">
+              <span className="text-[10px] text-gray-400 font-bold uppercase">Sources:</span>
+              {dataSources.map((src, i) => (
+                <span key={i} className="bg-gray-100 text-gray-600 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-gray-200">
+                  📄 {src.fileName.replace('.xlsx','')} · {new Date(src.dateRange.from).toLocaleDateString('en-GB',{month:'short', year:'numeric'})} → {new Date(src.dateRange.to).toLocaleDateString('en-GB',{month:'short', year:'numeric'})}
+                </span>
+              ))}
+            </div>
+          )}
           <p className="text-xs text-gray-400 font-medium mt-0.5">
             {data.length.toLocaleString()} INVOICES · {totalProducts} PRODUCTS · {totalMRs} MRs · {formatDate(startDate)} → {formatDate(endDate)}
           </p>
@@ -577,6 +1433,7 @@ const SalesAnalyzer = () => {
           <button onClick={handleReset} className="text-xs font-black uppercase tracking-widest bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-all shadow-sm flex items-center gap-2"><RefreshCw size={12}/> Reset</button>
         </div>
       </div>
+
 
       <div className="flex flex-1 overflow-hidden h-[calc(100vh-theme(spacing.24))]">
         <SideFiltersPanel filters={filters} setFilters={setFilters} filterOptions={filterOptions} activeFilterCount={activeFilterCount} />
@@ -601,7 +1458,7 @@ const SalesAnalyzer = () => {
           </div>
 
           <div className="flex gap-2 px-6 pb-3 shrink-0 flex-wrap">
-            {['Overview','By Product','By MR','By Customer','By Branch','Trend'].map(tab => (
+            {['Overview','By Product','By MR','By Customer','By Branch','Trend', 'Compare'].map(tab => (
               <button key={tab} onClick={() => setActiveTab(tab)} className={`px-5 py-2 rounded-full text-sm font-semibold transition-all border ${activeTab === tab ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-400 hover:text-blue-600'}`}>{tab}</button>
             ))}
           </div>
@@ -644,7 +1501,22 @@ const SalesAnalyzer = () => {
                         <div className="px-5 py-4 border-b border-gray-100"><h3 className="font-bold text-gray-800">MR Breakdown</h3><p className="text-xs text-gray-400 mt-0.5">{filteredData.length} records</p></div>
                         <div className="overflow-x-auto max-h-[420px] overflow-y-auto"><table className="w-full text-sm">
                             <thead className="sticky top-0 bg-gray-50 z-10"><tr className="text-xs text-gray-500 uppercase"><th className="p-2 text-left">#</th><th className="p-2 text-left">MR</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">Value</th><th className="p-2 text-right">%</th></tr></thead>
-                            <tbody>{byMR.map((m, i) => <tr key={m.mrName} className="border-b hover:bg-blue-50"><td className="p-2">{i+1}</td><td className="p-2 font-semibold">{m.mrName}</td><td className="p-2 text-right">{m.netQty.toLocaleString()}</td><td className="p-2 text-right">{m.netValue.toLocaleString()}</td><td className="p-2 text-right">{m.pct}%</td></tr>)}</tbody>
+                            <tbody>{byMR.map((m, i) => (
+                              <tr key={m.mrName} 
+                                onClick={() => setDrillModal({ open: true, type: 'mr', data: m })}
+                                className="border-b hover:bg-blue-50 cursor-pointer">
+                                <td className="p-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-gray-300 text-xs">⊕</span>
+                                    {i+1}
+                                  </div>
+                                </td>
+                                <td className="p-2 font-semibold">{m.mrName}</td>
+                                <td className="p-2 text-right">{m.netQty.toLocaleString()}</td>
+                                <td className="p-2 text-right">{m.netValue.toLocaleString()}</td>
+                                <td className="p-2 text-right">{m.pct}%</td>
+                              </tr>
+                            ))}</tbody>
                         </table></div>
                     </div>
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 MRs (Net Qty)</h4><ResponsiveContainer height={260}><BarChart data={byMR.slice(0,10)} layout="vertical" margin={{left: 60}}><XAxis type="number" fontSize={10} /><YAxis dataKey="mrName" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netQty" fill="#8B5CF6" /></BarChart></ResponsiveContainer></div>
@@ -656,7 +1528,30 @@ const SalesAnalyzer = () => {
                         <div className="px-5 py-4 border-b border-gray-100"><h3 className="font-bold text-gray-800">Customer Breakdown</h3><input value={customerSearch} onChange={e=>setCustomerSearch(e.target.value)} placeholder="Search customer..." className="p-2 border rounded-lg w-full text-xs mt-2" /></div>
                         <div className="overflow-x-auto max-h-[420px] overflow-y-auto"><table className="w-full text-sm">
                             <thead className="sticky top-0 bg-gray-50 z-10"><tr className="text-xs text-gray-500 uppercase"><th className="p-2 text-left">#</th><th className="p-2 text-left">Name</th><th className="p-2 text-left">Type</th><th className="p-2 text-left">MR</th><th className="p-2 text-left">Branch</th><th className="p-2 text-right">Invoices</th><th className="p-2 text-left">First</th><th className="p-2 text-left">Last</th><th className="p-2 text-right">Prods</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">Value</th><th className="p-2 text-right">Ret.Qty</th><th className="p-2 text-right">Ret.Val</th></tr></thead>
-                            <tbody>{byCustomer.filter(c=>c.customerName?.toLowerCase().includes(customerSearch.toLowerCase())).slice(0, 50).map((c, i) => <tr key={i} className="border-b hover:bg-blue-50"><td className="p-2">{i+1}</td><td className="p-2">{c.customerName}</td><td className="p-2">{c.customerType}</td><td className="p-2">{c.mrName}</td><td className="p-2">{c.branch}</td><td className="p-2 text-right font-mono">{c.invoiceCount.toLocaleString()}</td><td className="p-2">{fmt(c.firstDate)}</td><td className="p-2">{fmt(c.lastDate)}</td><td className="p-2 text-right font-mono">{c.productCount}</td><td className="p-2 text-right font-mono font-semibold text-emerald-700">{c.netQty.toLocaleString()}</td><td className="p-2 text-right font-mono">{c.netValue.toLocaleString()}</td><td className="p-2 text-right font-mono text-red-500">{c.returnQty.toLocaleString()}</td><td className="p-2 text-right font-mono text-red-400">{c.returnValue.toLocaleString()}</td></tr>)}</tbody>
+                            <tbody>{(byCustomer || []).filter(c=>c.customerName?.toLowerCase().includes(customerSearch.toLowerCase())).slice(0, 50).map((c, i) => (
+                              <tr key={i}
+                                onClick={() => setDrillModal({ open: true, type: 'customer', data: c })}
+                                className="border-b hover:bg-blue-50 cursor-pointer">
+                                <td className="p-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-gray-300 text-xs">⊕</span>
+                                    {i+1}
+                                  </div>
+                                </td>
+                                <td className="p-2">{c.customerName}</td>
+                                <td className="p-2">{c.customerType}</td>
+                                <td className="p-2">{c.mrName}</td>
+                                <td className="p-2">{c.branch}</td>
+                                <td className="p-2 text-right font-mono">{c.invoiceCount.toLocaleString()}</td>
+                                <td className="p-2">{fmt(c.firstDate)}</td>
+                                <td className="p-2">{fmt(c.lastDate)}</td>
+                                <td className="p-2 text-right font-mono">{c.productCount}</td>
+                                <td className="p-2 text-right font-mono font-semibold text-emerald-700">{c.netQty.toLocaleString()}</td>
+                                <td className="p-2 text-right font-mono">{c.netValue.toLocaleString()}</td>
+                                <td className="p-2 text-right font-mono text-red-500">{c.returnQty.toLocaleString()}</td>
+                                <td className="p-2 text-right font-mono text-red-400">{c.returnValue.toLocaleString()}</td>
+                              </tr>
+                            ))}</tbody>
                         </table></div>
                     </div>
                   </div>
@@ -683,6 +1578,44 @@ const SalesAnalyzer = () => {
                         </table></div>
                     </div>
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Trend Chart</h4><ResponsiveContainer height={300}><LineChart data={trendData}><XAxis dataKey="period" fontSize={10} /><YAxis fontSize={10} /><Tooltip /><Line type="monotone" dataKey="netQty" stroke="#10B981" /><Line type="monotone" dataKey="netValue" stroke="#3B82F6" /></LineChart></ResponsiveContainer></div>
+                  </div>
+              )}
+              {activeTab === 'Compare' && (
+                  <div className="space-y-6">
+                    <div className="bg-white rounded-2xl p-6 border border-gray-100">
+                        <h3 className="font-bold text-gray-800 mb-4">Set Comparison Periods</h3>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-xs text-gray-400 mb-1 block">Period A</label>
+                                <div className="flex gap-2">
+                                    <input type="date" value={periodA.from} onChange={e=>setPeriodA(p=>({...p, from:e.target.value}))} className="w-full border rounded-lg p-2 text-xs" />
+                                    <input type="date" value={periodA.to} onChange={e=>setPeriodA(p=>({...p, to:e.target.value}))} className="w-full border rounded-lg p-2 text-xs" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-400 mb-1 block">Period B</label>
+                                <div className="flex gap-2">
+                                    <input type="date" value={periodB.from} onChange={e=>setPeriodB(p=>({...p, from:e.target.value}))} className="w-full border rounded-lg p-2 text-xs" />
+                                    <input type="date" value={periodB.to} onChange={e=>setPeriodB(p=>({...p, to:e.target.value}))} className="w-full border rounded-lg p-2 text-xs" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {compareMetrics && (
+                        <div className="grid grid-cols-6 gap-3">
+                            {[ {l:'Invoices',v:compareMetrics.changes.invoices, unit:'%'}, {l:'Net Qty',v:compareMetrics.changes.netQty, unit:'%'}, {l:'Net Value',v:compareMetrics.changes.netValue, unit:'%'}, {l:'Returns',v:compareMetrics.changes.returnQty, unit:'%'}, {l:'Customers',v:compareMetrics.changes.customers, unit:'%'}, {l:'MRs',v:compareMetrics.changes.mrs, unit:'%'} ].map((m,i) => (
+                                <div key={i} className="bg-white p-4 rounded-2xl border shadow-sm text-center">
+                                    <p className="text-[10px] text-gray-400 font-bold uppercase">{m.l}</p>
+                                    <p className={`text-lg font-black ${parseFloat(m.v) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                        {parseFloat(m.v) >= 0 ? '+' : ''}{m.v}{m.unit}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    {periodAData.length > 0 && periodBData.length > 0 && (
+                        <MRCompareTable periodAData={periodAData} periodBData={periodBData} labelA="Period A" labelB="Period B" />
+                    )}
                   </div>
               )}
             </div>

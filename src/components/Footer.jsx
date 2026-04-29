@@ -1,7 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from "react-router-dom";
 import { useAuth } from '../context/AuthContext';
-import { APP_VERSION } from "../config/version";
+
+const APP_VERSION = {
+  version: '2.6.2',
+  releaseDate: 'Jun 2025',
+  label: 'Append Mode + Compare Period'
+};
 
 export default function Footer() {
   const navigate = useNavigate();
@@ -39,7 +44,7 @@ export default function Footer() {
           <span className="text-[10px] sm:text-xs text-white font-medium">
             Version{" "}
             <span className="text-[#F5C518] font-black">
-              {APP_VERSION}
+              {APP_VERSION.version}
             </span>
           </span>
           <span className="text-white/20 hidden sm:block">|</span>

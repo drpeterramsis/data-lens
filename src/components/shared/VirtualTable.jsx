@@ -2,7 +2,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { List } from 'react-window';
 import { useReactTable, getCoreRowModel, flexRender } from '@tanstack/react-table';
 
-const VirtualTable = ({ data, columns }) => {
+const VirtualTable = ({ data = [], columns = [] }) => {
   const table = useReactTable({
     data,
     columns,

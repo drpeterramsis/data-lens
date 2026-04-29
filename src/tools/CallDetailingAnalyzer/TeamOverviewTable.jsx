@@ -3,10 +3,11 @@ import { Users, ChevronUp, ChevronDown } from 'lucide-react';
 import { safeStr, parseReportDate, isCoached } from '../../utils/safeCSV';
 import { isHCPWorkingDay, isHCOWorkingDay, isPHWorkingDay } from '../../utils/periodRules';
 
-const TeamOverviewTable = ({ data, targets }) => {
+const TeamOverviewTable = ({ data = [], targets }) => {
   const [sortConfig, setSortConfig] = useState({ key: 'total', direction: 'desc' });
 
   const mrStats = useMemo(() => {
+    if (!data) return [];
     const rawMap = {};
     data.forEach(d => {
       const mr = safeStr(d.MrName);

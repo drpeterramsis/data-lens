@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
 import { PieChart, List } from 'lucide-react';
 
-const InteractionAnalysis = ({ data }) => {
+const InteractionAnalysis = ({ data = [] }) => {
   const stats = useMemo(() => {
+    if (!data) return { total: 0, types: {}, specialties: {}, grades: {} };
     const total = data.length;
     const types = data.reduce((acc, d) => {
       acc[d.InteractionType] = (acc[d.InteractionType] || 0) + 1;

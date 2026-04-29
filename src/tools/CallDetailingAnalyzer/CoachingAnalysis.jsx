@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
 import { GraduationCap, UserCheck } from 'lucide-react';
 
-const CoachingAnalysis = ({ data }) => {
+const CoachingAnalysis = ({ data = [] }) => {
   const stats = useMemo(() => {
+    if (!data) return { total: 0, mrCoaching: 0, mgrCoaching: 0, mrBreakdown: {}, types: {} };
     const total = data.length;
     const mrCoaching = data.filter(d => d.IsMRCoachingSubmitted === 'True').length;
     const mgrCoaching = data.filter(d => d.IsManagerCoachingSubmitted === 'True').length;
