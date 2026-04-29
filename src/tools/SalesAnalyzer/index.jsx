@@ -40,6 +40,88 @@ const COLUMN_MAP = {
   "الفرع":           "branch",
 };
 
+const useSortableTable = (data, defaultKey, defaultDir = 'desc') => {
+  const [sortKey, setSortKey] = useState(defaultKey);
+  const [sortDir, setSortDir] = useState(defaultDir);
+
+  const sorted = useMemo(() => {
+    if (!sortKey) return data;
+    return [...data].sort((a, b) => {
+      const av = a[sortKey];
+      const bv = b[sortKey];
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      const cmp = typeof av === 'string' ? av.localeCompare(bv) : av - bv;
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  }, [data, sortKey, sortDir]);
+
+  const toggle = (key) => {
+    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortKey(key); setSortDir('desc'); }
+  };
+
+  return { sorted, sortKey, sortDir, toggle };
+};
+
+const SortableTH = ({ label, sortKey, currentKey, dir, onSort, className='' }) => (
+  <th onClick={() => onSort(sortKey)} className={`px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none whitespace-nowrap ${className}`}>
+    <div className="flex items-center gap-1">{label}<span className="text-gray-300">{currentKey === sortKey ? (dir === 'asc' ? '↑' : '↓') : '↕'}</span></div>
+  </th>
+);
+
+const fmt = (date) => (!date || !(date instanceof Date)) ? '—' : date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+const DrilldownPanel = ({ invoices, type }) => {
+  const total = invoices.reduce((acc, inv) => ({
+    netQty:      acc.netQty + inv.netQty,
+    netValue:    acc.netValue + inv.netValue,
+    returnQty:   acc.returnQty + inv.returnQty,
+    returnValue: acc.returnValue + inv.returnValue,
+  }), { netQty:0, netValue:0, returnQty:0, returnValue:0 });
+
+  return (
+    <div className="px-6 py-4 border-t-2 border-blue-200">
+      <div className="flex gap-6 mb-3 flex-wrap">
+        <div className="text-xs"><span className="text-gray-400">Invoices: </span><span className="font-bold text-gray-800 ml-1">{invoices.length}</span></div>
+        <div className="text-xs"><span className="text-gray-400">Net Qty: </span><span className="font-bold text-emerald-700 ml-1">{total.netQty.toLocaleString()}</span></div>
+        <div className="text-xs"><span className="text-gray-400">Net Value: </span><span className="font-bold text-gray-800 ml-1">{total.netValue.toLocaleString()} EGP</span></div>
+        <div className="text-xs"><span className="text-gray-400">Returns: </span><span className="font-bold text-red-500 ml-1">{total.returnQty.toLocaleString()} units</span></div>
+      </div>
+      <div className="overflow-x-auto max-h-[280px] overflow-y-auto rounded-lg border border-blue-100">
+        <table className="w-full text-xs border-collapse">
+          <thead className="sticky top-0 bg-blue-100">
+            <tr>
+              <th className="px-3 py-2 text-left text-[10px] font-bold text-blue-700 uppercase">Invoice #</th>
+              <th className="px-3 py-2 text-left text-[10px] font-bold text-blue-700 uppercase">Date</th>
+              {type === 'mr' && (<th className="px-3 py-2 text-left text-[10px] font-bold text-blue-700 uppercase">Customer</th>)}
+              {type === 'customer' && (<th className="px-3 py-2 text-left text-[10px] font-bold text-blue-700 uppercase">Line</th>)}
+              <th className="px-3 py-2 text-right text-[10px] font-bold text-blue-700 uppercase">Products</th>
+              <th className="px-3 py-2 text-right text-[10px] font-bold text-blue-700 uppercase">Net Qty</th>
+              <th className="px-3 py-2 text-right text-[10px] font-bold text-blue-700 uppercase">Net Value</th>
+              <th className="px-3 py-2 text-right text-[10px] font-bold text-blue-700 uppercase">Return Qty</th>
+            </tr>
+          </thead>
+          <tbody>
+            {invoices.map((inv, i) => (
+              <tr key={inv.invoiceNo} className={i % 2 === 0 ? 'bg-white' : 'bg-blue-50/40'}>
+                <td className="px-3 py-1.5 font-mono text-gray-700">{inv.invoiceNo}</td>
+                <td className="px-3 py-1.5 text-gray-500">{fmt(inv.invoiceDate)}</td>
+                {type === 'mr' && (<td className="px-3 py-1.5 text-gray-700 max-w-[180px] truncate">{inv.customerName}</td>)}
+                {type === 'customer' && (<td className="px-3 py-1.5 text-gray-700">{inv.lineName}</td>)}
+                <td className="px-3 py-1.5 text-right text-gray-500">{inv.productCount}</td>
+                <td className="px-3 py-1.5 text-right font-semibold text-emerald-700">{inv.netQty.toLocaleString()}</td>
+                <td className="px-3 py-1.5 text-right text-gray-700">{inv.netValue.toLocaleString()}</td>
+                <td className="px-3 py-1.5 text-right text-red-500">{inv.returnQty > 0 ? inv.returnQty.toLocaleString() : '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
 const formatDate = (d) => d.toLocaleDateString('en-EG', {day:'numeric', month:'short', year:'numeric'});
 
 const saveToStorage = (cacheObject) => {
@@ -177,6 +259,7 @@ const ActiveFiltersBar = ({ filters, setFilters }) => {
 
 const SideFiltersPanel = ({ filters, setFilters, filterOptions, activeFilterCount }) => {
   const [collapsed, setCollapsed] = useState(false);
+  const [search, setSearch] = useState('');
 
   if (collapsed) {
     return (
@@ -233,7 +316,7 @@ const SideFiltersPanel = ({ filters, setFilters, filterOptions, activeFilterCoun
         </div>
       </div>
 
-      {[ { label: 'Branch', key: 'branch', options: filterOptions.branches }, { label: 'Supervisor', key: 'supervisor', options: filterOptions.supervisors }, { label: 'MR', key: 'mrName', options: filterOptions.mrNames }, { label: 'Line', key: 'line', options: filterOptions.lines }, { label: 'Customer Type', key: 'customerType', options: filterOptions.customerTypes }, { label: 'Product', key: 'product', options: filterOptions.products } ].map(({ label, key, options }) => (
+      {[ { label: 'Branch', key: 'branch', options: filterOptions.branches }, { label: 'Supervisor', key: 'supervisor', options: filterOptions.supervisors }, { label: 'MR', key: 'mrName', options: filterOptions.mrNames }, { label: 'Line', key: 'line', options: filterOptions.lines }, { label: 'Customer Type', key: 'customerType', options: filterOptions.customerTypes }, { label: 'Customer', key: 'customer', options: filterOptions.customers }, { label: 'Product', key: 'product', options: filterOptions.products } ].map(({ label, key, options }) => (
         <SideFilterSection key={key} label={label} options={options} selected={filters[key]} onChange={v => setFilters(f => ({...f, [key]: v}))} />
       ))}
     </div>
@@ -250,6 +333,7 @@ const SalesAnalyzer = () => {
   const [filters, setFilters] = useState({
       branch: [], supervisor: [], mrName: [], 
       line: [], customerType: [], product: [],
+      customer: [],
       fromDate: '', toDate: ''
   });
 
@@ -274,14 +358,15 @@ const SalesAnalyzer = () => {
   const totalProducts = useMemo(() => new Set(data.map(d => d.productName)).size, [data]);
   const totalMRs = useMemo(() => new Set(data.map(d => d.mrName)).size, [data]);
   const filterOptions = useMemo(() => {
-      return {
-          branches: [...new Set(data.map(d => d.branch))].sort(),
-          supervisors: [...new Set(data.map(d => d.supervisor))].sort(),
-          mrNames: [...new Set(data.map(d => d.mrName))].sort(),
-          lines: [...new Set(data.map(d => d.lineName))].sort(),
-          customerTypes: [...new Set(data.map(d => d.customerType))].sort(),
-          products: [...new Set(data.map(d => d.productName))].sort()
-      };
+    return {
+      branches: [...new Set(data.map(d => d.branch))].filter(Boolean).sort(),
+      supervisors: [...new Set(data.map(d => d.supervisor))].filter(Boolean).sort(),
+      mrNames: [...new Set(data.map(d => d.mrName))].filter(Boolean).sort(),
+      lines: [...new Set(data.map(d => d.lineName))].filter(Boolean).sort(),
+      customerTypes: [...new Set(data.map(d => d.customerType))].filter(Boolean).sort(),
+      products: [...new Set(data.map(d => d.productName))].filter(Boolean).sort(),
+      customers: [...new Set(data.map(d => d.customerName))].filter(Boolean).sort(),
+    };
   }, [data]);
 
   const filteredData = useMemo(() => {
@@ -291,6 +376,7 @@ const SalesAnalyzer = () => {
       if (filters.mrName.length > 0) filtered = filtered.filter(f => filters.mrName.includes(f.mrName));
       if (filters.line.length > 0) filtered = filtered.filter(f => filters.line.includes(f.lineName));
       if (filters.customerType.length > 0) filtered = filtered.filter(f => filters.customerType.includes(f.customerType));
+      if (filters.customer.length > 0) filtered = filtered.filter(f => filters.customer.includes(f.customerName));
       if (filters.product.length > 0) filtered = filtered.filter(f => filters.product.includes(f.productName));
       if (filters.fromDate) filtered = filtered.filter(f => f.invoiceDate >= new Date(filters.fromDate));
       if (filters.toDate) filtered = filtered.filter(f => f.invoiceDate <= new Date(filters.toDate));
@@ -309,6 +395,7 @@ const SalesAnalyzer = () => {
 
   const [trendGroup, setTrendGroup] = useState('monthly');
   const [customerSearch, setCustomerSearch] = useState('');
+  const [expandedRow, setExpandedRow] = useState(null);
   const activeFilterCount = useMemo(() => Object.entries(filters).filter(([k, v]) => Array.isArray(v) ? v.length > 0 : v !== '').length, [filters]);
   const startDate = useMemo(() => data.length > 0 ? new Date(Math.min(...data.map(d => d.invoiceDate))) : new Date(), [data]);
   const endDate = useMemo(() => data.length > 0 ? new Date(Math.max(...data.map(d => d.invoiceDate))) : new Date(), [data]);
@@ -491,22 +578,24 @@ const SalesAnalyzer = () => {
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden h-[calc(100vh-theme(spacing.24))]">
         <SideFiltersPanel filters={filters} setFilters={setFilters} filterOptions={filterOptions} activeFilterCount={activeFilterCount} />
         <div className="flex flex-col flex-1 overflow-hidden">
           <ActiveFiltersBar filters={filters} setFilters={setFilters} />
-          <div className="grid grid-cols-4 gap-3 px-6 pt-4 pb-3 shrink-0">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 px-4 pt-3 pb-2 shrink-0">
             {[
               { label: 'Net Quantity', value: kpis.netQty.toLocaleString(), suffix: 'units', icon: Package, color: 'text-emerald-600', bg: 'bg-emerald-50', negative: kpis.netQty < 0 },
               { label: 'Net Value', value: kpis.netValue.toLocaleString(), suffix: 'EGP', icon: DollarSign, color: 'text-blue-600', bg: 'bg-blue-50', negative: kpis.netValue < 0 },
               { label: 'Total Returns', value: Math.abs(kpis.returnsQty).toLocaleString(), suffix: 'units', sub: Math.abs(kpis.returnsValue).toLocaleString() + ' EGP', icon: RotateCcw, color: 'text-red-500', bg: 'bg-red-50', negative: false },
               { label: 'Unique Products', value: kpis.uniqueProducts, suffix: 'products', sub: filteredData.length.toLocaleString() + ' rows', icon: Grid, color: 'text-purple-600', bg: 'bg-purple-50', negative: false },
             ].map((card, i) => (
-              <div key={i} className="bg-white rounded-2xl shadow-sm border border-gray-100 px-5 py-4">
-                <div className="flex items-center justify-between mb-3"><div className={`${card.bg} p-2 rounded-xl`}><card.icon size={18} className={card.color}/></div></div>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{card.label}</p>
-                <p className={`text-2xl font-black leading-none ${card.negative ? 'text-red-600' : 'text-gray-900'}`}>{card.value}<span className="text-sm font-semibold text-gray-400 ml-1">{card.suffix}</span></p>
-                {card.sub && <p className="text-xs text-gray-400 mt-1">{card.sub}</p>}
+              <div key={i} className="bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3 flex items-center gap-3">
+                <div className={`${card.bg} p-2 rounded-lg shrink-0`}><card.icon size={16} className={card.color}/></div>
+                <div className="min-w-0">
+                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1 truncate">{card.label}</p>
+                    <p className={`text-lg font-black leading-none truncate ${card.negative ? 'text-red-600' : 'text-gray-900'}`}>{card.value}<span className="text-xs font-semibold text-gray-400 ml-1">{card.suffix}</span></p>
+                    {card.sub && <p className="text-[10px] text-gray-400 mt-0.5 truncate">{card.sub}</p>}
+                </div>
               </div>
             ))}
           </div>
@@ -517,7 +606,7 @@ const SalesAnalyzer = () => {
             ))}
           </div>
 
-          <div className="flex-1 overflow-y-auto px-6 pb-6">
+          <div className="flex-1 overflow-y-auto px-6 pb-20">
             <div className="bg-white p-6 rounded-3xl border border-gray-200">
               {activeTab === 'Overview' && (
                   <div className="space-y-8">
