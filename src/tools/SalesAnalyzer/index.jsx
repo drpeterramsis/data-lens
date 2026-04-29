@@ -1,12 +1,14 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   BarChart3, DollarSign, Package, RotateCcw, 
-  Grid, Upload, RefreshCw
+  Grid, Upload, RefreshCw, ChevronLeft, ChevronRight, 
+  ChevronDown, Filter
 } from 'lucide-react';
+
 import * as XLSX from 'xlsx';
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, 
-  PieChart, Pie, Cell, Legend 
+  PieChart, Pie, Cell, Legend, LineChart, Line 
 } from 'recharts';
 
 const STORAGE_KEY = 'datalens_atr_sales_v1';
@@ -38,63 +40,136 @@ const COLUMN_MAP = {
   "الفرع":           "branch",
 };
 
-const saveToStorage = (cacheObject) => {
-  try {
-    const json = JSON.stringify(cacheObject);
-    const sizeMB = json.length / 1024 / 1024;
-    console.log(`Cache size: ${sizeMB.toFixed(2)} MB`);
-    if (sizeMB > 4.5) {
-      const lightCache = { ...cacheObject, rows: [], tooLarge: true };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(lightCache));
-      console.warn('Data too large, saved meta only');
-    } else {
-      localStorage.setItem(STORAGE_KEY, json);
-      console.log('Data saved successfully');
-    }
-  } catch (e) { console.error('Storage save failed:', e); }
-};
+const formatDate = (d) => d.toLocaleDateString('en-EG', {day:'numeric', month:'short', year:'numeric'});
 
-const MultiSelect = ({ label, options, selected, onChange }) => {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
+const SideFilterSection = ({ label, options, selected, onChange }) => {
+  const [open, setOpen] = useState(true);
 
   const toggle = (val) => {
-    if (selected.includes(val)) onChange(selected.filter(s => s !== val));
-    else onChange([...selected, val]);
+    if (selected.includes(val))
+      onChange(selected.filter(s => s !== val));
+    else
+      onChange([...selected, val]);
   };
 
-  const clearAll = () => onChange([]);
-
   return (
-    <div className="relative" ref={ref}>
+    <div className="border-b border-gray-100">
       <button
         onClick={() => setOpen(!open)}
-        className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm bg-white hover:border-blue-400 transition-all min-w-[130px] justify-between ${selected.length > 0 ? 'border-blue-500 text-blue-700 font-semibold' : 'border-gray-200 text-gray-600'}`}
-      >
-        <span>{selected.length === 0 ? `All ${label}` : `${label} (${selected.length})`}</span>
-        <span className="text-xs">▼</span>
+        className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-gray-50 transition-colors">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-bold text-gray-600 uppercase tracking-widest">
+            {label}
+          </span>
+          {selected.length > 0 && (
+            <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+              {selected.length}
+            </span>
+          )}
+        </div>
+        <ChevronDown 
+          size={12} 
+          className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
+        />
       </button>
 
       {open && (
-        <div className="absolute z-50 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl min-w-[220px] max-h-[280px] overflow-y-auto">
-          <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 sticky top-0 bg-white">
-            <span className="text-xs font-bold text-gray-500 uppercase">{label}</span>
-            {selected.length > 0 && (<button onClick={clearAll} className="text-xs text-red-500 hover:text-red-700 font-semibold">Clear</button>)}
+        <div className="pb-1 max-h-[200px] overflow-y-auto">
+          <div className="flex gap-3 px-4 py-1">
+            <button
+              onClick={() => onChange(options)}
+              className="text-[10px] text-blue-600 font-semibold hover:underline">
+              All
+            </button>
+            <button
+              onClick={() => onChange([])}
+              className="text-[10px] text-gray-400 font-semibold hover:underline">
+              None
+            </button>
           </div>
+
           {options.map(opt => (
-            <label key={opt} className="flex items-center gap-3 px-3 py-2 hover:bg-blue-50 cursor-pointer transition-colors">
-              <input type="checkbox" checked={selected.includes(opt)} onChange={() => toggle(opt)} className="accent-blue-600 w-4 h-4" />
-              <span className="text-sm text-gray-700 truncate max-w-[170px]">{opt}</span>
+            <label
+              key={opt}
+              className="flex items-center gap-2.5 px-4 py-1.5 hover:bg-blue-50 cursor-pointer transition-colors">
+              <input
+                type="checkbox"
+                checked={selected.includes(opt)}
+                onChange={() => toggle(opt)}
+                className="accent-blue-600 w-3.5 h-3.5 shrink-0"
+              />
+              <span className="text-xs text-gray-700 truncate leading-tight" title={opt}>
+                {opt}
+              </span>
             </label>
           ))}
         </div>
       )}
+    </div>
+  );
+};
+
+const SideFiltersPanel = ({ filters, setFilters, filterOptions, activeFilterCount }) => {
+  const [collapsed, setCollapsed] = useState(false);
+
+  if (collapsed) {
+    return (
+      <div className="flex flex-col items-center w-10 bg-white border-r border-gray-200 py-4 shrink-0 gap-3">
+        <button 
+          onClick={() => setCollapsed(false)}
+          className="text-gray-400 hover:text-blue-600 transition-colors"
+          title="Expand Filters">
+          <ChevronRight size={18}/>
+        </button>
+        {activeFilterCount > 0 && <div className="w-2 h-2 rounded-full bg-blue-600"/>}
+        <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest [writing-mode:vertical-rl] rotate-180 mt-2">
+          Filters
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col w-64 bg-white border-r border-gray-200 overflow-y-auto shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 sticky top-0 bg-white z-10">
+        <div className="flex items-center gap-2">
+          <Filter size={14} className="text-gray-500"/>
+          <span className="text-sm font-bold text-gray-700 uppercase tracking-wider">Filters</span>
+          {activeFilterCount > 0 && (
+            <span className="bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{activeFilterCount}</span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {activeFilterCount > 0 && (
+            <button
+              onClick={() => setFilters({ branch:[], supervisor:[], mrName:[], line:[], customerType:[], product:[], fromDate:'', toDate:'' })}
+              className="text-[10px] text-red-500 font-bold hover:text-red-700 uppercase tracking-wide">
+              Clear
+            </button>
+          )}
+          <button onClick={() => setCollapsed(true)} className="text-gray-400 hover:text-gray-600">
+            <ChevronLeft size={16}/>
+          </button>
+        </div>
+      </div>
+
+      <div className="px-4 py-3 border-b border-gray-100">
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Date Range</p>
+        <div className="flex flex-col gap-2">
+          <div>
+            <label className="text-[10px] text-gray-400 mb-1 block">From</label>
+            <input type="date" value={filters.fromDate} onChange={e => setFilters(f => ({...f, fromDate: e.target.value}))} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 outline-none"/>
+          </div>
+          <div>
+            <label className="text-[10px] text-gray-400 mb-1 block">To</label>
+            <input type="date" value={filters.toDate} onChange={e => setFilters(f => ({...f, toDate: e.target.value}))} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 outline-none"/>
+          </div>
+        </div>
+      </div>
+
+      {[ { label: 'Branch', key: 'branch', options: filterOptions.branches }, { label: 'Supervisor', key: 'supervisor', options: filterOptions.supervisors }, { label: 'MR', key: 'mrName', options: filterOptions.mrNames }, { label: 'Line', key: 'line', options: filterOptions.lines }, { label: 'Customer Type', key: 'customerType', options: filterOptions.customerTypes }, { label: 'Product', key: 'product', options: filterOptions.products } ].map(({ label, key, options }) => (
+        <SideFilterSection key={key} label={label} options={options} selected={filters[key]} onChange={v => setFilters(f => ({...f, [key]: v}))} />
+      ))}
     </div>
   );
 };
@@ -313,13 +388,13 @@ const SalesAnalyzer = () => {
 
   if (parsing) return <div className="flex flex-col items-center justify-center h-screen"><div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" /><h3 className="text-xl font-black">{progress}</h3></div>;
 
-  if (data.length === 0) {
+   if (data.length === 0) {
     return (
       <div className="container mx-auto max-w-2xl mt-12">
         <div className="mb-12 text-center">
            <div className="inline-flex p-4 bg-[#F5C518]/10 rounded-2xl text-[#F5C518] mb-4 shadow-sm"><BarChart3 size={48} /></div>
            <h2 className="text-4xl font-black text-gray-900 tracking-tighter uppercase italic">ATR SALES ANALYZER</h2>
-           <p className="text-gray-500 text-sm font-medium uppercase tracking-[0.2em] mt-2">DETAILED SALES INTELLIGENCE PLATFORM</p>
+           <p className="text-gray-500 text-sm font-medium uppercase tracking-[0.2em] mt-2">v1.0.005</p>
         </div>
         <div className="p-12 bg-white border-2 border-dashed border-gray-300 rounded-3xl flex flex-col items-center justify-center text-center cursor-pointer hover:border-blue-500 transition-colors" onClick={() => fileInputRef.current.click()}>
             <Upload size={48} className="text-gray-400 mb-4" />
@@ -332,141 +407,111 @@ const SalesAnalyzer = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24 overflow-y-auto">
-        <div className="space-y-6 pt-6">
-       <div className="flex items-center justify-between px-6">
-          <div>
-            <h2 className="text-2xl font-black text-gray-900 uppercase">ATR Sales Analysis</h2>
-            <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">
-                {data.length.toLocaleString()} INVOICES · {totalProducts.toLocaleString()} PRODUCTS · {totalMRs.toLocaleString()} MRs
-                 · {startDate.toLocaleDateString('en-EG', {day:'numeric', month:'short', year:'numeric'})} → {endDate.toLocaleDateString('en-EG', {day:'numeric', month:'short', year:'numeric'})}
-            </p>
+    <div className="flex flex-col h-screen overflow-hidden bg-gray-50">
+      <div className="flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 shrink-0">
+        <div>
+          <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">ATR Sales Analysis</h2>
+          <p className="text-xs text-gray-400 font-medium mt-0.5">
+            {data.length.toLocaleString()} INVOICES · {totalProducts} PRODUCTS · {totalMRs} MRs · {formatDate(startDate)} → {formatDate(endDate)}
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button onClick={() => setFilters(f=>({...f, fromDate:'', toDate:''}))} className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:border-blue-400 hover:text-blue-600 transition-all font-semibold">📅 Full Period</button>
+          <button onClick={handleReset} className="text-xs font-black uppercase tracking-widest bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-all shadow-sm flex items-center gap-2"><RefreshCw size={12}/> Reset</button>
+        </div>
+      </div>
+
+      <div className="flex flex-1 overflow-hidden">
+        <SideFiltersPanel filters={filters} setFilters={setFilters} filterOptions={filterOptions} activeFilterCount={activeFilterCount} />
+        <div className="flex flex-col flex-1 overflow-hidden">
+          <div className="grid grid-cols-4 gap-3 px-6 pt-4 pb-3 shrink-0">
+            {[
+              { label: 'Net Quantity', value: kpis.netQty.toLocaleString(), suffix: 'units', icon: Package, color: 'text-emerald-600', bg: 'bg-emerald-50', negative: kpis.netQty < 0 },
+              { label: 'Net Value', value: kpis.netValue.toLocaleString(), suffix: 'EGP', icon: DollarSign, color: 'text-blue-600', bg: 'bg-blue-50', negative: kpis.netValue < 0 },
+              { label: 'Total Returns', value: Math.abs(kpis.returnsQty).toLocaleString(), suffix: 'units', sub: Math.abs(kpis.returnsValue).toLocaleString() + ' EGP', icon: RotateCcw, color: 'text-red-500', bg: 'bg-red-50', negative: false },
+              { label: 'Unique Products', value: kpis.uniqueProducts, suffix: 'products', sub: filteredData.length.toLocaleString() + ' rows', icon: Grid, color: 'text-purple-600', bg: 'bg-purple-50', negative: false },
+            ].map((card, i) => (
+              <div key={i} className="bg-white rounded-2xl shadow-sm border border-gray-100 px-5 py-4">
+                <div className="flex items-center justify-between mb-3"><div className={`${card.bg} p-2 rounded-xl`}><card.icon size={18} className={card.color}/></div></div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{card.label}</p>
+                <p className={`text-2xl font-black leading-none ${card.negative ? 'text-red-600' : 'text-gray-900'}`}>{card.value}<span className="text-sm font-semibold text-gray-400 ml-1">{card.suffix}</span></p>
+                {card.sub && <p className="text-xs text-gray-400 mt-1">{card.sub}</p>}
+              </div>
+            ))}
           </div>
-          <button onClick={handleReset} className="text-xs font-black uppercase tracking-widest bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-all shadow-sm flex items-center gap-2">
-            <RefreshCw size={14} /> Reset
-          </button>
-       </div>
 
-       {persistenceInfo && (
-           <div className={`mx-6 mb-4 px-4 py-2 rounded-xl flex items-center justify-between text-sm ${persistenceInfo.tooLarge ? 'bg-red-50 border border-red-200 text-red-700' : 'bg-blue-50 border border-blue-200 text-blue-700'}`}>
-             <span className="font-semibold">
-               {persistenceInfo.tooLarge ? '⚠️ Previous file too large to cache' : '💾 Loaded from cache'} · {persistenceInfo.fileName}
-             </span>
-             {persistenceInfo.tooLarge ? (
-               <button onClick={() => fileInputRef.current.click()} className="text-red-600 font-semibold hover:underline text-xs">Upload File</button>
-             ) : (
-                <button onClick={() => fileInputRef.current.click()} className="text-blue-600 font-semibold hover:underline text-xs">Upload New File</button>
-             )}
-             <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xlsx,.csv" className="hidden" />
-           </div>
-       )}
+          <div className="flex gap-2 px-6 pb-3 shrink-0 flex-wrap">
+            {['Overview','By Product','By MR','By Customer','By Branch','Trend'].map(tab => (
+              <button key={tab} onClick={() => setActiveTab(tab)} className={`px-5 py-2 rounded-full text-sm font-semibold transition-all border ${activeTab === tab ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-400 hover:text-blue-600'}`}>{tab}</button>
+            ))}
+          </div>
 
-       <div className="flex flex-wrap gap-3 px-6 py-4 bg-white border-b border-gray-100 sticky top-0 z-40">
-           <MultiSelect label="Branch" options={filterOptions.branches} selected={filters.branch} onChange={v => setFilters(f => ({...f, branch: v}))} />
-           <MultiSelect label="Supervisor" options={filterOptions.supervisors} selected={filters.supervisor} onChange={v => setFilters(f => ({...f, supervisor: v}))} />
-           <MultiSelect label="MR" options={filterOptions.mrNames} selected={filters.mrName} onChange={v => setFilters(f => ({...f, mrName: v}))} />
-           <MultiSelect label="Line" options={filterOptions.lines} selected={filters.line} onChange={v => setFilters(f => ({...f, line: v}))} />
-           <MultiSelect label="Customer Type" options={filterOptions.customerTypes} selected={filters.customerType} onChange={v => setFilters(f => ({...f, customerType: v}))} />
-           <MultiSelect label="Product" options={filterOptions.products} selected={filters.product} onChange={v => setFilters(f => ({...f, product: v}))} />
-           <div className="flex items-center gap-2">
-             <input type="date" value={filters.fromDate} onChange={e => setFilters(f => ({...f, fromDate: e.target.value}))} className="border border-gray-200 rounded-lg px-3 py-2 text-sm" />
-             <span className="text-gray-400 text-sm">→</span>
-             <input type="date" value={filters.toDate} onChange={e => setFilters(f => ({...f, toDate: e.target.value}))} className="border border-gray-200 rounded-lg px-3 py-2 text-sm" />
-             <button onClick={() => setFilters(f => ({...f, fromDate: '', toDate: ''}))} className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${!filters.fromDate && !filters.toDate ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-800 text-white hover:bg-gray-700'}`}>📅 Full Period</button>
-           </div>
-           {activeFilterCount > 0 && (
-             <button onClick={() => setFilters({branch:[], supervisor:[], mrName:[], line:[], customerType:[], product:[], fromDate:'', toDate:''})} className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-100 border border-red-200 transition-all">Clear All ({activeFilterCount})</button>
-           )}
-       </div>
-
-       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 px-6">
-          {[ 
-            { label: 'Net Quantity', val: `${kpis.netQty.toLocaleString('en-EG')} units`, icon: Package, color: 'text-green-600', bg: 'bg-green-50', sub: 'Total units sold' },
-            { label: 'Net Value', val: `${kpis.netValue.toLocaleString('en-EG')} EGP`, icon: DollarSign, color: 'text-blue-600', bg: 'bg-blue-50', sub: 'Net revenue' },
-            { label: 'Total Returns', val: `${Math.abs(kpis.returnsQty).toLocaleString('en-EG')} units`, icon: RotateCcw, color: 'text-red-600', bg: 'bg-red-50', sub: `${Math.abs(kpis.returnsValue).toLocaleString('en-EG')} EGP returned` },
-            { label: 'Unique Products', val: kpis.uniqueProducts.toLocaleString('en-EG'), icon: Grid, color: 'text-purple-600', bg: 'bg-purple-50', sub: 'across catalogue' }
-          ].map((card, i) => (
-            <div key={i} className="bg-white border border-gray-200 p-6 rounded-2xl shadow-soft">
-               <div className={`p-3 rounded-xl mb-4 inline-block ${card.bg} ${card.color}`}><card.icon size={24} /></div>
-               <p className="text-[10px] uppercase font-black text-gray-400 tracking-widest mb-1">{card.label}</p>
-               <p className={`text-xl font-black ${i < 2 ? valColor(i === 0 ? kpis.netQty : kpis.netValue) : 'text-gray-900'} tracking-tight`}>{card.val}</p>
-               <p className="text-xs text-gray-400 mt-1">{card.sub}</p>
-            </div>
-          ))}
-       </div>
-
-       <div className="flex gap-2 flex-wrap px-6 mb-6">
-           {['Overview','By Product','By MR','By Customer','By Branch','Trend'].map(tab => (
-               <button key={tab} onClick={() => setActiveTab(tab)} className={`px-5 py-2 rounded-full text-sm font-semibold transition-all border ${activeTab === tab ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-400 hover:text-blue-600'}`}>{tab}</button>
-           ))}
-       </div>
-
-       <div className="bg-white p-6 rounded-3xl border border-gray-200 mx-6">
-          {activeTab === 'Overview' && (
-              <div className="space-y-8">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      <div className="h-[300px]">
-                          <h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 Products (Net Value)</h4>
-                          <ResponsiveContainer><BarChart data={topProductsByVal}><XAxis dataKey="name" fontSize={10} /><YAxis fontSize={10} /><Tooltip /><Bar dataKey="val" fill="#3B82F6" /></BarChart></ResponsiveContainer>
-                      </div>
-                      <div className="h-[300px]">
-                          <h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 Products (Net Units)</h4>
-                          <ResponsiveContainer><BarChart data={topProductsByQty}><XAxis dataKey="name" fontSize={10} /><YAxis fontSize={10} /><Tooltip /><Bar dataKey="val" fill="#10B981" /></BarChart></ResponsiveContainer>
+          <div className="flex-1 overflow-y-auto px-6 pb-6">
+            <div className="bg-white p-6 rounded-3xl border border-gray-200">
+              {activeTab === 'Overview' && (
+                  <div className="space-y-8">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                          <div className="h-[300px]">
+                              <h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 Products (Net Value)</h4>
+                              <ResponsiveContainer><BarChart data={topProductsByVal}><XAxis dataKey="name" fontSize={10} /><YAxis fontSize={10} /><Tooltip /><Bar dataKey="val" fill="#3B82F6" /></BarChart></ResponsiveContainer>
+                          </div>
+                          <div className="h-[300px]">
+                              <h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 Products (Net Units)</h4>
+                              <ResponsiveContainer><BarChart data={topProductsByQty}><XAxis dataKey="name" fontSize={10} /><YAxis fontSize={10} /><Tooltip /><Bar dataKey="val" fill="#10B981" /></BarChart></ResponsiveContainer>
+                          </div>
                       </div>
                   </div>
-              </div>
-          )}
-          {activeTab === 'By Product' && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="h-[280px]"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 Products (Qty)</h4><ResponsiveContainer><BarChart data={byProduct.slice(0,10)} layout="vertical" margin={{left: 40}}><XAxis type="number" fontSize={10} /><YAxis dataKey="productName" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netQty" fill="#10B981" /></BarChart></ResponsiveContainer></div>
-                    <div className="h-[280px]"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 Products (Value)</h4><ResponsiveContainer><BarChart data={byProduct.slice(0,10)} layout="vertical" margin={{left: 40}}><XAxis type="number" fontSize={10} /><YAxis dataKey="productName" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netValue" fill="#3B82F6" /></BarChart></ResponsiveContainer></div>
-                </div>
-                <div className="overflow-x-auto max-h-[500px] overflow-y-auto"><table className="w-full text-sm">
-                    <thead className="sticky top-0 bg-gray-50 z-10"><tr className="text-xs text-gray-500 uppercase"><th className="p-2 text-left">#</th><th className="p-2 text-left">Product</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">Value</th><th className="p-2 text-right">%</th></tr></thead>
-                    <tbody>{byProduct.map((p, i) => <tr key={p.productName} className={`border-b ${i<3 ? (i===0?'border-l-4 border-l-yellow-400':i===1?'border-l-4 border-l-gray-400':'border-l-4 border-l-orange-400'):''} hover:bg-blue-50`}>
-                        <td className="p-2">{i+1}</td><td className="p-2 font-semibold">{p.productName}</td><td className="p-2 text-right">{p.netQty.toLocaleString()}</td><td className="p-2 text-right">{p.netValue.toLocaleString()}</td><td className="p-2 text-right">{p.pct}%</td></tr>)}</tbody>
-                </table></div>
-              </div>
-          )}
-          {activeTab === 'By MR' && (
-              <div className="space-y-6">
-                <div className="h-[280px]"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 MRs (Net Qty)</h4><ResponsiveContainer><BarChart data={byMR.slice(0,10)} layout="vertical" margin={{left: 60}}><XAxis type="number" fontSize={10} /><YAxis dataKey="mrName" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netQty" fill="#8B5CF6" /></BarChart></ResponsiveContainer></div>
-                <div className="overflow-x-auto max-h-[500px] overflow-y-auto"><table className="w-full text-sm">
-                    <thead className="sticky top-0 bg-gray-50 z-10"><tr className="text-xs text-gray-500 uppercase"><th className="p-2 text-left">#</th><th className="p-2 text-left">MR</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">Value</th><th className="p-2 text-right">%</th></tr></thead>
-                    <tbody>{byMR.map((m, i) => <tr key={m.mrName} className="border-b hover:bg-blue-50"><td className="p-2">{i+1}</td><td className="p-2 font-semibold">{m.mrName}</td><td className="p-2 text-right">{m.netQty.toLocaleString()}</td><td className="p-2 text-right">{m.netValue.toLocaleString()}</td><td className="p-2 text-right">{m.pct}%</td></tr>)}</tbody>
-                </table></div>
-              </div>
-          )}
-          {activeTab === 'By Customer' && (
-              <div className="space-y-6">
-                <input value={customerSearch} onChange={e=>setCustomerSearch(e.target.value)} placeholder="Search customer..." className="p-2 border rounded-lg w-full text-sm" />
-                <div className="overflow-x-auto max-h-[500px] overflow-y-auto"><table className="w-full text-sm">
-                    <thead className="sticky top-0 bg-gray-50 z-10"><tr className="text-xs text-gray-500 uppercase"><th className="p-2 text-left">#</th><th className="p-2 text-left">Customer</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">Value</th></tr></thead>
-                    <tbody>{byCustomer.filter(c=>c.customerName?.toLowerCase().includes(customerSearch.toLowerCase())).map((c, i) => <tr key={i} className="border-b hover:bg-blue-50"><td className="p-2">{i+1}</td><td className="p-2">{c.customerName}</td><td className="p-2 text-right">{c.netQty.toLocaleString()}</td><td className="p-2 text-right">{c.netValue.toLocaleString()}</td></tr>)}</tbody>
-                </table></div>
-              </div>
-          )}
-          {activeTab === 'By Branch' && (
-              <div className="space-y-6">
-                <div className="h-[280px]"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Branch vs Net Qty</h4><ResponsiveContainer><BarChart data={byBranch} layout="vertical" margin={{left: 60}}><XAxis type="number" fontSize={10} /><YAxis dataKey="branch" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netQty" fill="#F59E0B" /></BarChart></ResponsiveContainer></div>
-                  <div className="overflow-x-auto max-h-[500px] overflow-y-auto"><table className="w-full text-sm">
-                      <thead className="sticky top-0 bg-gray-50 z-10"><tr className="text-xs text-gray-500 uppercase"><th className="p-2 text-left">Branch</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">%</th></tr></thead>
-                      <tbody>{byBranch.map(b => <tr key={b.branch} className="border-b hover:bg-blue-50"><td className="p-2 font-semibold">{b.branch}</td><td className="p-2 text-right">{b.netQty.toLocaleString()}</td><td className="p-2 text-right">{b.pct}%</td></tr>)}</tbody>
-                  </table></div>
-              </div>
-          )}
-          {activeTab === 'Trend' && (
-              <div className="space-y-6">
-                <div className="flex gap-2"><button onClick={()=>setTrendGroup('daily')} className={`px-3 py-1 rounded text-xs ${trendGroup==='daily'?'bg-blue-600 text-white':'bg-gray-200'}`}>Daily</button><button onClick={()=>setTrendGroup('monthly')} className={`px-3 py-1 rounded text-xs ${trendGroup==='monthly'?'bg-blue-600 text-white':'bg-gray-200'}`}>Monthly</button></div>
-                <div className="h-[300px]"><ResponsiveContainer><LineChart data={trendData}><XAxis dataKey="period" fontSize={10} /><YAxis fontSize={10} /><Tooltip /><Line type="monotone" dataKey="netQty" stroke="#10B981" /><Line type="monotone" dataKey="netValue" stroke="#3B82F6" /></LineChart></ResponsiveContainer></div>
-              </div>
-          )}
-       </div>
-        <footer className="text-center text-[10px] text-gray-400 font-black uppercase tracking-widest mt-12 py-4">
-           ATR SALES ANALYZER v1.0.003
-       </footer>
-       </div>
+              )}
+              {activeTab === 'By Product' && (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="h-[280px]"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 Products (Qty)</h4><ResponsiveContainer><BarChart data={byProduct.slice(0,10)} layout="vertical" margin={{left: 40}}><XAxis type="number" fontSize={10} /><YAxis dataKey="productName" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netQty" fill="#10B981" /></BarChart></ResponsiveContainer></div>
+                        <div className="h-[280px]"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 Products (Value)</h4><ResponsiveContainer><BarChart data={byProduct.slice(0,10)} layout="vertical" margin={{left: 40}}><XAxis type="number" fontSize={10} /><YAxis dataKey="productName" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netValue" fill="#3B82F6" /></BarChart></ResponsiveContainer></div>
+                    </div>
+                    <div className="overflow-x-auto max-h-[500px] overflow-y-auto"><table className="w-full text-sm">
+                        <thead className="sticky top-0 bg-gray-50 z-10"><tr className="text-xs text-gray-500 uppercase"><th className="p-2 text-left">#</th><th className="p-2 text-left">Product</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">Value</th><th className="p-2 text-right">%</th></tr></thead>
+                        <tbody>{byProduct.map((p, i) => <tr key={p.productName} className={`border-b ${i<3 ? (i===0?'border-l-4 border-l-yellow-400':i===1?'border-l-4 border-l-gray-400':'border-l-4 border-l-orange-400'):''} hover:bg-blue-50`}>
+                            <td className="p-2">{i+1}</td><td className="p-2 font-semibold">{p.productName}</td><td className="p-2 text-right">{p.netQty.toLocaleString()}</td><td className="p-2 text-right">{p.netValue.toLocaleString()}</td><td className="p-2 text-right">{p.pct}%</td></tr>)}</tbody>
+                    </table></div>
+                  </div>
+              )}
+              {activeTab === 'By MR' && (
+                  <div className="space-y-6">
+                    <div className="h-[280px]"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 MRs (Net Qty)</h4><ResponsiveContainer><BarChart data={byMR.slice(0,10)} layout="vertical" margin={{left: 60}}><XAxis type="number" fontSize={10} /><YAxis dataKey="mrName" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netQty" fill="#8B5CF6" /></BarChart></ResponsiveContainer></div>
+                    <div className="overflow-x-auto max-h-[500px] overflow-y-auto"><table className="w-full text-sm">
+                        <thead className="sticky top-0 bg-gray-50 z-10"><tr className="text-xs text-gray-500 uppercase"><th className="p-2 text-left">#</th><th className="p-2 text-left">MR</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">Value</th><th className="p-2 text-right">%</th></tr></thead>
+                        <tbody>{byMR.map((m, i) => <tr key={m.mrName} className="border-b hover:bg-blue-50"><td className="p-2">{i+1}</td><td className="p-2 font-semibold">{m.mrName}</td><td className="p-2 text-right">{m.netQty.toLocaleString()}</td><td className="p-2 text-right">{m.netValue.toLocaleString()}</td><td className="p-2 text-right">{m.pct}%</td></tr>)}</tbody>
+                    </table></div>
+                  </div>
+              )}
+              {activeTab === 'By Customer' && (
+                  <div className="space-y-6">
+                    <input value={customerSearch} onChange={e=>setCustomerSearch(e.target.value)} placeholder="Search customer..." className="p-2 border rounded-lg w-full text-sm" />
+                    <div className="overflow-x-auto max-h-[500px] overflow-y-auto"><table className="w-full text-sm">
+                        <thead className="sticky top-0 bg-gray-50 z-10"><tr className="text-xs text-gray-500 uppercase"><th className="p-2 text-left">#</th><th className="p-2 text-left">Customer</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">Value</th></tr></thead>
+                        <tbody>{byCustomer.filter(c=>c.customerName?.toLowerCase().includes(customerSearch.toLowerCase())).map((c, i) => <tr key={i} className="border-b hover:bg-blue-50"><td className="p-2">{i+1}</td><td className="p-2">{c.customerName}</td><td className="p-2 text-right">{c.netQty.toLocaleString()}</td><td className="p-2 text-right">{c.netValue.toLocaleString()}</td></tr>)}</tbody>
+                    </table></div>
+                  </div>
+              )}
+              {activeTab === 'By Branch' && (
+                  <div className="space-y-6">
+                    <div className="h-[280px]"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Branch vs Net Qty</h4><ResponsiveContainer><BarChart data={byBranch} layout="vertical" margin={{left: 60}}><XAxis type="number" fontSize={10} /><YAxis dataKey="branch" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netQty" fill="#F59E0B" /></BarChart></ResponsiveContainer></div>
+                      <div className="overflow-x-auto max-h-[500px] overflow-y-auto"><table className="w-full text-sm">
+                          <thead className="sticky top-0 bg-gray-50 z-10"><tr className="text-xs text-gray-500 uppercase"><th className="p-2 text-left">Branch</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">%</th></tr></thead>
+                          <tbody>{byBranch.map(b => <tr key={b.branch} className="border-b hover:bg-blue-50"><td className="p-2 font-semibold">{b.branch}</td><td className="p-2 text-right">{b.netQty.toLocaleString()}</td><td className="p-2 text-right">{b.pct}%</td></tr>)}</tbody>
+                      </table></div>
+                  </div>
+              )}
+              {activeTab === 'Trend' && (
+                  <div className="space-y-6">
+                    <div className="flex gap-2"><button onClick={()=>setTrendGroup('daily')} className={`px-3 py-1 rounded text-xs ${trendGroup==='daily'?'bg-blue-600 text-white':'bg-gray-200'}`}>Daily</button><button onClick={()=>setTrendGroup('monthly')} className={`px-3 py-1 rounded text-xs ${trendGroup==='monthly'?'bg-blue-600 text-white':'bg-gray-200'}`}>Monthly</button></div>
+                    <div className="h-[300px]"><ResponsiveContainer><LineChart data={trendData}><XAxis dataKey="period" fontSize={10} /><YAxis fontSize={10} /><Tooltip /><Line type="monotone" dataKey="netQty" stroke="#10B981" /><Line type="monotone" dataKey="netValue" stroke="#3B82F6" /></LineChart></ResponsiveContainer></div>
+                  </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

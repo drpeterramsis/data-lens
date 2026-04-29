@@ -1,2 +1,2 @@
-export const APP_VERSION = '1.0.413';
+export const APP_VERSION = '1.0.414';
 export const APP_NAME = 'Data Lens';
