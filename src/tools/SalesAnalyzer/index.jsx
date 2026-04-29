@@ -1,15 +1,16 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   BarChart3, DollarSign, Package, RotateCcw, 
-  Grid, Upload, RefreshCw, Calendar, Filter, Users
+  Grid, Upload, RefreshCw
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, 
-  PieChart, Pie, Cell, LineChart, Line, Legend 
+  PieChart, Pie, Cell, Legend 
 } from 'recharts';
 
 const STORAGE_KEY = 'datalens_atr_sales_v1';
+const SALES_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444'];
 
 const COLUMN_MAP = {
   "المشرف":          "supervisor",
@@ -37,7 +38,50 @@ const COLUMN_MAP = {
   "الفرع":           "branch",
 };
 
-const SALES_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444'];
+const MultiSelect = ({ label, options, selected, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const toggle = (val) => {
+    if (selected.includes(val)) onChange(selected.filter(s => s !== val));
+    else onChange([...selected, val]);
+  };
+
+  const clearAll = () => onChange([]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(!open)}
+        className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm bg-white hover:border-blue-400 transition-all min-w-[130px] justify-between ${selected.length > 0 ? 'border-blue-500 text-blue-700 font-semibold' : 'border-gray-200 text-gray-600'}`}
+      >
+        <span>{selected.length === 0 ? `All ${label}` : `${label} (${selected.length})`}</span>
+        <span className="text-xs">▼</span>
+      </button>
+
+      {open && (
+        <div className="absolute z-50 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl min-w-[220px] max-h-[280px] overflow-y-auto">
+          <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 sticky top-0 bg-white">
+            <span className="text-xs font-bold text-gray-500 uppercase">{label}</span>
+            {selected.length > 0 && (<button onClick={clearAll} className="text-xs text-red-500 hover:text-red-700 font-semibold">Clear</button>)}
+          </div>
+          {options.map(opt => (
+            <label key={opt} className="flex items-center gap-3 px-3 py-2 hover:bg-blue-50 cursor-pointer transition-colors">
+              <input type="checkbox" checked={selected.includes(opt)} onChange={() => toggle(opt)} className="accent-blue-600 w-4 h-4" />
+              <span className="text-sm text-gray-700 truncate max-w-[170px]">{opt}</span>
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const SalesAnalyzer = () => {
   const [data, setData] = useState([]);
@@ -46,11 +90,9 @@ const SalesAnalyzer = () => {
   const [activeTab, setActiveTab] = useState('Overview');
   const [persistenceInfo, setPersistenceInfo] = useState(null);
   const fileInputRef = useRef(null);
-
-  // Filters State
   const [filters, setFilters] = useState({
-      branch: 'All', supervisor: 'All', mrName: 'All', 
-      line: 'All', customerType: 'All', product: 'All',
+      branch: [], supervisor: [], mrName: [], 
+      line: [], customerType: [], product: [],
       fromDate: '', toDate: ''
   });
 
@@ -67,14 +109,25 @@ const SalesAnalyzer = () => {
     }
   }, []);
 
+  const filterOptions = useMemo(() => {
+      return {
+          branches: [...new Set(data.map(d => d.branch))].sort(),
+          supervisors: [...new Set(data.map(d => d.supervisor))].sort(),
+          mrNames: [...new Set(data.map(d => d.mrName))].sort(),
+          lines: [...new Set(data.map(d => d.lineName))].sort(),
+          customerTypes: [...new Set(data.map(d => d.customerType))].sort(),
+          products: [...new Set(data.map(d => d.productName))].sort()
+      };
+  }, [data]);
+
   const filteredData = useMemo(() => {
       let filtered = data;
-      if (filters.branch !== 'All') filtered = filtered.filter(f => f.branch === filters.branch);
-      if (filters.supervisor !== 'All') filtered = filtered.filter(f => f.supervisor === filters.supervisor);
-      if (filters.mrName !== 'All') filtered = filtered.filter(f => f.mrName === filters.mrName);
-      if (filters.line !== 'All') filtered = filtered.filter(f => f.lineName === filters.line);
-      if (filters.customerType !== 'All') filtered = filtered.filter(f => f.customerType === filters.customerType);
-      if (filters.product !== 'All') filtered = filtered.filter(f => f.productName === filters.product);
+      if (filters.branch.length > 0) filtered = filtered.filter(f => filters.branch.includes(f.branch));
+      if (filters.supervisor.length > 0) filtered = filtered.filter(f => filters.supervisor.includes(f.supervisor));
+      if (filters.mrName.length > 0) filtered = filtered.filter(f => filters.mrName.includes(f.mrName));
+      if (filters.line.length > 0) filtered = filtered.filter(f => filters.line.includes(f.lineName));
+      if (filters.customerType.length > 0) filtered = filtered.filter(f => filters.customerType.includes(f.customerType));
+      if (filters.product.length > 0) filtered = filtered.filter(f => filters.product.includes(f.productName));
       if (filters.fromDate) filtered = filtered.filter(f => f.invoiceDate >= new Date(filters.fromDate));
       if (filters.toDate) filtered = filtered.filter(f => f.invoiceDate <= new Date(filters.toDate));
       return filtered;
@@ -89,12 +142,11 @@ const SalesAnalyzer = () => {
     return { netValue, netQty, returnsValue, returnsQty, uniqueProducts };
   }, [filteredData]);
 
-  const activeFilterCount = useMemo(() => Object.values(filters).filter(v => v !== 'All' && v !== '').length, [filters]);
-
+  const activeFilterCount = useMemo(() => Object.entries(filters).filter(([k, v]) => Array.isArray(v) ? v.length > 0 : v !== '').length, [filters]);
   const startDate = useMemo(() => data.length > 0 ? new Date(Math.min(...data.map(d => d.invoiceDate))) : new Date(), [data]);
   const endDate = useMemo(() => data.length > 0 ? new Date(Math.max(...data.map(d => d.invoiceDate))) : new Date(), [data]);
-
-  const topProducts = useMemo(() => [...new Set(filteredData.map(d=>d.productName))].map(p => ({name: p.substring(0,20), val: filteredData.filter(d=>d.productName===p).reduce((acc,f)=>acc+f.netValue,0)})).sort((a,b)=>b.val-a.val).slice(0,10), [filteredData]);
+  const topProductsByVal = useMemo(() => [...new Set(filteredData.map(d=>d.productName))].map(p => ({name: p.substring(0,20), val: filteredData.filter(d=>d.productName===p).reduce((acc,f)=>acc+f.netValue,0)})).sort((a,b)=>b.val-a.val).slice(0,10), [filteredData]);
+  const topProductsByQty = useMemo(() => [...new Set(filteredData.map(d=>d.productName))].map(p => ({name: p.substring(0,20), val: filteredData.filter(d=>d.productName===p).reduce((acc,f)=>acc+f.netQty,0)})).sort((a,b)=>b.val-a.val).slice(0,10), [filteredData]);
   const customerTypeData = useMemo(() => [...new Set(filteredData.map(d=>d.customerType))].map(t => ({name: t, val: filteredData.filter(d=>d.customerType===t).reduce((acc,f)=>acc+f.netValue,0)})), [filteredData]);
   const customerTypeCells = useMemo(() => SALES_COLORS, []);
 
@@ -111,26 +163,18 @@ const SalesAnalyzer = () => {
         setProgress('Detecting headers...');
         const ws = wb.Sheets[wb.SheetNames[0]];
         const rawData = XLSX.utils.sheet_to_json(ws, { header: 1 });
-        const headerRowIndex = rawData.findIndex(row => 
-            row.includes("اسم الصنف") && 
-            row.includes("المندوب") && 
-            row.includes("رقم الفاتورة")
-        );
-        if (headerRowIndex === -1) {
-            alert("Could not detect valid headers.");
-            setParsing(false); return;
-        }
+        const headerRowIndex = rawData.findIndex(row => row.includes("اسم الصنف") && row.includes("المندوب") && row.includes("رقم الفاتورة"));
+        if (headerRowIndex === -1) { alert("Could not detect valid headers."); setParsing(false); return; }
         const headers = rawData[headerRowIndex];
         const rows = rawData.slice(headerRowIndex + 1);
         setProgress(`Processing ${rows.length} rows...`);
-        const parsedRows = rows
-          .map(row => {
+        const parsedRows = rows.map(row => {
             const rowObj = {};
             headers.forEach((h, i) => { if (COLUMN_MAP[h]) rowObj[COLUMN_MAP[h]] = row[i]; });
             return rowObj;
-          })
-          .filter(row => row.productName)
-          .map(row => ({
+        })
+        .filter(row => row.productName)
+        .map(row => ({
             ...row,
             salesQty: parseFloat(row.salesQty) || 0,
             salesValue: parseFloat(row.salesValue) || 0,
@@ -141,27 +185,20 @@ const SalesAnalyzer = () => {
             netQty: parseFloat(row.netQty) || 0,
             netValue: parseFloat(row.netValue) || 0,
             invoiceDate: row.invoiceDate instanceof Date ? row.invoiceDate : new Date(row.invoiceDate)
-          }));
+        }));
         setData(parsedRows);
         setParsing(false);
         const saveObj = { uploadedAt: new Date().toISOString(), fileName: file.name, rows: parsedRows };
         const jsonStr = JSON.stringify(saveObj);
         if (jsonStr.length < 4500000) localStorage.setItem(STORAGE_KEY, jsonStr);
-      } catch (err) {
-        console.error(err);
-        alert("Error parsing file.");
-        setParsing(false);
-      }
+      } catch (err) { console.error(err); alert("Error parsing file."); setParsing(false); }
     };
     reader.readAsBinaryString(file);
   };
-  const handleReset = () => {
-    setData([]);
-    localStorage.removeItem(STORAGE_KEY);
-    setPersistenceInfo(null);
-  };
+  const handleReset = () => { setData([]); localStorage.removeItem(STORAGE_KEY); setPersistenceInfo(null); };
 
   if (parsing) return <div className="flex flex-col items-center justify-center h-screen"><div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" /><h3 className="text-xl font-black">{progress}</h3></div>;
+
   if (data.length === 0) {
     return (
       <div className="container mx-auto max-w-2xl mt-12">
@@ -181,8 +218,9 @@ const SalesAnalyzer = () => {
   }
 
   return (
-    <div className="space-y-6">
-       <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-gray-50 pb-24 overflow-y-auto">
+        <div className="space-y-6 pt-6">
+       <div className="flex items-center justify-between px-6">
           <div>
             <h2 className="text-2xl font-black text-gray-900 uppercase">ATR Sales Analysis</h2>
             <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">
@@ -195,60 +233,67 @@ const SalesAnalyzer = () => {
           </button>
        </div>
 
-       {persistenceInfo && (<div className="text-xs p-2 bg-green-50 text-green-700 rounded-md">Loaded from cache: {persistenceInfo.fileName} ({new Date(persistenceInfo.uploadedAt).toLocaleString()})</div>)}
+       {persistenceInfo && (<div className="text-xs p-2 bg-green-50 text-green-700 rounded-md mx-6">Loaded from cache: {persistenceInfo.fileName} ({new Date(persistenceInfo.uploadedAt).toLocaleString()})</div>)}
 
-       <div className="bg-white p-4 rounded-xl shadow-soft grid grid-cols-2 md:grid-cols-4 gap-4 items-center sticky top-[84px] z-10 border border-gray-200">
-           {['branch','supervisor','mrName','line','customerType','product'].map(f => (
-               <select key={f} value={filters[f]} onChange={(e)=>setFilters({...filters, [f]: e.target.value})} className="text-xs p-2 border rounded-lg border-gray-200 uppercase font-bold">
-                   <option value="All">All {f}</option>
-                   {[...new Set(data.map(d => d[f === 'line' ? 'lineName' : f]))].sort().map(val => <option key={val} value={val}>{val}</option>)}
-               </select>
-           ))}
-           <input type="date" onChange={e => setFilters({...filters, fromDate: e.target.value})} className="text-xs p-2 border rounded-lg border-gray-200" />
-           <input type="date" onChange={e => setFilters({...filters, toDate: e.target.value})} className="text-xs p-2 border rounded-lg border-gray-200" />
-           <button onClick={() => setFilters({branch:'All', supervisor:'All', mrName:'All', line:'All', customerType:'All', product:'All', fromDate:'', toDate:''})} className="text-xs bg-red-50 text-red-600 font-black p-2 rounded-lg flex items-center justify-center gap-1">
-                Clear All {activeFilterCount > 0 && <span className="bg-red-200 px-1 rounded">{activeFilterCount}</span>}
-           </button>
+       <div className="flex flex-wrap gap-3 px-6 py-4 bg-white border-b border-gray-100 sticky top-0 z-40">
+           <MultiSelect label="Branch" options={filterOptions.branches} selected={filters.branch} onChange={v => setFilters(f => ({...f, branch: v}))} />
+           <MultiSelect label="Supervisor" options={filterOptions.supervisors} selected={filters.supervisor} onChange={v => setFilters(f => ({...f, supervisor: v}))} />
+           <MultiSelect label="MR" options={filterOptions.mrNames} selected={filters.mrName} onChange={v => setFilters(f => ({...f, mrName: v}))} />
+           <MultiSelect label="Line" options={filterOptions.lines} selected={filters.line} onChange={v => setFilters(f => ({...f, line: v}))} />
+           <MultiSelect label="Customer Type" options={filterOptions.customerTypes} selected={filters.customerType} onChange={v => setFilters(f => ({...f, customerType: v}))} />
+           <MultiSelect label="Product" options={filterOptions.products} selected={filters.product} onChange={v => setFilters(f => ({...f, product: v}))} />
+           <div className="flex items-center gap-2">
+             <input type="date" value={filters.fromDate} onChange={e => setFilters(f => ({...f, fromDate: e.target.value}))} className="border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+             <span className="text-gray-400 text-sm">→</span>
+             <input type="date" value={filters.toDate} onChange={e => setFilters(f => ({...f, toDate: e.target.value}))} className="border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+           </div>
+           {activeFilterCount > 0 && (
+             <button onClick={() => setFilters({branch:[], supervisor:[], mrName:[], line:[], customerType:[], product:[], fromDate:'', toDate:''})} className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-100 border border-red-200 transition-all">Clear All ({activeFilterCount})</button>
+           )}
        </div>
 
-       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 px-6">
           {[ 
-            { label: 'Net Value', val: `${kpis.netValue.toLocaleString('en-EG')} EGP`, icon: DollarSign, color: 'text-blue-600', bg: 'bg-blue-50' },
-            { label: 'Net Quantity', val: `${kpis.netQty.toLocaleString('en-EG')} units`, icon: Package, color: 'text-green-600', bg: 'bg-green-50' },
-            { label: 'Total Returns', val: `${kpis.returnsValue.toLocaleString('en-EG')} EGP`, icon: RotateCcw, color: 'text-red-600', bg: 'bg-red-50', sub: `${kpis.returnsQty.toLocaleString('en-EG')} units returned` },
-            { label: 'Unique Products', val: kpis.uniqueProducts.toLocaleString('en-EG'), icon: Grid, color: 'text-purple-600', bg: 'bg-purple-50' }
+            { label: 'Net Quantity', val: `${kpis.netQty.toLocaleString('en-EG')} units`, icon: Package, color: 'text-green-600', bg: 'bg-green-50', sub: 'Total units sold' },
+            { label: 'Net Value', val: `${kpis.netValue.toLocaleString('en-EG')} EGP`, icon: DollarSign, color: 'text-blue-600', bg: 'bg-blue-50', sub: 'Net revenue' },
+            { label: 'Total Returns', val: `${Math.abs(kpis.returnsQty).toLocaleString('en-EG')} units`, icon: RotateCcw, color: 'text-red-600', bg: 'bg-red-50', sub: `${Math.abs(kpis.returnsValue).toLocaleString('en-EG')} EGP returned` },
+            { label: 'Unique Products', val: kpis.uniqueProducts.toLocaleString('en-EG'), icon: Grid, color: 'text-purple-600', bg: 'bg-purple-50', sub: 'across catalogue' }
           ].map((card, i) => (
             <div key={i} className="bg-white border border-gray-200 p-6 rounded-2xl shadow-soft">
                <div className={`p-3 rounded-xl mb-4 inline-block ${card.bg} ${card.color}`}><card.icon size={24} /></div>
                <p className="text-[10px] uppercase font-black text-gray-400 tracking-widest mb-1">{card.label}</p>
                <p className="text-xl font-black text-gray-900 tracking-tight">{card.val}</p>
-               {card.sub && <p className="text-xs text-gray-400 mt-1">{card.sub}</p>}
+               <p className="text-xs text-gray-400 mt-1">{card.sub}</p>
             </div>
           ))}
        </div>
 
-       <div className="flex gap-2 p-1 bg-gray-100 rounded-lg">
+       <div className="flex gap-2 flex-wrap px-6 mb-6">
            {['Overview','By Product','By MR','By Customer','By Branch','Trend'].map(tab => (
-               <button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 text-xs font-black uppercase p-3 rounded-lg transition-all ${activeTab === tab ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-900'}`}>{tab}</button>
+               <button key={tab} onClick={() => setActiveTab(tab)} className={`px-5 py-2 rounded-full text-sm font-semibold transition-all border ${activeTab === tab ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-400 hover:text-blue-600'}`}>{tab}</button>
            ))}
        </div>
 
-       <div className="bg-white p-6 rounded-3xl border border-gray-200">
+       <div className="bg-white p-6 rounded-3xl border border-gray-200 mx-6">
           {activeTab === 'Overview' && (
               <div className="space-y-8">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       <div className="h-[300px]">
                           <h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 Products (Net Value)</h4>
-                          <ResponsiveContainer><BarChart data={topProducts}><XAxis dataKey="name" fontSize={10} /><YAxis fontSize={10} /><Tooltip /><Bar dataKey="val" fill="#3B82F6" /></BarChart></ResponsiveContainer>
+                          <ResponsiveContainer><BarChart data={topProductsByVal}><XAxis dataKey="name" fontSize={10} /><YAxis fontSize={10} /><Tooltip /><Bar dataKey="val" fill="#3B82F6" /></BarChart></ResponsiveContainer>
                       </div>
                       <div className="h-[300px]">
-                          <h4 className="text-xs font-black uppercase text-gray-400 mb-4">Net Value by Customer Type</h4>
-                          <ResponsiveContainer><PieChart><Pie data={customerTypeData} dataKey="val" nameKey="name" cx="50%" cy="50%" outerRadius={80}>{customerTypeCells}</Pie><Tooltip /><Legend /></PieChart></ResponsiveContainer>
+                          <h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 Products (Net Units)</h4>
+                          <ResponsiveContainer><BarChart data={topProductsByQty}><XAxis dataKey="name" fontSize={10} /><YAxis fontSize={10} /><Tooltip /><Bar dataKey="val" fill="#10B981" /></BarChart></ResponsiveContainer>
                       </div>
                   </div>
               </div>
           )}
           {activeTab !== 'Overview' && <div className="text-center py-12 text-gray-400">Analysis module "{activeTab}" is in progress.</div>}
+       </div>
+       <footer className="text-center text-[10px] text-gray-400 font-black uppercase tracking-widest mt-12 py-4">
+           ATR SALES ANALYZER v1.0.003
+       </footer>
        </div>
     </div>
   );
