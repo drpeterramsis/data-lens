@@ -18,8 +18,9 @@ import CoachingSection from './CoachingSection';
 import InlineCalendar from './InlineCalendar';
 
 const APP_VERSION = {
-  version: '2.0.0',
-  label: 'MR Isolation Filter + Multi-File'
+  version: '2.1.0',
+  releaseDate: 'Jun 2025',
+  label: 'Avg HCP Coaching KPI Card Added'
 };
 
 const StickyToolbar = ({
@@ -685,6 +686,68 @@ const CallDetailingAnalyzer = () => {
 
   const mrStats = useMemo(() => calculateMRStats(filteredData), [filteredData]);
   const metrics = useMemo(() => calculateKPICards(mrStats), [mrStats]);
+  const coachingKPI = useMemo(() => {
+    
+    // Step 1: Filter HCP Coaching rows only
+    const coachingRows = (filteredData ?? [])
+      .filter(r =>
+        String(r.IsMRCoachingSubmitted).toUpperCase() === 'TRUE' &&
+        String(r.InteractionType).toUpperCase() === 'HCP'
+      );
+
+    // Total HCP Coaching Calls
+    const totalCoachingCalls = coachingRows.length;
+
+    if (totalCoachingCalls === 0) {
+      return {
+        totalCoachingCalls: 0,
+        approvedDays:       0,
+        avg:                0,
+        isGood:             false,
+      };
+    }
+
+    // Step 2: Group by MR + Date
+    // Count HCP coaching visits per (MR, Day)
+    const dayMap = {};
+
+    coachingRows.forEach(r => {
+      const mr = r.MrName ?? 'Unknown';
+      
+      // Normalize date to day only (no time)
+      const d = r.ReportDate instanceof Date 
+        ? r.ReportDate 
+        : new Date(r.ReportDate);
+      
+      if (isNaN(d)) return;
+      
+      const day = d.toISOString().slice(0, 10);
+      const key = `${mr}__${day}`;
+
+      if (!dayMap[key]) dayMap[key] = 0;
+      dayMap[key]++;
+    });
+
+    // Step 3: Count approved days 
+    // (>= 4 HCP coaching visits that day)
+    const approvedDays = Object.values(dayMap)
+      .filter(count => count >= 4)
+      .length;
+
+    // Step 4: Calculate average
+    const avg = approvedDays === 0 
+      ? 0 
+      : totalCoachingCalls / approvedDays;
+
+    return {
+      totalCoachingCalls,
+      approvedDays,
+      avg:    Math.round(avg * 10) / 10,
+      isGood: avg >= 4,
+    };
+
+  }, [filteredData]);
+
   const insights = useMemo(() => generateInsights(filteredData, targets), [filteredData, targets]);
 
   const globalSearchResults = useMemo(() => {
@@ -1097,8 +1160,43 @@ const CallDetailingAnalyzer = () => {
             filteredRowCount={filteredData.length}
           />
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             <KPICard title="Coaching Days" value={metrics.coachingDays} sub={`${metrics.coachingMRs} active coaches`} icon={<GraduationCap size={20}/>} color="#F5C518" />
+            
+            {/* New KPI Card: Avg HCP Coaching / Day */}
+            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-4 transition-all hover:shadow-lg hover:-translate-y-1" style={{ borderTop: '6px solid #8B5CF6' }}>
+              <div className="flex items-start justify-between mb-2">
+                <div className="bg-purple-100 p-1.5 rounded-xl">
+                  <span className="text-sm">🎓</span>
+                </div>
+                <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${coachingKPI.isGood ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>
+                  {coachingKPI.isGood ? '✓ On Target' : '✗ Below Target'}
+                </span>
+              </div>
+              <div className="flex items-baseline gap-1">
+                <p className={`text-2xl font-black ${coachingKPI.isGood ? 'text-emerald-600' : coachingKPI.avg > 0 ? 'text-amber-500' : 'text-gray-300'}`}>
+                  {coachingKPI.avg > 0 ? coachingKPI.avg.toFixed(1) : '—'}
+                </p>
+                <span className="text-[10px] font-black uppercase text-gray-400">/ D</span>
+              </div>
+              <p className="text-[10px] font-black text-gray-700 leading-tight">Avg HCP Coaching / Day</p>
+              <div className="mt-3 pt-3 border-t border-gray-50 space-y-1">
+                <div className="flex justify-between items-center text-[10px]">
+                  <span className="text-gray-400">Calls:</span>
+                  <span className="font-bold text-gray-700">{coachingKPI.totalCoachingCalls.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between items-center text-[10px]">
+                  <span className="text-gray-400">Appr. Days:</span>
+                  <span className="font-bold text-gray-700">{coachingKPI.approvedDays.toLocaleString()}</span>
+                </div>
+                <div className="mt-2">
+                  <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full transition-all duration-500 ${coachingKPI.isGood ? 'bg-emerald-500' : 'bg-amber-400'}`} style={{ width: `${Math.min((coachingKPI.avg / 8) * 100, 100)}%` }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <KPICard title="HCO Rate" value={metrics.avgHCORate} unit="/d" sub={`Across ${metrics.hcoMRCount} MRs`} icon={<Hospital size={20}/>} color="#10B981" />
             <KPICard title="HCP Rate" value={metrics.avgHCPRate} unit="/d" sub={`Across ${metrics.hcpMRCount} MRs`} icon={<Users size={20}/>} color="#3B82F6" />
             <KPICard title="PH Rate" value={metrics.avgPHRate} unit="/d" sub={`Across ${metrics.phMRCount} MRs`} icon={<Pill size={20}/>} color="#8B5CF6" />

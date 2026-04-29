@@ -42,6 +42,7 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 
 ## Version History
 
+- **v1.0.421:** Added "Avg HCP Coaching / Day" KPI card with logic for approved days (>= 4 HCP visits). Fixed footer overlapping content by adding bottom padding to main content and sidebar, adjusted footer z-index to 30.
 - **v1.0.412:** Removed click/hover functionality from the "X d coached" tag in MR cards.
 - **v1.0.411:** Removed status labels from MR cards. Cleaner Team Overview table with color-coded rates and coaching indicators based on targets. Added disableHover support for tooltip component and applied it to MR card coaching tags.
 - **v1.0.410:** Removed status column from Team Overview. Added target-based coloring for rates. Highlighted coaching days with color. Removed hover effect on status labels.
@@ -78,4 +79,4 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 - **v1.0.001:** Initial release. Authentication, CSV parsing, Analysis tools, and Admin panel implemented.
 
 ---
-© 2026 Data Lens Analytics | version 1.0.411
+© 2026 Data Lens Analytics | version 1.0.421

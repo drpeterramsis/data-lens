@@ -2,11 +2,11 @@
   "users": [
     {
       "id": "1",
-      "username": "admin",
-      "name": "Admin User",
+      "username": "peterramsis",
+      "name": "Peter Admin",
       "jobTitle": "General Manager",
       "email": "admin@datalens.com",
-      "password": "admin123",
+      "password": "dlDL2@26",
       "role": "admin",
       "active": true
     },
@@ -28,6 +28,16 @@
       "email": "omar@datalens.com",
       "password": "omar123",
       "role": "viewer",
+      "active": true
+    },
+    {
+      "id": "4",
+      "username": "mr_user",
+      "name": "Medical Representative",
+      "jobTitle": "Medical Representative",
+      "email": "mr_user@datalens.com",
+      "password": "datalens2026",
+      "role": "manager",
       "active": true
     }
   ]

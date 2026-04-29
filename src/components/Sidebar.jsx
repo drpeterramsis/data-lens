@@ -28,7 +28,7 @@ const Sidebar = () => {
         isOpen ? 'w-60 translate-x-0' : 'w-0 -translate-x-full'
       }`}
     >
-      <div className={`flex-1 overflow-y-auto py-6 ${isOpen ? 'opacity-100' : 'opacity-0'} transition-opacity duration-200`}>
+      <div className={`flex-1 overflow-y-auto py-6 pb-24 ${isOpen ? 'opacity-100' : 'opacity-0'} transition-opacity duration-200`}>
         <div className="px-4 mb-6">
           <p className="text-[10px] uppercase font-black tracking-[0.2em] text-gray-400 pl-3">Navigation</p>
         </div>

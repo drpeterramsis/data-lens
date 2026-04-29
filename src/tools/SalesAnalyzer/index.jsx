@@ -639,6 +639,7 @@ const SalesAnalyzer = () => {
   const [showUploadChoice, setShowUploadChoice] = useState(false);
   const [dataSources, setDataSources] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const uploadModeRef = useRef('replace');
 
 
   // Period Compare states
@@ -786,6 +787,7 @@ const SalesAnalyzer = () => {
     if (data.length > 0) {
       setShowUploadChoice(true);
     } else {
+      uploadModeRef.current = 'replace';
       setCurrentUploadMode('replace');
       fileInputRef.current?.click();
     }
@@ -795,15 +797,16 @@ const SalesAnalyzer = () => {
     setCurrentUploadMode(mode);
     setShowUploadChoice(false);
     setTimeout(() => {
+      uploadModeRef.current = mode;
       fileInputRef.current?.click();
-    }, 100);
+    }, 150);
   };
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = '';
-    processFile(file, currentUploadMode);
+    processFile(file, uploadModeRef.current);
   };
 
   const processFile = async (file, mode) => {
@@ -856,8 +859,21 @@ const SalesAnalyzer = () => {
       let resultInfo;
 
       if (mode === 'append' && data.length > 0) {
-        const existingKeys = new Set(data.map(r => `${String(r.invoiceNo).trim()}__${String(r.productCode).trim()}`));
-        const newRows = parsedRows.filter(r => !existingKeys.has(`${String(r.invoiceNo).trim()}__${String(r.productCode).trim()}`));
+        const existingKeys = new Set(
+          data.map(r => {
+            const inv = String(r.invoiceNo ?? '').trim();
+            const prd = String(r.productCode ?? '').trim();
+            const pnm = String(r.productName ?? '').trim();
+            return `${inv}__${prd}__${pnm}`;
+          })
+        );
+
+        const newRows = parsedRows.filter(r => {
+          const inv = String(r.invoiceNo ?? '').trim();
+          const prd = String(r.productCode ?? '').trim();
+          const pnm = String(r.productName ?? '').trim();
+          return !existingKeys.has(`${inv}__${prd}__${pnm}`);
+        });
         finalRows = [...data, ...newRows];
         resultInfo = {
           mode:    'append',
@@ -1751,26 +1767,60 @@ const SalesAnalyzer = () => {
 
    if (data.length === 0) {
     return (
-      <div className="container mx-auto max-w-2xl mt-12">
+      <div className="container mx-auto max-w-2xl mt-12 pb-20">
         <div className="mb-12 text-center">
            <div className="inline-flex p-4 bg-[#F5C518]/10 rounded-2xl text-[#F5C518] mb-4 shadow-sm"><BarChart3 size={48} /></div>
            <h2 className="text-4xl font-black text-gray-900 tracking-tighter uppercase italic">ATR SALES ANALYZER</h2>
            <p className="text-gray-500 text-sm font-medium uppercase tracking-[0.2em] mt-2">v{APP_VERSION.version}</p>
         </div>
+
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".xlsx,.xls,.csv"
+          onChange={handleFileChange}
+          className="hidden"
+        />
+
+        {/* Upload Choice Modal */}
+        {showUploadChoice && (
+          <UploadChoiceModal
+            existingCount={data.length}
+            onChoose={handleUploadChoice}
+            onCancel={() => setShowUploadChoice(false)}
+          />
+        )}
+
         <div className="p-12 bg-white border-2 border-dashed border-gray-300 rounded-3xl flex flex-col items-center justify-center text-center cursor-pointer hover:border-blue-500 transition-colors" onClick={handleUploadClick}>
             <Upload size={48} className="text-gray-400 mb-4" />
             <h3 className="text-lg font-bold text-gray-700">Drop XLSX or CSV file here</h3>
             <p className="text-gray-400 text-sm mt-1">or click to browse</p>
-            <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".xlsx,.csv" className="hidden" />
         </div>
-        {showUploadChoice && <UploadChoiceModal onChoose={handleUploadChoice} onCancel={() => setShowUploadChoice(false)} existingCount={data.length} />}
-
       </div>
     );
   }
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-gray-50">
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".xlsx,.xls,.csv"
+        onChange={handleFileChange}
+        className="hidden"
+      />
+
+      {/* Upload Choice Modal */}
+      {showUploadChoice && (
+        <UploadChoiceModal
+          existingCount={data.length}
+          onChoose={handleUploadChoice}
+          onCancel={() => setShowUploadChoice(false)}
+        />
+      )}
+
       {drillModal.open && (
         <DrilldownModal
           type={drillModal.type}
@@ -1816,15 +1866,6 @@ const SalesAnalyzer = () => {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          {/* Hidden file input */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".xlsx,.xls,.csv"
-            onChange={handleFileChange}
-            className="hidden"
-          />
-
           {/* Always visible upload button */}
           <button
             onClick={handleUploadClick}
