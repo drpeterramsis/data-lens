@@ -2,12 +2,13 @@ import { useState, useEffect } from "react";
 import Papa from "papaparse";
 import { cleanRows } from "../../utils/safeCSV";
 
-const CSVUploader = ({ onDataLoaded, storageKey = "datalens_last_report" }) => {
+const CSVUploader = ({ onDataLoaded, storageKey = "datalens_last_report", toolName = "Analytics" }) => {
   const [status, setStatus]     = useState("idle");
   const [rowCount, setRowCount] = useState(0);
   const [cacheInfo, setCacheInfo] = useState(null);
 
   useEffect(() => {
+    if (!storageKey) return;
     try {
       const raw = localStorage.getItem(storageKey);
       if (raw) {
@@ -16,7 +17,7 @@ const CSVUploader = ({ onDataLoaded, storageKey = "datalens_last_report" }) => {
         const rows = parsed.rows || [];
         setRowCount(parsed.rowCount || rows.length);
         setStatus("done");
-        onDataLoaded(rows);
+        onDataLoaded(rows, parsed.fileName);
       }
     } catch (e) {
       console.warn("Failed to load cached report:", e);
@@ -24,6 +25,7 @@ const CSVUploader = ({ onDataLoaded, storageKey = "datalens_last_report" }) => {
   }, [onDataLoaded, storageKey]);
 
   const saveToCache = (rows, fileName) => {
+    if (!storageKey) return;
     try {
       const payload = {
         uploadedAt: new Date().toISOString(),
@@ -39,7 +41,7 @@ const CSVUploader = ({ onDataLoaded, storageKey = "datalens_last_report" }) => {
   };
 
   const clearCache = () => {
-    localStorage.removeItem(storageKey);
+    if (storageKey) localStorage.removeItem(storageKey);
     setCacheInfo(null);
     setStatus("idle");
     setRowCount(0);
@@ -59,7 +61,7 @@ const CSVUploader = ({ onDataLoaded, storageKey = "datalens_last_report" }) => {
         setRowCount(cleaned.length);
         setStatus("done");
         saveToCache(cleaned, file.name);
-        onDataLoaded(cleaned);
+        onDataLoaded(cleaned, file.name);
       },
       error: (err) => {
         console.error("CSV Error:", err);

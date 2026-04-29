@@ -406,7 +406,7 @@ const CallDetailingAnalyzer = () => {
       {/* 2. UPLOAD BANNER / DROPZONE */}
       {!hasData ? (
         <div className="py-12">
-          <CSVUploader onDataLoaded={handleDataLoaded} toolName="Call Detailing" />
+          <CSVUploader onDataLoaded={handleDataLoaded} toolName="Call Detailing" storageKey={null} />
         </div>
       ) : (
         <div className="bg-white border-2 border-accent/20 rounded-3xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 shadow-xl animate-in fade-in slide-in-from-top-4 duration-500">
@@ -468,6 +468,7 @@ const CallDetailingAnalyzer = () => {
               <CSVUploader 
                 onDataLoaded={handleDataLoaded} 
                 toolName="Call Detailing" 
+                storageKey={null}
               />
               <div className="mt-6 text-center">
                  <button 
