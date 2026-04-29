@@ -67,80 +67,6 @@ const SalesAnalyzer = () => {
     }
   }, []);
 
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    setParsing(true);
-    setProgress('Reading file...');
-
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      try {
-        const bstr = evt.target.result;
-        const wb = XLSX.read(bstr, { type: 'binary', cellDates: true });
-        
-        setProgress('Detecting headers...');
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const rawData = XLSX.utils.sheet_to_json(ws, { header: 1 });
-
-        const headerRowIndex = rawData.findIndex(row => 
-            row.includes("اسم الصنف") && 
-            row.includes("المندوب") && 
-            row.includes("رقم الفاتورة")
-        );
-
-        if (headerRowIndex === -1) {
-            alert("Could not detect valid headers.");
-            setParsing(false); return;
-        }
-
-        const headers = rawData[headerRowIndex];
-        const rows = rawData.slice(headerRowIndex + 1);
-
-        setProgress(`Processing ${rows.length} rows...`);
-
-        const parsedRows = rows
-          .map(row => {
-            const rowObj = {};
-            headers.forEach((h, i) => { if (COLUMN_MAP[h]) rowObj[COLUMN_MAP[h]] = row[i]; });
-            return rowObj;
-          })
-          .filter(row => row.productName)
-          .map(row => ({
-            ...row,
-            salesQty: parseFloat(row.salesQty) || 0,
-            salesValue: parseFloat(row.salesValue) || 0,
-            discountQty: parseFloat(row.discountQty) || 0,
-            discountValue: parseFloat(row.discountValue) || 0,
-            returnQty: parseFloat(row.returnQty) || 0,
-            returnValue: parseFloat(row.returnValue) || 0,
-            netQty: parseFloat(row.netQty) || 0,
-            netValue: parseFloat(row.netValue) || 0,
-            invoiceDate: row.invoiceDate instanceof Date ? row.invoiceDate : new Date(row.invoiceDate)
-          }));
-
-        setData(parsedRows);
-        setParsing(false);
-        
-        const saveObj = { uploadedAt: new Date().toISOString(), fileName: file.name, rows: parsedRows };
-        const jsonStr = JSON.stringify(saveObj);
-        if (jsonStr.length < 4500000) localStorage.setItem(STORAGE_KEY, jsonStr);
-      } catch (err) {
-        console.error(err);
-        alert("Error parsing file.");
-        setParsing(false);
-      }
-    };
-    reader.readAsBinaryString(file);
-  };
-
-  const handleReset = () => {
-    setData([]);
-    localStorage.removeItem(STORAGE_KEY);
-    setPersistenceInfo(null);
-  };
-
   const filteredData = useMemo(() => {
       let filtered = data;
       if (filters.branch !== 'All') filtered = filtered.filter(f => f.branch === filters.branch);
@@ -165,8 +91,77 @@ const SalesAnalyzer = () => {
 
   const activeFilterCount = useMemo(() => Object.values(filters).filter(v => v !== 'All' && v !== '').length, [filters]);
 
-  if (parsing) return <div className="flex flex-col items-center justify-center h-screen"><div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" /><h3 className="text-xl font-black">{progress}</h3></div>;
+  const startDate = useMemo(() => data.length > 0 ? new Date(Math.min(...data.map(d => d.invoiceDate))) : new Date(), [data]);
+  const endDate = useMemo(() => data.length > 0 ? new Date(Math.max(...data.map(d => d.invoiceDate))) : new Date(), [data]);
 
+  const topProducts = useMemo(() => [...new Set(filteredData.map(d=>d.productName))].map(p => ({name: p.substring(0,20), val: filteredData.filter(d=>d.productName===p).reduce((acc,f)=>acc+f.netValue,0)})).sort((a,b)=>b.val-a.val).slice(0,10), [filteredData]);
+  const customerTypeData = useMemo(() => [...new Set(filteredData.map(d=>d.customerType))].map(t => ({name: t, val: filteredData.filter(d=>d.customerType===t).reduce((acc,f)=>acc+f.netValue,0)})), [filteredData]);
+  const customerTypeCells = useMemo(() => SALES_COLORS, []);
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setParsing(true);
+    setProgress('Reading file...');
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target.result;
+        const wb = XLSX.read(bstr, { type: 'binary', cellDates: true });
+        setProgress('Detecting headers...');
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rawData = XLSX.utils.sheet_to_json(ws, { header: 1 });
+        const headerRowIndex = rawData.findIndex(row => 
+            row.includes("اسم الصنف") && 
+            row.includes("المندوب") && 
+            row.includes("رقم الفاتورة")
+        );
+        if (headerRowIndex === -1) {
+            alert("Could not detect valid headers.");
+            setParsing(false); return;
+        }
+        const headers = rawData[headerRowIndex];
+        const rows = rawData.slice(headerRowIndex + 1);
+        setProgress(`Processing ${rows.length} rows...`);
+        const parsedRows = rows
+          .map(row => {
+            const rowObj = {};
+            headers.forEach((h, i) => { if (COLUMN_MAP[h]) rowObj[COLUMN_MAP[h]] = row[i]; });
+            return rowObj;
+          })
+          .filter(row => row.productName)
+          .map(row => ({
+            ...row,
+            salesQty: parseFloat(row.salesQty) || 0,
+            salesValue: parseFloat(row.salesValue) || 0,
+            discountQty: parseFloat(row.discountQty) || 0,
+            discountValue: parseFloat(row.discountValue) || 0,
+            returnQty: parseFloat(row.returnQty) || 0,
+            returnValue: parseFloat(row.returnValue) || 0,
+            netQty: parseFloat(row.netQty) || 0,
+            netValue: parseFloat(row.netValue) || 0,
+            invoiceDate: row.invoiceDate instanceof Date ? row.invoiceDate : new Date(row.invoiceDate)
+          }));
+        setData(parsedRows);
+        setParsing(false);
+        const saveObj = { uploadedAt: new Date().toISOString(), fileName: file.name, rows: parsedRows };
+        const jsonStr = JSON.stringify(saveObj);
+        if (jsonStr.length < 4500000) localStorage.setItem(STORAGE_KEY, jsonStr);
+      } catch (err) {
+        console.error(err);
+        alert("Error parsing file.");
+        setParsing(false);
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+  const handleReset = () => {
+    setData([]);
+    localStorage.removeItem(STORAGE_KEY);
+    setPersistenceInfo(null);
+  };
+
+  if (parsing) return <div className="flex flex-col items-center justify-center h-screen"><div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" /><h3 className="text-xl font-black">{progress}</h3></div>;
   if (data.length === 0) {
     return (
       <div className="container mx-auto max-w-2xl mt-12">
@@ -184,9 +179,6 @@ const SalesAnalyzer = () => {
       </div>
     );
   }
-
-  const startDate = useMemo(() => new Date(Math.min(...data.map(d => d.invoiceDate))), [data]);
-  const endDate = useMemo(() => new Date(Math.max(...data.map(d => d.invoiceDate))), [data]);
 
   return (
     <div className="space-y-6">
@@ -247,11 +239,11 @@ const SalesAnalyzer = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       <div className="h-[300px]">
                           <h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 Products (Net Value)</h4>
-                          <ResponsiveContainer><BarChart data={useMemo(() => [...new Set(filteredData.map(d=>d.productName))].map(p => ({name: p.substring(0,20), val: filteredData.filter(d=>d.productName===p).reduce((acc,f)=>acc+f.netValue,0)})).sort((a,b)=>b.val-a.val).slice(0,10), [filteredData])}><XAxis dataKey="name" fontSize={10} /><YAxis fontSize={10} /><Tooltip /><Bar dataKey="val" fill="#3B82F6" /></BarChart></ResponsiveContainer>
+                          <ResponsiveContainer><BarChart data={topProducts}><XAxis dataKey="name" fontSize={10} /><YAxis fontSize={10} /><Tooltip /><Bar dataKey="val" fill="#3B82F6" /></BarChart></ResponsiveContainer>
                       </div>
                       <div className="h-[300px]">
                           <h4 className="text-xs font-black uppercase text-gray-400 mb-4">Net Value by Customer Type</h4>
-                          <ResponsiveContainer><PieChart><Pie data={useMemo(() => [...new Set(filteredData.map(d=>d.customerType))].map(t => ({name: t, val: filteredData.filter(d=>d.customerType===t).reduce((acc,f)=>acc+f.netValue,0)})), [filteredData])} dataKey="val" nameKey="name" cx="50%" cy="50%" outerRadius={80}>{useMemo(() => [...new Set(filteredData.map(d=>d.customerType))].map((_,i) => <Cell key={i} fill={SALES_COLORS[i % SALES_COLORS.length]} />), [filteredData])}</Pie><Tooltip /><Legend /></PieChart></ResponsiveContainer>
+                          <ResponsiveContainer><PieChart><Pie data={customerTypeData} dataKey="val" nameKey="name" cx="50%" cy="50%" outerRadius={80}>{customerTypeCells}</Pie><Tooltip /><Legend /></PieChart></ResponsiveContainer>
                       </div>
                   </div>
               </div>
