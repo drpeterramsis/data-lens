@@ -3,9 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from '../context/AuthContext';
 
 const APP_VERSION_DATA = {
-  version: '1.0.424',
+  version: '1.0.427',
   releaseDate: 'Apr 2026',
-  label: 'Maximized Padding Fix'
+  label: 'Branding & Syntax Fix'
 };
 
 export default function Footer() {
@@ -23,7 +23,7 @@ export default function Footer() {
         {/* LEFT */}
         <p className="text-[10px] sm:text-xs text-white flex items-center gap-1 font-medium">
           Developed by{" "}
-          <span className="text-[#F5C518] font-black uppercase tracking-tighter">
+          <span className="text-[#F5C518] font-bold uppercase tracking-tighter">
             Dr. Peter Ramsis
           </span>{" "}
           <span className="hidden sm:inline text-white/50 lowercase tracking-widest">| Area Supervisor</span>
@@ -31,19 +31,15 @@ export default function Footer() {
 
         {/* CENTER */}
         <p className="text-[10px] sm:text-xs text-white/40 font-black hidden md:block uppercase tracking-[0.3em]">
-          Data Lens Analytics · Field Force Portal
+          Data Lens Analytics
         </p>
 
         {/* RIGHT */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 opacity-80 hover:opacity-100 transition-all cursor-default group">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] group-hover:scale-125 transition-transform"></span>
-            <span className="text-[9px] text-white font-black uppercase tracking-widest leading-none">V{APP_VERSION_DATA.version} - Data Lens Live</span>
-          </div>
           <div className="h-4 w-[1px] bg-white/10 mx-1 hidden sm:block" />
           <span className="text-[10px] sm:text-xs text-white font-medium">
             Version{" "}
-            <span className="text-[#F5C518] font-black">
+            <span className="text-[#F5C518] font-bold">
               {APP_VERSION_DATA.version}
             </span>
           </span>

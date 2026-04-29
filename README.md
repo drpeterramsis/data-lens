@@ -42,6 +42,9 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 
 ## Version History
 
+- **v1.0.427:** Fixed syntax errors in `Footer.jsx` caused by manual edits. Restored and unified branding highlights using specific yellow (`#F5C518`) for developer name and version numbers.
+- **v1.0.426:** Refined footer branding with high-contrast yellow (`#F5C518`) for developer name and version identifiers. Optimized padding in `Sales Analyzer`.
+- **v1.0.425:** Updated footer branding with high-contrast yellow highlights for developer name and version identifiers. Incremented global versioning across config and components.
 - **v1.0.424:** Increased bottom padding in `Sales Analyzer` (main content and side filters) to 200px to prevent footer overlap and improve scroll clarity.
 - **v1.0.423:** Refined KPI cards in `CoachingSection` (compact row grid). Fixed Coaching Day logic to count HCP-only sessions (>= 4). Added sorting to all tables in `Sales Analyzer`. Improved filter logic for comparison tool. Finalized footer overlap fixes and state safety guards.
 - **v1.0.422:** Fixed critical `TypeError: Cannot read properties of undefined (reading 'length')` in `CoachingSection` and `InlineCalendar` components by implementing advanced null-safety guards. Improved data resilience in `InlineCalendar` month initialization and hardened string manipulation in `CoachingSection` search filters.
@@ -82,4 +85,4 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 - **v1.0.001:** Initial release. Authentication, CSV parsing, Analysis tools, and Admin panel implemented.
 
 ---
-© 2026 Data Lens Analytics | version 1.0.424
+© 2026 Data Lens Analytics | version 1.0.427
