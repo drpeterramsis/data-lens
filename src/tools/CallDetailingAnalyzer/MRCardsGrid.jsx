@@ -104,7 +104,9 @@ const MRCardSearch = ({ mr }) => {
 };
 
 const MRCard = ({ mr, isExpanded, onToggle, targets, onOpenCalendar }) => {
-  const formatDateLabel = (d) => {
+  const isCoached = (mr.coachingDays ?? 0) >= 1;
+
+  const formatDate = (d) => {
     if (!d) return "—";
     const date = new Date(d + "T00:00:00");
     if (isNaN(date.getTime())) return "—";
@@ -126,78 +128,162 @@ const MRCard = ({ mr, isExpanded, onToggle, targets, onOpenCalendar }) => {
   };
 
   return (
-    <div className={`bg-white rounded-[2.5rem] border-2 transition-all duration-300 ${isExpanded ? 'border-yellow-400 shadow-2xl scale-[1.03] z-10' : 'border-gray-50 shadow-sm hover:shadow-xl hover:border-yellow-200'}`}>
-      {/* ── COLLAPSED / HEADER ── */}
+    <div className={`
+      rounded-2xl border shadow-sm transition-all duration-200 overflow-hidden
+      ${isExpanded ? 'scale-[1.03] shadow-2xl z-10' : 'hover:shadow-xl'}
+      ${isCoached
+        ? "border-yellow-400 ring-2 ring-yellow-300 ring-offset-1"
+        : isExpanded ? "border-yellow-400" : "border-gray-200 hover:border-yellow-300"
+      }
+    `}>
       <button
         type="button"
         onClick={() => onToggle(mr.mrName)}
-        className="w-full text-left p-6 focus:outline-none"
+        className="w-full text-left focus:outline-none"
       >
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0 flex-1 flex items-center gap-4">
-             <div 
-               className="w-14 h-14 rounded-3xl flex items-center justify-center text-lg font-black text-white shadow-lg shrink-0 uppercase"
-               style={{ backgroundColor: `hsl(${mr.mrName.length * 40}, 60%, 40%)` }}
-             >
-                {mr.mrName.charAt(0)}
-             </div>
-             <div className="min-w-0">
-                <div className="font-black text-xl text-gray-900 truncate uppercase tracking-tight leading-none group-hover:text-yellow-600 transition-colors">
-                   {mr.mrName}
-                </div>
-                <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] truncate mt-2 opacity-60 italic">
-                   {mr.lineName || "Core Workforce"}
-                </div>
-             </div>
-          </div>
-          <div className={`mt-3 w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-300 transition-all duration-300 ${isExpanded ? 'rotate-180 bg-yellow-400 text-black shadow-lg scale-110' : ''}`}>
-             ▼
-          </div>
-        </div>
-
-        {!isExpanded && (
-          <div className="mt-8 space-y-4">
-             <div className="grid grid-cols-3 gap-2">
-                {[
-                  { label: "HCO", rate: mr.hcoRate, type: "HCO" },
-                  { label: "PH",  rate: mr.phRate,  type: "PH" },
-                  { label: "HCP", rate: mr.hcpRate, type: "HCP" },
-                ].map(({ label, rate, type }) => {
-                  const { variant, icon } = getMetricVariant(rate, type);
-                  
-                  return (
-                    <div key={label} className={`flex flex-col items-center justify-center p-3 rounded-2xl border-2 shadow-sm transition-transform hover:scale-105 ${variant}`}>
-                       <span className="text-[9px] font-black uppercase tracking-tighter opacity-70 mb-1">{label}</span>
-                       <span className="text-lg font-black leading-none">{rate}</span>
-                       <span className="mt-1">{icon}</span>
-                    </div>
-                  );
-                })}
-             </div>
-             
-             <div className="flex items-center justify-between text-[10px] pt-4 border-t-2 border-gray-50 mt-4 px-2">
-                <div className="flex items-center gap-2">
-                   <div className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse"></div>
-                   <span className="font-black text-gray-900 uppercase tracking-widest leading-none">
-                      {mr.coachingDays} Coaching
-                   </span>
-                </div>
-                <span className="font-bold text-gray-400 uppercase tracking-tighter">
-                   Latest: <span className="text-gray-900 font-black">{formatDateLabel(mr.lastDate)}</span>
-                </span>
-             </div>
+        {/* ── COACHING BANNER (top strip) ── */}
+        {isCoached && (
+          <div className="flex items-center justify-between px-4 py-1.5 bg-yellow-400">
+            {/* Emoji collage */}
+            <div className="flex items-center gap-1">
+              <span className="text-base">🎓</span>
+              <span className="text-base">📋</span>
+              <span className="text-base">👥</span>
+              <span className="text-sm font-black text-gray-900 ml-1">
+                COACHED
+              </span>
+            </div>
+            {/* Days + visits count */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-gray-800 bg-yellow-300 px-2 py-0.5 rounded-full">
+                {mr.coachingDays}
+                {mr.coachingDays === 1 ? " day" : " days"}
+              </span>
+              <span className="text-[10px] text-gray-700">
+                {mr.coachedVisits} visits
+              </span>
+            </div>
           </div>
         )}
+
+        {/* ── CARD BODY (HEADER) ── */}
+        <div className={`p-4 sm:p-5 relative ${isCoached ? "bg-yellow-50/40" : "bg-white"}`}>
+          {/* MR Name + last date */}
+          <div className="flex items-start justify-between gap-2 mb-3">
+            <div className="min-w-0 pr-8">
+              <div className="font-black text-base text-gray-900 truncate">
+                {mr.mrName}
+              </div>
+              <div className="text-[11px] text-gray-500 mt-0.5 flex items-center gap-1">
+                <span>📅</span>
+                <span>Last visit:</span>
+                <span className="font-semibold text-gray-700">
+                  {formatDate(mr.lastDate)}
+                </span>
+              </div>
+            </div>
+
+            {/* Status badge — top right */}
+            <span className={`flex-shrink-0 text-[10px] font-bold px-2 py-1 rounded-full
+              ${mr.overallStatus === "on_track"
+                ? "bg-green-100 text-green-800"
+                : mr.overallStatus === "warning"
+                  ? "bg-yellow-100 text-yellow-800"
+                  : mr.overallStatus === "at_risk"
+                    ? "bg-orange-100 text-orange-800"
+                    : mr.overallStatus === "critical"
+                      ? "bg-red-100 text-red-800"
+                      : "bg-gray-100 text-gray-600"
+              }`}>
+              {mr.overallStatus === "on_track"
+                ? "🟢 On Track"
+                : mr.overallStatus === "warning"
+                  ? "🟡 Warning"
+                  : mr.overallStatus === "at_risk"
+                    ? "🟠 At Risk"
+                    : mr.overallStatus === "critical"
+                      ? "🔴 Critical"
+                      : "⚪ Gray"
+              }
+            </span>
+          </div>
+
+          <div className={`absolute right-4 top-14 w-6 h-6 rounded-full flex items-center justify-center text-gray-400 transition-all duration-300 ${isExpanded ? 'rotate-180 text-yellow-600 bg-yellow-100' : 'bg-gray-50'}`}>
+             ▼
+          </div>
+
+          {/* Rate chips: HCO · PH · HCP */}
+          <div className="flex gap-2 flex-wrap mb-3 w-[85%]">
+            {[
+              {
+                icon: "🏥",
+                label: "HCO",
+                rate: mr.hcoActualRate,
+                target: targets?.hcoPerDay,
+                color: "text-green-700",
+              },
+              {
+                icon: "💊",
+                label: "PH",
+                rate: mr.phActualRate,
+                target: targets?.phPerDay,
+                color: "text-purple-700",
+              },
+              {
+                icon: "👤",
+                label: "HCP",
+                rate: mr.hcpActualRate,
+                target: targets?.hcpPerDay,
+                color: "text-blue-700",
+              },
+            ].map(chip => {
+              const pct = chip.target
+                ? Math.round((chip.rate / chip.target) * 100)
+                : null;
+              return (
+                <div key={chip.label}
+                  className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-1 flex-1 min-w-[75px] shadow-[0_2px_4px_-1px_rgba(0,0,0,0.03)]">
+                  <span className="text-sm">{chip.icon}</span>
+                  <span className="text-[10px] text-gray-500">{chip.label}:</span>
+                  <span className={`text-xs font-bold
+                    ${pct === null
+                      ? "text-gray-400"
+                      : pct >= 100
+                        ? "text-green-700"
+                        : pct >= 90
+                          ? "text-yellow-600"
+                          : "text-red-600"
+                    }`}>
+                    {chip.rate}/d
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Stats row */}
+          <div className="flex items-center justify-between text-xs text-gray-500 border-t border-gray-100 pt-2">
+            <span>
+              📊 {mr.totalVisits} visits · {mr.workedDays} days
+            </span>
+            {/* Coaching mini tag */}
+            {isCoached && (
+              <span className="flex items-center gap-1 text-[10px] font-semibold text-yellow-700 bg-yellow-100 px-1.5 py-0.5 rounded-full">
+                🎓 {mr.coachingDays}d coached
+              </span>
+            )}
+          </div>
+        </div>
       </button>
 
       {/* ── EXPANDED CONTENT ── */}
       {isExpanded && (
-        <div className="px-6 pb-8 space-y-6 animate-in slide-in-from-top-4 duration-300">
-           <div className="bg-gray-50/50 rounded-[2rem] p-6 space-y-6 border-2 border-gray-50">
+        <div className={`px-5 pb-6 pt-2 space-y-6 animate-in slide-in-from-top-4 duration-300 ${isCoached ? "bg-yellow-50/20" : "bg-white"}`}>
+           <div className="bg-gray-50/50 rounded-2xl p-5 space-y-5 border border-gray-100">
               <h6 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-2">
                 <TrendingUp size={14}/> Period Volume Breakdown
               </h6>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                  {[
                    { label: "🏥 HCO", period: "Sat–Thu", days: mr.hcoDays, calls: mr.totalHCO, rate: mr.hcoRate, type: "HCO" },
                    { label: "💊 PH",  period: "Sat–Thu", days: mr.phDays,  calls: mr.totalPH,  rate: mr.phRate,  type: "PH" },
@@ -205,74 +291,71 @@ const MRCard = ({ mr, isExpanded, onToggle, targets, onOpenCalendar }) => {
                  ].map(({ label, period, days, calls, rate, type }) => {
                    const { variant, icon } = getMetricVariant(rate, type);
                    return (
-                     <div key={label} className={`rounded-3xl border-2 p-4 text-center shadow-lg transition-all hover:translate-y-[-4px] ${variant}`}>
+                     <div key={label} className={`rounded-xl border p-3 text-center transition-all hover:translate-y-[-2px] ${variant}`}>
                         <p className="text-[11px] font-black uppercase tracking-tight">{label}</p>
-                        <p className="text-[9px] font-bold opacity-60 uppercase mb-2">{period}</p>
-                        <p className="text-2xl font-black">{calls}</p>
-                        <p className="text-[10px] font-black uppercase opacity-60 mb-2">Total Visits</p>
-                        <div className="h-px w-8 bg-current mx-auto opacity-20 mb-3"></div>
-                        <p className="text-sm font-black italic">{rate}<span className="text-[9px] uppercase opacity-60 ml-1">v/d</span> {icon}</p>
-                        <p className="text-[9px] font-black uppercase opacity-40 mt-1">{days} Active Days</p>
+                        <p className="text-2xl font-black mt-1 mb-1">{calls}</p>
+                        <div className="h-px w-8 bg-current mx-auto opacity-20 mb-2"></div>
+                        <p className="text-[11px] font-black italic">{rate}<span className="text-[9px] uppercase opacity-60 ml-0.5">v/d</span> {icon}</p>
+                        <p className="text-[9px] font-black uppercase opacity-40 mt-1">{days} Act. Days</p>
                      </div>
                    );
                  })}
               </div>
 
-              <div className="bg-yellow-400 rounded-3xl p-6 shadow-xl shadow-yellow-100 flex items-center justify-between group/coach">
+              <div className="bg-yellow-400 rounded-2xl p-5 shadow-sm shadow-yellow-100 flex items-center justify-between group/coach">
                  <div>
                     <h5 className="text-[11px] font-black text-black uppercase tracking-widest flex items-center gap-2">
                        <GraduationCap size={16}/> Coaching Insight
                     </h5>
-                    <p className="text-[10px] font-bold text-black/60 mt-1 uppercase">Field Supervision Intensity</p>
-                    <div className="flex gap-4 mt-6">
+                    <div className="flex gap-4 mt-4">
                        <div className="text-center">
-                          <p className="text-2xl font-black text-black">{mr.totalCoached}</p>
-                          <p className="text-[8px] font-black uppercase text-black/40">Total Coached</p>
+                          <p className="text-xl font-black text-black">{mr.totalCoached}</p>
+                          <p className="text-[8px] font-black uppercase text-black/50">Total Coached</p>
                        </div>
-                       <div className="w-px h-10 bg-black/10"></div>
+                       <div className="w-px h-8 bg-black/10 mt-1"></div>
                        <div className="grid grid-cols-3 gap-3">
                           <div className="text-center">
                              <p className="text-sm font-black text-black">{mr.hcoCoached}</p>
-                             <p className="text-[8px] font-black uppercase text-black/40">HCO</p>
+                             <p className="text-[8px] font-black uppercase text-black/50">HCO</p>
                           </div>
                           <div className="text-center">
                              <p className="text-sm font-black text-black">{mr.phCoached}</p>
-                             <p className="text-[8px] font-black uppercase text-black/40">PH</p>
+                             <p className="text-[8px] font-black uppercase text-black/50">PH</p>
                           </div>
                           <div className="text-center">
                              <p className="text-sm font-black text-black">{mr.hcpCoached}</p>
-                             <p className="text-[8px] font-black uppercase text-black/40">HCP</p>
+                             <p className="text-[8px] font-black uppercase text-black/50">HCP</p>
                           </div>
                        </div>
                     </div>
                  </div>
-                 <div className="w-20 h-20 bg-black rounded-2xl flex items-center justify-center text-white shadow-2xl rotate-3 group-hover/coach:rotate-0 transition-transform">
-                    <span className="text-3xl font-black leading-none">{mr.coachingDays}</span>
-                    <span className="text-[8px] font-black absolute bottom-2 opacity-50 uppercase">Days</span>
+                 <div className="w-16 h-16 bg-black rounded-xl flex items-center justify-center text-white shadow-md rotate-3 group-hover/coach:rotate-0 transition-transform relative">
+                    <span className="text-2xl font-black leading-none">{mr.coachingDays}</span>
+                    <span className="text-[7px] font-black absolute bottom-1.5 opacity-60 uppercase tracking-widest">Days</span>
                  </div>
               </div>
            </div>
 
            <MRCardSearch mr={mr} />
 
-           <div className="flex flex-col sm:flex-row gap-3 pt-4">
+           <div className="flex flex-col sm:flex-row gap-2 pt-2">
               <button
                 onClick={e => {
                   e.stopPropagation();
                   onOpenCalendar();
                 }}
-                className="flex-1 flex items-center justify-center gap-3 py-5 bg-gray-900 text-white rounded-3xl font-black text-[11px] uppercase tracking-widest hover:bg-black transition-all shadow-xl shadow-gray-200 active:scale-95"
+                className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-gray-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all shadow-sm active:scale-95"
               >
-                 <Calendar size={18}/> Access Calendar
+                 <Calendar size={14}/> Calendar
               </button>
               <button
                 onClick={e => {
                   e.stopPropagation();
                   document.getElementById('section-forecast')?.scrollIntoView({ behavior: 'smooth' });
                 }}
-                className="flex-1 flex items-center justify-center gap-3 py-5 bg-white text-gray-900 border-2 border-gray-100 rounded-3xl font-black text-[11px] uppercase tracking-widest hover:border-yellow-400 hover:shadow-lg transition-all active:scale-95"
+                className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-white text-gray-900 border border-gray-200 rounded-xl font-black text-[10px] uppercase tracking-widest hover:border-yellow-400 hover:shadow-sm transition-all active:scale-95"
               >
-                 Analysis & Forecast
+                 Forecast
               </button>
            </div>
         </div>
@@ -300,7 +383,13 @@ const MRCardsGrid = ({ data, targets, mrStats, onSelectMRForCalendar }) => {
          overallAch = mr.totalCalls; 
       }
 
-      return { ...mr, overallAch };
+      let overallStatus = "gray";
+      if (overallAch >= 100) overallStatus = "on_track";
+      else if (overallAch >= 90) overallStatus = "warning";
+      else if (overallAch >= 70) overallStatus = "at_risk";
+      else if (overallAch > 0) overallStatus = "critical";
+
+      return { ...mr, overallAch, overallStatus };
     });
 
     if (sortBy === 'performance') parsed.sort((a,b) => b.overallAch - a.overallAch);

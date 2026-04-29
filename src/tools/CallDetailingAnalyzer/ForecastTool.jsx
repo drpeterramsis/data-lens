@@ -93,6 +93,109 @@ const ForecastTool = ({ data, targets, mrStats }) => {
   const [forecastResults, setForecastResults] = useState([]);
   const [isCalculated, setIsCalculated] = useState(false);
 
+  // Sorting state
+  const [sortConfig, setSortConfig] = useState({
+    key:       null,   // column key string
+    direction: "asc",  // "asc" | "desc"
+  });
+
+  const toggleSort = (key) => {
+    setSortConfig(prev => {
+      if (prev.key !== key)
+        return { key, direction: "asc" };
+      if (prev.direction === "asc")
+        return { key, direction: "desc" };
+      return { key: null, direction: "asc" };
+    });
+  };
+
+  const getSortValue = (row, key) => {
+    const v = row[key];
+
+    // null / undefined → push to bottom
+    if (v === null || v === undefined || v === "")
+      return null;
+
+    // Date string "YYYY-MM-DD"
+    if (
+      typeof v === "string" &&
+      /^\d{4}-\d{2}-\d{2}$/.test(v)
+    ) return v;
+
+    // Number
+    if (typeof v === "number") return v;
+
+    // Numeric string
+    const n = Number(v);
+    if (!Number.isNaN(n)) return n;
+
+    // Fallback string
+    return String(v).toLowerCase();
+  };
+
+  const sortedForecastRows = useMemo(() => {
+    if (!forecastResults?.length)
+      return forecastResults ?? [];
+
+    const { key, direction } = sortConfig;
+    if (!key) return forecastResults;
+
+    const dir = direction === "asc" ? 1 : -1;
+
+    return [...forecastResults].sort((a, b) => {
+      const va = getSortValue(a, key);
+      const vb = getSortValue(b, key);
+
+      if (va === null && vb === null) return 0;
+      if (va === null) return 1;
+      if (vb === null) return -1;
+
+      if (va < vb) return -1 * dir;
+      if (va > vb) return 1 * dir;
+      return 0;
+    });
+  }, [forecastResults, sortConfig]);
+
+  const SortIcon = ({ colKey }) => {
+    if (sortConfig.key !== colKey)
+      return (
+        <span className="text-gray-400 text-[9px] ml-0.5 inline-block">
+          ↕
+        </span>
+      );
+    return sortConfig.direction === "asc"
+      ? (
+        <span className="text-gray-900 text-[9px] ml-0.5 inline-block">
+          ▲
+        </span>
+      ) : (
+        <span className="text-gray-900 text-[9px] ml-0.5 inline-block">
+          ▼
+        </span>
+      );
+  };
+
+  const SortableTH = ({
+    colKey, children,
+    className = ""
+  }) => (
+    <th
+      onClick={() => toggleSort(colKey)}
+      className={`
+        p-2 text-center cursor-pointer select-none whitespace-nowrap
+        hover:bg-gray-200 transition-colors active:bg-gray-300
+        ${sortConfig.key === colKey
+          ? "bg-yellow-50 text-gray-900"
+          : "text-gray-600"
+        }
+        ${className}
+      `}>
+      {children}
+      <SortIcon colKey={colKey} />
+    </th>
+  );
+
+
   // Set default end date to last day of the month based on the latest report date
   useEffect(() => {
     let maxDateStr = "";
@@ -467,26 +570,33 @@ const ForecastTool = ({ data, targets, mrStats }) => {
                                <th colSpan="4" className="p-2 text-center border-l-2 border-gray-500">👤 HCP (Target: {targets?.hcpPerDay || 9}/day)</th>
                             </tr>
                             <tr className="bg-gray-100 text-xs text-gray-600 font-semibold">
-                               <th className="p-2 text-left sticky left-0 bg-gray-100 border-b border-gray-200 z-10">Name</th>
+                               <SortableTH
+                                 colKey="mrName"
+                                 className="text-left sticky left-0 bg-gray-100 border-b border-r border-gray-200 z-10">
+                                 Name
+                               </SortableTH>
+
                                {/* HCO */}
-                               <th className="p-2 text-center border-l border-gray-300 border-b border-gray-200">Done</th>
-                               <th className="p-2 text-center border-b border-gray-200">Days</th>
-                               <th className="p-2 text-center border-b border-gray-200">Rate/d</th>
-                               <th className="p-2 text-center border-b border-gray-200">Required/d</th>
+                               <SortableTH colKey="hcoDone" className="border-l border-gray-300 border-b border-gray-200">Done</SortableTH>
+                               <SortableTH colKey="hcoWorkedDays" className="border-b border-gray-200">Days</SortableTH>
+                               <SortableTH colKey="hcoActualRate" className="border-b border-gray-200">Rate/d</SortableTH>
+                               <SortableTH colKey="hcoRequired" className="border-b border-gray-200">Required/d</SortableTH>
+
                                {/* PH */}
-                               <th className="p-2 text-center border-l-2 border-gray-300 border-b border-gray-200">Done</th>
-                               <th className="p-2 text-center border-b border-gray-200">Days</th>
-                               <th className="p-2 text-center border-b border-gray-200">Rate/d</th>
-                               <th className="p-2 text-center border-b border-gray-200">Required/d</th>
+                               <SortableTH colKey="phDone" className="border-l-2 border-gray-300 border-b border-gray-200">Done</SortableTH>
+                               <SortableTH colKey="phWorkedDays" className="border-b border-gray-200">Days</SortableTH>
+                               <SortableTH colKey="phActualRate" className="border-b border-gray-200">Rate/d</SortableTH>
+                               <SortableTH colKey="phRequired" className="border-b border-gray-200">Required/d</SortableTH>
+
                                {/* HCP */}
-                               <th className="p-2 text-center border-l-2 border-gray-300 border-b border-gray-200">Done</th>
-                               <th className="p-2 text-center border-b border-gray-200">Days</th>
-                               <th className="p-2 text-center border-b border-gray-200">Rate/d</th>
-                               <th className="p-2 text-center border-b border-gray-200">Required/d</th>
+                               <SortableTH colKey="hcpDone" className="border-l-2 border-gray-300 border-b border-gray-200">Done</SortableTH>
+                               <SortableTH colKey="hcpWorkedDays" className="border-b border-gray-200">Days</SortableTH>
+                               <SortableTH colKey="hcpActualRate" className="border-b border-gray-200">Rate/d</SortableTH>
+                               <SortableTH colKey="hcpRequired" className="border-b border-gray-200">Required/d</SortableTH>
                             </tr>
                          </thead>
                          <tbody className="divide-y divide-gray-100">
-                            {forecastResults.map((row, i) => {
+                            {sortedForecastRows.map((row, i) => {
                                if (row.skipped) return null;
                                
                                const hcoTarget = targets?.hcoPerDay || 2;

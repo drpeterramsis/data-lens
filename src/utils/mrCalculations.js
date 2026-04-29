@@ -139,10 +139,13 @@ export const calculateMRStats = (filteredRows) => {
     const hcpRate = hcpDates.length
       ? +(totalHCP / hcpDates.length).toFixed(1) : 0;
 
-    // Coaching days = dates with >= 4 coached visits
+    // Coaching days = ANY day with at least 1 coached visit
     const coachingDaysList = allDates.filter(d =>
-      dateMap[d].coached >= 4
+      dateMap[d].coached >= 1
     );
+
+    const coachingDays = coachingDaysList.length;
+    const coachedVisits = totalCoached;
 
     const lastDate = allDates[allDates.length-1] ?? "";
     const fromDate = allDates[0] ?? "";
@@ -154,7 +157,8 @@ export const calculateMRStats = (filteredRows) => {
       hcoDays:       hcoDates.length,
       phDays:        phDates.length,
       hcpDays:       hcpDates.length,
-      coachingDays:  coachingDaysList.length,
+      coachingDays,
+      coachedVisits,
       coachingDates: coachingDaysList,
       totalCoached,
       hcoCoached, phCoached, hcpCoached,
@@ -163,6 +167,11 @@ export const calculateMRStats = (filteredRows) => {
       dateMap,
       allDates,
       totalCalls: totalHCO + totalPH + totalHCP,
+      workedDays: allDates.length, // Add total working days for display 'mr.workedDays'
+      totalVisits: totalHCO + totalPH + totalHCP, // Same as totalCalls for prompt compatibility
+      hcoActualRate: hcoRate, // aliases for the prompt card
+      phActualRate: phRate,
+      hcpActualRate: hcpRate,
     };
   });
 };
