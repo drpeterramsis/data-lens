@@ -25,7 +25,7 @@ import { saveAs } from 'file-saver';
 
 // --- VERSION ---
 const ROUTING_VERSION = {
-  version: '1.0.432',
+  version: '1.0.433',
   releaseDate: 'Jun 2025',
   label: 'Advanced Routing Analysis Engine — Local Storage & Multi-file'
 };
@@ -88,20 +88,39 @@ const getStatus = (planned, reported) => {
 };
 
 const getStatusBadge = (status) => {
-  switch (status) {
-    case 'Fully Covered':
-      return <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[10px] font-black uppercase tracking-tighter flex items-center gap-1"><CheckCircle2 size={10}/> Fully Covered</span>;
-    case 'Partial':
-      return <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-black uppercase tracking-tighter flex items-center gap-1">🟡 Partial</span>;
-    case 'Not Visited':
-      return <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-[10px] font-black uppercase tracking-tighter flex items-center gap-1"><AlertCircle size={10}/> Not Visited</span>;
-    case 'Extra':
-      return <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 text-[10px] font-black uppercase tracking-tighter flex items-center gap-1"><Star size={10}/> Extra</span>;
-    case 'Not Planned':
-      return <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-black uppercase tracking-tighter flex items-center gap-1"><PlusCircle size={10}/> Not Planned</span>;
-    default:
-      return <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 text-[10px] font-black uppercase tracking-tighter">⬜ Inactive</span>;
-  }
+  const styles = {
+    'Fully Covered': 
+      'bg-green-100 text-green-700 ' +
+      'border-green-200',
+    'Partial':       
+      'bg-amber-100 text-amber-700 ' +
+      'border-amber-200',
+    'Not Visited':   
+      'bg-red-100 text-red-600 ' +
+      'border-red-200',
+    'Extra':         
+      'bg-purple-100 text-purple-700 ' +
+      'border-purple-200',
+    'Not Planned':   
+      'bg-blue-100 text-blue-600 ' +
+      'border-blue-200',
+    'Inactive':      
+      'bg-gray-100 text-gray-400 ' +
+      'border-gray-200',
+  };
+  const icons = {
+    'Fully Covered': '✅',
+    'Partial':       '🟡',
+    'Not Visited':   '❌',
+    'Extra':         '⭐',
+    'Not Planned':   '🆕',
+    'Inactive':      '⬜',
+  };
+  return (
+    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-black border ${styles[status] || styles['Inactive']}`}>
+      {icons[status] || '⬜'} {status}
+    </span>
+  );
 };
 
 // --- COMPONENTS ---
@@ -137,6 +156,7 @@ const RoutingAnalyzer = () => {
   
   const [activeTab, setActiveTab] = useState('overview');
   const [searchQ, setSearchQ] = useState('');
+  const [mrSearch, setMrSearch] = useState('');
   const fileInputRef = useRef(null);
   const [sortKey, setSortKey] = useState('customerName');
   const [sortDir, setSortDir] = useState('asc');
@@ -333,10 +353,26 @@ const RoutingAnalyzer = () => {
   const sortedData = useMemo(() => {
     if (!filteredData.length) return [];
     return [...filteredData].sort((a, b) => {
-      const valA = a[sortKey];
-      const valB = b[sortKey];
-      if (valA < valB) return sortDir === 'asc' ? -1 : 1;
-      if (valA > valB) return sortDir === 'asc' ? 1 : -1;
+      let valA, valB;
+      
+      if (sortKey === '_status') {
+        valA = getStatus(a.totalPlanned, a.totalReported);
+        valB = getStatus(b.totalPlanned, b.totalReported);
+      } else {
+        valA = a[sortKey] ?? '';
+        valB = b[sortKey] ?? '';
+      }
+      
+      // Numeric sort for numbers
+      if (typeof valA === 'number' && typeof valB === 'number') {
+        return sortDir === 'asc' ? valA - valB : valB - valA;
+      }
+      
+      // String sort
+      const strA = String(valA).toLowerCase();
+      const strB = String(valB).toLowerCase();
+      if (strA < strB) return sortDir === 'asc' ? -1 : 1;
+      if (strA > strB) return sortDir === 'asc' ? 1 : -1;
       return 0;
     });
   }, [filteredData, sortKey, sortDir]);
@@ -351,26 +387,26 @@ const RoutingAnalyzer = () => {
 
   // Stats Calculations
   const stats = useMemo(() => {
-    // Always from rawData for header KPIs
-    const allCustomers  = rawData.length;
+    // Global raw counts (for info bar only)
+    const rawTotal = rawData.length;
     
-    // Deleted = both planned AND reported = 0
-    const deleted = rawData.filter(r =>
+    // ALL stats from filteredData
+    // so they respond to MR filter
+    const allCustomers  = filteredData.length;
+    
+    const deleted = filteredData.filter(r =>
       r.totalPlanned === 0 && 
       r.totalReported === 0
     ).length;
     
-    // Active = has any planned OR reported > 0
-    const active = rawData.filter(r =>
+    const active = filteredData.filter(r =>
       r.totalPlanned > 0 || r.totalReported > 0
     ).length;
 
-    // HCPs only (customerType === 'HCP')
-    const totalHCP = rawData.filter(r =>
+    const totalHCP = filteredData.filter(r =>
       (r.customerType || '').toUpperCase() === 'HCP'
     ).length;
 
-    // From filteredData for dynamic stats
     const totalPlanned = filteredData.reduce(
       (acc, r) => acc + r.totalPlanned, 0
     );
@@ -381,36 +417,30 @@ const RoutingAnalyzer = () => {
       ? (totalReported / totalPlanned * 100) 
       : 0;
 
-    // Uncovered = planned > 0 AND reported = 0
     const uncovered = filteredData.filter(r =>
       r.totalReported === 0 && r.totalPlanned > 0
     ).length;
 
-    // Fully reported = reported >= planned > 0
     const fullyCovered = filteredData.filter(r =>
       r.totalPlanned > 0 && 
       r.totalReported >= r.totalPlanned
     ).length;
 
-    // Partial = 0 < reported < planned
     const partial = filteredData.filter(r =>
       r.totalReported > 0 && 
       r.totalReported < r.totalPlanned
     ).length;
 
-    // Extra = reported > planned
     const extraVisits = filteredData.filter(r =>
       r.totalReported > r.totalPlanned
     ).length;
 
-    // Target met
     const targetMetCount = filteredData.filter(r =>
       r.totalPlanned > 0 &&
       r.totalReported >= 
         (gradeTargets[r.customerGrade] || 0)
     ).length;
 
-    // Type breakdown from filteredData
     const types = filteredData.reduce((acc, r) => {
       const t = r.customerType || 'Unknown';
       acc[t] = (acc[t] || 0) + 1;
@@ -418,17 +448,18 @@ const RoutingAnalyzer = () => {
     }, {});
 
     return {
-      allCustomers,   // total raw records
-      deleted,        // inactive (both 0)
-      active,         // has activity
-      totalHCP,       // HCP count from raw
+      rawTotal,
+      allCustomers,
+      deleted,
+      active,
+      totalHCP,
       totalPlanned,
       totalReported,
       coverage,
-      uncovered,      // not visited (planned>0, reported=0)
-      fullyCovered,   // reported >= planned
-      partial,        // partially visited
-      extraVisits,    // reported > planned
+      uncovered,
+      fullyCovered,
+      partial,
+      extraVisits,
       targetMetCount,
       types,
       // keep backward compat:
@@ -438,24 +469,56 @@ const RoutingAnalyzer = () => {
 
   // Export
   const handleExport = () => {
-    const csvData = filteredData.map(r => ({
-      'Customer ID': r.customerId,
-      'Customer Name': r.customerName,
-      'Type': r.customerType,
-      'Grade': r.customerGrade,
-      'Specialty': r.specialty,
-      'MR Name': r.mrName,
-      'Line': r.lineName,
-      'Planned': r.totalPlanned,
-      'Reported': r.totalReported,
-      'Coverage %': r.totalPlanned > 0 ? (r.totalReported / r.totalPlanned * 100).toFixed(1) + '%' : '0%',
-      'Status': getStatus(r.totalPlanned, r.totalReported),
-      'Missed Days': r.monthPlanned.filter(d => !r.monthReported.includes(d)).join(', ')
-    }));
+    // Export exactly what user sees:
+    // sortedData (filtered + toggled + searched
+    //             + sorted)
+    const dataToExport = sortedData.length > 0 
+      ? sortedData 
+      : filteredData;
+
+    const csvData = dataToExport.map((r, i) => {
+      const status = getStatus(r.totalPlanned, r.totalReported);
+      const missed = r.monthPlanned.filter(d => !r.monthReported.includes(d));
+      return {
+        '#': i + 1,
+        'Customer ID':   r.customerId,
+        'Customer Name': r.customerName,
+        'Type':          r.customerType,
+        'Grade':         r.customerGrade,
+        'Specialty':     r.specialty,
+        'MR Name':       r.mrName,
+        'Line':          r.lineName,
+        'Total Planned': r.totalPlanned,
+        'Total Reported':r.totalReported,
+        'Coverage %': r.totalPlanned > 0 
+          ? (r.totalReported / r.totalPlanned * 100).toFixed(1) + '%' 
+          : '0%',
+        'Status':        status,
+        'Planned Days':  r.monthPlanned.join(', '),
+        'Reported Days': r.monthReported.join(', '),
+        'Missed Days':   missed.join(', '),
+        'Days Interval': r.daysInterval,
+      };
+    });
 
     const csvContent = Papa.unparse(csvData);
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    saveAs(blob, `Routing_Report_${reportMonth}_${reportYear}.csv`);
+    const blob = new Blob(
+      [csvContent], 
+      { type: 'text/csv;charset=utf-8;' }
+    );
+    
+    // Filename includes active filters info
+    const mrTag = filters.mrName.length > 0 
+      ? `_${filters.mrName[0].split(' ')[0]}` 
+      : '';
+    const toggleTag = quickVisitFilter !== 'all'
+      ? `_${quickVisitFilter}`
+      : '';
+    
+    saveAs(
+      blob, 
+      `Routing_${reportMonth}_${reportYear}${mrTag}${toggleTag}_${dataToExport.length}records.csv`
+    );
   };
 
   const handleToggleFilter = (key, val) => {
@@ -565,9 +628,38 @@ const RoutingAnalyzer = () => {
                 </button>
               )}
             </div>
+            
+            {section.key === 'mrName' && (
+              <div className="relative mb-2">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-300" />
+                <input
+                  type="text"
+                  placeholder="Search MR..."
+                  value={mrSearch}
+                  onChange={e => setMrSearch(e.target.value)}
+                  className="w-full pl-8 pr-3 py-2 rounded-xl border border-gray-100 text-xs font-bold text-gray-700 bg-white focus:ring-2 focus:ring-yellow-400/20 focus:border-yellow-400 placeholder:text-gray-300 transition-all"
+                />
+                {mrSearch && (
+                  <button
+                    onClick={() => setMrSearch('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2"
+                  >
+                    <X className="w-3 h-3 text-gray-300 hover:text-red-400" />
+                  </button>
+                )}
+              </div>
+            )}
+
             <div className="space-y-1 max-h-48 overflow-y-auto scrollbar-thin pr-2 bg-gray-50/50 rounded-2xl p-2 border border-gray-100/50">
-              {section.options.map(opt => (
-                <label key={opt} className="flex items-center gap-3 p-2 rounded-xl hover:bg-white cursor-pointer group transition-all hover:shadow-sm">
+              {section.options
+                .filter(opt => {
+                  if (section.key === 'mrName' && mrSearch.trim()) {
+                    return opt.toLowerCase().includes(mrSearch.toLowerCase());
+                  }
+                  return true;
+                })
+                .map(opt => (
+                <label key={opt} className={`flex items-center gap-3 p-2 rounded-xl cursor-pointer group transition-all hover:shadow-sm ${filters[section.key].includes(opt) ? 'bg-yellow-50 border-yellow-200 border' : 'hover:bg-white border border-transparent'}`}>
                   <div className={`w-4 h-4 rounded-lg border-2 flex items-center justify-center flex-shrink-0 transition-all ${filters[section.key].includes(opt) ? 'bg-yellow-400 border-yellow-400' : 'border-gray-200 group-hover:border-yellow-300 bg-white'}`}>
                     {filters[section.key].includes(opt) && <CheckCircle2 size={10} className="text-black" />}
                   </div>
@@ -577,7 +669,10 @@ const RoutingAnalyzer = () => {
                     checked={filters[section.key].includes(opt)}
                     onChange={() => handleToggleFilter(section.key, opt)}
                   />
-                  <span className="text-[11px] font-bold text-gray-600 group-hover:text-gray-900 truncate uppercase flex-1">{opt}</span>
+                  <span className={`text-[11px] font-bold truncate uppercase flex-1 ${filters[section.key].includes(opt) ? 'text-yellow-800' : 'text-gray-600 group-hover:text-gray-900'}`}>{opt}</span>
+                  <span className="text-[9px] text-gray-400 font-bold ml-auto">
+                    {rawData.filter(r => r[section.key] === opt).length}
+                  </span>
                 </label>
               ))}
             </div>
@@ -598,110 +693,101 @@ const RoutingAnalyzer = () => {
   );
 
   const renderKPIs = () => (
-  <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-2 mb-4">
-    {[
-      {
-        label: 'All HCPs',
-        value: stats.totalHCP.toLocaleString(),
-        icon: '👨⚕️',
-        color: 'text-blue-700',
-        bg:    'bg-blue-50',
-        border:'border-blue-100',
-      },
-      {
-        label: 'Active',
-        value: stats.active.toLocaleString(),
-        icon: '✅',
-        color: 'text-emerald-700',
-        bg:    'bg-emerald-50',
-        border:'border-emerald-100',
-      },
-      {
-        label: 'Deleted',
-        value: stats.deleted.toLocaleString(),
-        icon: '🗑️',
-        color: 'text-gray-500',
-        bg:    'bg-gray-50',
-        border:'border-gray-200',
-      },
-      {
-        label: 'Planned',
-        value: stats.totalPlanned.toLocaleString(),
-        icon: '📋',
-        color: 'text-gray-700',
-        bg:    'bg-gray-50',
-        border:'border-gray-100',
-      },
-      {
-        label: 'Reported',
-        value: stats.totalReported.toLocaleString(),
-        icon: '📝',
-        color: 'text-green-600',
-        bg:    'bg-green-50',
-        border:'border-green-100',
-      },
-      {
-        label: 'Coverage',
-        value: `${stats.coverage.toFixed(1)}%`,
-        icon: '🎯',
-        color: stats.coverage >= 80 
-          ? 'text-emerald-600' 
-          : stats.coverage >= 50 
-            ? 'text-amber-500' 
-            : 'text-red-500',
-        bg: stats.coverage >= 80 
-          ? 'bg-emerald-50' 
-          : stats.coverage >= 50 
-            ? 'bg-amber-50' 
-            : 'bg-red-50',
-        border: stats.coverage >= 80 
-          ? 'border-emerald-100' 
-          : stats.coverage >= 50 
-            ? 'border-amber-100' 
-            : 'border-red-100',
-      },
-      {
-        label: 'Full',
-        value: stats.fullyCovered.toLocaleString(),
-        icon: '💚',
-        color: 'text-green-700',
-        bg:    'bg-green-50',
-        border:'border-green-100',
-      },
-      {
-        label: 'Partial',
-        value: stats.partial.toLocaleString(),
-        icon: '🟡',
-        color: 'text-amber-600',
-        bg:    'bg-amber-50',
-        border:'border-amber-100',
-      },
-      {
-        label: 'Not Visited',
-        value: stats.uncovered.toLocaleString(),
-        icon: '❌',
-        color: 'text-red-600',
-        bg:    'bg-red-50',
-        border:'border-red-100',
-      },
-    ].map((card, i) => (
-      <div
-        key={i}
-        className={`${card.bg} border ${card.border} rounded-xl p-2.5 flex flex-col gap-0.5`}
-      >
-        <span className="text-base leading-none">
-          {card.icon}
-        </span>
-        <p className={`text-lg font-black leading-none mt-1 ${card.color}`}>
-          {card.value}
-        </p>
-        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider leading-tight">
-          {card.label}
-        </p>
-      </div>
-    ))}
-  </div>
-);
+    <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-2 mb-4">
+      {[
+        {
+          label: 'All HCPs',
+          value: stats.totalHCP.toLocaleString(),
+          icon: '👨⚕️',
+          color: 'text-blue-700',
+          bg:    'bg-blue-50',
+          border:'border-blue-100',
+        },
+        {
+          label: 'Active',
+          value: stats.active.toLocaleString(),
+          icon: '✅',
+          color: 'text-emerald-700',
+          bg:    'bg-emerald-50',
+          border:'border-emerald-100',
+        },
+        {
+          label: 'Deleted',
+          value: stats.deleted.toLocaleString(),
+          icon: '🗑️',
+          color: 'text-gray-500',
+          bg:    'bg-gray-50',
+          border:'border-gray-200',
+        },
+        {
+          label: 'Planned',
+          value: stats.totalPlanned.toLocaleString(),
+          icon: '📋',
+          color: 'text-gray-700',
+          bg:    'bg-gray-50',
+          border:'border-gray-100',
+        },
+        {
+          label: 'Reported',
+          value: stats.totalReported.toLocaleString(),
+          icon: '📝',
+          color: 'text-green-600',
+          bg:    'bg-green-50',
+          border:'border-green-100',
+        },
+        {
+          label: 'Coverage',
+          value: `${stats.coverage.toFixed(1)}%`,
+          icon: '🎯',
+          color: stats.coverage >= 80 
+            ? 'text-emerald-600' 
+            : stats.coverage >= 50 
+              ? 'text-amber-500' 
+              : 'text-red-500',
+          bg: stats.coverage >= 80 
+            ? 'bg-emerald-50' 
+            : stats.coverage >= 50 
+              ? 'bg-amber-50' 
+              : 'bg-red-50',
+          border: stats.coverage >= 80 
+            ? 'border-emerald-100' 
+            : stats.coverage >= 50 
+              ? 'border-amber-100' 
+              : 'border-red-100',
+        },
+        {
+          label: 'Full',
+          value: stats.fullyCovered.toLocaleString(),
+          icon: '💚',
+          color: 'text-green-700',
+          bg:    'bg-green-50',
+          border:'border-green-100',
+        },
+        {
+          label: 'Partial',
+          value: stats.partial.toLocaleString(),
+          icon: '🟡',
+          color: 'text-amber-600',
+          bg:    'bg-amber-50',
+          border:'border-amber-100',
+        },
+        {
+          label: 'Not Visited',
+          value: stats.uncovered.toLocaleString(),
+          icon: '❌',
+          color: 'text-red-600',
+          bg:    'bg-red-50',
+          border:'border-red-100',
+        },
+      ].map((card, i) => (
+        <div key={i} className={`${card.bg} border ${card.border} rounded-xl p-2.5 flex flex-col gap-0.5`}>
+          <span className="text-base leading-none">{card.icon}</span>
+          <p className={`text-lg font-black leading-none mt-1 ${card.color}`}>{card.value}</p>
+          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider leading-tight">{card.label}</p>
+        </div>
+      ))}
+    </div>
+  );
 
   const renderOverview = () => {
     // Basic Distribution Logic
@@ -974,6 +1060,27 @@ const RoutingAnalyzer = () => {
     );
   };
 
+  const SortIcon = ({ col }) => {
+    if (sortKey !== col) return (
+      <span className="opacity-30 ml-1">⇅</span>
+    );
+    return (
+      <span className="ml-1 text-yellow-400">
+        {sortDir === 'asc' ? '↑' : '↓'}
+      </span>
+    );
+  };
+
+  const handleSort = (col) => {
+    if (sortKey === col) {
+      setSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(col);
+      setSortDir('asc');
+    }
+    setCurrentPage(1);
+  };
+
   const renderCustomerList = () => (
     <div className="bg-white rounded-3xl border shadow-sm overflow-hidden flex flex-col pb-32">
       <div className="p-4 border-b bg-gray-50 flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -1006,73 +1113,98 @@ const RoutingAnalyzer = () => {
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse min-w-[1000px]">
-          <thead>
-            <tr className="bg-gray-50 border-b">
-              <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest cursor-pointer hover:text-accent transition-colors" onClick={() => {setSortKey('customerId'); setSortDir(sortDir === 'asc' ? 'desc' : 'asc')}}>ID</th>
-              <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest cursor-pointer hover:text-accent" onClick={() => {setSortKey('customerName'); setSortDir(sortDir === 'asc' ? 'desc' : 'asc')}}>Customer Name</th>
-              <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Grade</th>
-              <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Specialty</th>
-              <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">MR Name</th>
-              <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Planned</th>
-              <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Reported</th>
-              <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Planned Days</th>
-              <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Reported Days</th>
-              <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Interval</th>
-              <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {paginatedData.map(r => {
-              const status = getStatus(r.totalPlanned, r.totalReported);
-              const missed = r.monthPlanned.filter(d => !r.monthReported.includes(d));
-              
-              return (
-                <tr key={r.customerId} className="hover:bg-gray-50 transition-colors">
-                  <td className="p-4 font-mono text-[10px] font-bold text-gray-500 tracking-tighter">{r.customerId}</td>
-                  <td className="p-4 font-black text-gray-900 text-sm whitespace-nowrap">{r.customerName}</td>
-                  <td className="p-4 text-center">
-                     <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-700 font-black text-[10px] border border-gray-200">{r.customerGrade}</span>
-                  </td>
-                  <td className="p-4 text-xs font-bold text-gray-500 capitalize">{r.specialty}</td>
-                  <td className="p-4 text-xs font-bold text-gray-700">{r.mrName}</td>
-                  <td className="p-4 text-center font-black text-gray-600">{r.totalPlanned}</td>
-                  <td className="p-4 text-center font-black text-gray-900">{r.totalReported}</td>
-                  <td className="p-4">
-                    <div className="flex flex-wrap gap-1 max-w-[100px]">
-                      {r.monthPlanned.map(d => (
-                         <span key={d} className={`text-[9px] font-black rounded px-1 min-w-[16px] text-center ${r.monthReported.includes(d) ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-gray-50 text-gray-400 border border-gray-100'}`}>
-                           {d}
+      <div className="rounded-2xl border border-gray-100 overflow-hidden shadow-sm bg-white mx-4 my-2">
+        <div className="overflow-x-auto">
+          <div style={{ maxHeight: '60vh' }} className="overflow-y-auto scrollbar-thin">
+            <table className="w-full text-sm border-collapse min-w-[1000px]">
+              <thead className="sticky top-0 z-10">
+                <tr className="bg-gray-900 text-white">
+                  <th onClick={() => handleSort('customerId')} className="px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                    ID <SortIcon col="customerId" />
+                  </th>
+                  <th onClick={() => handleSort('customerName')} className="px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                    Name <SortIcon col="customerName" />
+                  </th>
+                  <th onClick={() => handleSort('customerGrade')} className="px-3 py-2.5 text-center text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                    Grade <SortIcon col="customerGrade" />
+                  </th>
+                  <th onClick={() => handleSort('specialty')} className="px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                    Specialty <SortIcon col="specialty" />
+                  </th>
+                  <th onClick={() => handleSort('mrName')} className="px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                    MR Name <SortIcon col="mrName" />
+                  </th>
+                  <th onClick={() => handleSort('totalPlanned')} className="px-3 py-2.5 text-center text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                    Planned <SortIcon col="totalPlanned" />
+                  </th>
+                  <th onClick={() => handleSort('totalReported')} className="px-3 py-2.5 text-center text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                    Reported <SortIcon col="totalReported" />
+                  </th>
+                  <th className="px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white">Planned Days</th>
+                  <th className="px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white">Reported Days</th>
+                  <th onClick={() => handleSort('daysInterval')} className="px-3 py-2.5 text-center text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                    Interval <SortIcon col="daysInterval" />
+                  </th>
+                  <th onClick={() => handleSort('_status')} className="px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                    Status <SortIcon col="_status" />
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {paginatedData.map((r, i) => {
+                  const status = getStatus(r.totalPlanned, r.totalReported);
+                  const missed = r.monthPlanned.filter(d => !r.monthReported.includes(d));
+                  
+                  return (
+                    <tr key={r.customerId} className={i % 2 === 0 ? 'bg-white hover:bg-yellow-50/30 transition-colors' : 'bg-gray-50/50 hover:bg-yellow-50/30 transition-colors'}>
+                      <td className="px-2.5 py-1 text-[10px] font-mono font-bold text-gray-500 tracking-tighter border-b border-gray-50 whitespace-nowrap">{r.customerId}</td>
+                      <td className="px-2.5 py-1 text-[11px] text-gray-800 font-semibold border-b border-gray-50 max-w-[180px] truncate" title={r.customerName}>{r.customerName}</td>
+                      <td className="px-2.5 py-1 text-center border-b border-gray-50 whitespace-nowrap">
+                         <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-black border ${
+                            r.customerGrade === 'A+' ? 'bg-purple-50 text-purple-700 border-purple-100' :
+                            r.customerGrade === 'A' ? 'bg-blue-50 text-blue-700 border-blue-100' :
+                            r.customerGrade === 'B' ? 'bg-green-50 text-green-700 border-green-100' :
+                            'bg-gray-50 text-gray-600 border-gray-200'
+                         }`}>
+                           {r.customerGrade}
                          </span>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex flex-wrap gap-1 max-w-[100px]">
-                      {r.monthReported.map(d => (
-                         <span key={d} className={`text-[9px] font-black rounded px-1 min-w-[16px] text-center ${r.monthPlanned.includes(d) ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-blue-100 text-blue-700 border border-blue-200'}`}>
-                           {d}
-                         </span>
-                      ))}
-                      {missed.length > 0 && (
-                        <div className="w-full flex flex-wrap gap-1 mt-1 border-t border-red-50 pt-1">
+                      </td>
+                      <td className="px-2.5 py-1 text-[11px] text-gray-500 capitalize border-b border-gray-50 whitespace-nowrap">{r.specialty}</td>
+                      <td className="px-2.5 py-1 text-[11px] text-gray-700 border-b border-gray-50 whitespace-nowrap">{r.mrName}</td>
+                      <td className="px-2.5 py-1 text-center font-black text-gray-600 border-b border-gray-50 whitespace-nowrap">{r.totalPlanned}</td>
+                      <td className="px-2.5 py-1 text-center font-black text-gray-900 border-b border-gray-50 whitespace-nowrap">{r.totalReported}</td>
+                      <td className="px-2.5 py-1 border-b border-gray-50">
+                        <div className="flex flex-wrap gap-0.5 max-w-[120px]">
+                          {r.monthPlanned.map(d => (
+                             <span key={d} className="inline-block px-1 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-black border border-blue-100">
+                               {d}
+                             </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="px-2.5 py-1 border-b border-gray-50">
+                        <div className="flex flex-wrap gap-0.5 max-w-[120px]">
+                          {r.monthReported.map(d => (
+                             <span key={d} className="inline-block px-1 py-0.5 bg-green-50 text-green-600 rounded text-[9px] font-black border border-green-100">
+                               {d}
+                             </span>
+                          ))}
                           {missed.map(d => (
-                            <span key={d} className="text-[9px] font-bold text-red-500 line-through opacity-60">
+                            <span key={`m_${d}`} className="inline-block px-1 py-0.5 bg-red-50 text-red-500 rounded text-[9px] font-black border border-red-100 line-through">
                               {d}
                             </span>
                           ))}
                         </div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="p-4 text-center text-xs font-bold text-gray-400">{r.daysInterval}d</td>
-                  <td className="p-4">{getStatusBadge(status)}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                      </td>
+                      <td className="px-2.5 py-1 text-center text-[11px] font-bold text-gray-400 border-b border-gray-50 whitespace-nowrap">{r.daysInterval}d</td>
+                      <td className="px-2.5 py-1 border-b border-gray-50 whitespace-nowrap">{getStatusBadge(status)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       {totalPages > 1 && (
@@ -1306,7 +1438,7 @@ const RoutingAnalyzer = () => {
               className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-50 transition-all hover:-translate-y-0.5 shadow-sm"
             >
               <Download className="w-4 h-4" />
-              Export
+              Export ({sortedData.length})
             </button>
           )}
 
@@ -1364,7 +1496,7 @@ const RoutingAnalyzer = () => {
             <div className="flex items-center gap-5">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Dataset:</span>
-                <span className="text-[11px] font-black text-gray-800">{rawData.length.toLocaleString()} records</span>
+                <span className="text-[11px] font-black text-gray-800">{stats.rawTotal.toLocaleString()} records</span>
               </div>
               <div className="h-4 w-px bg-gray-200" />
               <div className="flex items-center gap-2">
@@ -1379,7 +1511,7 @@ const RoutingAnalyzer = () => {
             </div>
             <div className="flex items-center gap-3">
                <span className="text-[10px] text-gray-400 font-bold bg-gray-50 px-2 py-0.5 rounded border">
-                 Showing <span className="text-gray-900 font-black">{filteredData.length.toLocaleString()}</span> nodes
+                 Showing <span className="text-gray-900 font-black">{stats.allCustomers.toLocaleString()}</span> nodes
                </span>
             </div>
           </div>
