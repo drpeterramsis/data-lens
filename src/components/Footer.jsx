@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { useNavigate } from "react-router-dom";
 import { useAuth } from '../context/AuthContext';
 
-const APP_VERSION = {
-  version: '3.2.0',
-  releaseDate: 'Jun 2025',
-  label: 'Multi-File Upload Fixed'
+const APP_VERSION_DATA = {
+  version: '1.0.421',
+  releaseDate: 'Apr 2026',
+  label: 'HCP Metrics Update'
 };
 
 export default function Footer() {
@@ -38,13 +38,13 @@ export default function Footer() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 opacity-80 hover:opacity-100 transition-all cursor-default group">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] group-hover:scale-125 transition-transform"></span>
-            <span className="text-[9px] text-white font-black uppercase tracking-widest leading-none">V1.0.421 - Data Lens Live</span>
+            <span className="text-[9px] text-white font-black uppercase tracking-widest leading-none">V{APP_VERSION_DATA.version} - Data Lens Live</span>
           </div>
           <div className="h-4 w-[1px] bg-white/10 mx-1 hidden sm:block" />
           <span className="text-[10px] sm:text-xs text-white font-medium">
             Version{" "}
             <span className="text-[#F5C518] font-black">
-              {APP_VERSION.version}
+              {APP_VERSION_DATA.version}
             </span>
           </span>
           <span className="text-white/20 hidden sm:block">|</span>

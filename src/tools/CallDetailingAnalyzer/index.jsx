@@ -477,7 +477,7 @@ const CallDetailingAnalyzer = () => {
   };
 
   const availableMonths = useMemo(() => {
-    if (!rawData.length) return [];
+    if (!rawData || !rawData.length) return [];
 
     const monthMap = {};
 
@@ -651,7 +651,7 @@ const CallDetailingAnalyzer = () => {
   };
 
   const monthFilteredRows = useMemo(() => {
-    if (!rawData.length) return [];
+    if (!rawData || !rawData.length) return [];
     if (selectedMonths === null) return rawData;
 
     return rawData.filter(row => {
@@ -663,14 +663,15 @@ const CallDetailingAnalyzer = () => {
   }, [rawData, selectedMonths]);
 
   const dateFilteredData = useMemo(() => {
-    if (!monthFilteredRows.length) return [];
+    const base = monthFilteredRows || [];
+    if (!base.length) return [];
 
-    if (!dateFrom && !dateTo) return monthFilteredRows;
+    if (!dateFrom && !dateTo) return base;
 
     const from = dateFrom || minDate;
     const to   = dateTo   || maxDate;
 
-    return monthFilteredRows.filter(d => {
+    return base.filter(d => {
       const date = d.ReportDate;
       if (date && date >= from && date <= to) return true;
       return false;
@@ -678,8 +679,9 @@ const CallDetailingAnalyzer = () => {
   }, [monthFilteredRows, dateFrom, dateTo, minDate, maxDate]);
 
   const filteredData = useMemo(() => {
-    if (!selectedMR) return dateFilteredData;
-    return (dateFilteredData ?? []).filter(
+    const base = dateFilteredData || [];
+    if (!selectedMR) return base;
+    return base.filter(
       r => r.MrName === selectedMR
     );
   }, [dateFilteredData, selectedMR]);
@@ -689,7 +691,8 @@ const CallDetailingAnalyzer = () => {
   const coachingKPI = useMemo(() => {
     
     // Step 1: Filter HCP Coaching rows only
-    const coachingRows = (filteredData ?? [])
+    const rows = filteredData || [];
+    const coachingRows = rows
       .filter(r =>
         String(r.IsMRCoachingSubmitted).toUpperCase() === 'TRUE' &&
         String(r.InteractionType).toUpperCase() === 'HCP'
@@ -815,15 +818,17 @@ const CallDetailingAnalyzer = () => {
     });
 
     return () => observer.disconnect();
-  }, [filteredData.length]);
+  }, [filteredData?.length ?? 0]);
 
   const periodFrom = useMemo(() => {
-    const dates = filteredData.map(r => r.ReportDate).filter(d => d && /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
+    const rows = filteredData || [];
+    const dates = rows.map(r => r.ReportDate).filter(d => d && /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
     return dates[0] ?? "";
   }, [filteredData]);
 
   const periodTo = useMemo(() => {
-    const dates = filteredData.map(r => r.ReportDate).filter(d => d && /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
+    const rows = filteredData || [];
+    const dates = rows.map(r => r.ReportDate).filter(d => d && /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
     return dates[dates.length - 1] ?? "";
   }, [filteredData]);
 
@@ -1020,11 +1025,11 @@ const CallDetailingAnalyzer = () => {
                 <div className="mt-4 pt-3 border-t border-gray-100 text-[10px] text-gray-500 flex items-center gap-2 uppercase tracking-widest font-bold">
                   <span className="text-gray-400">Showing:</span>
                   <span className="font-black text-gray-900 bg-gray-100 px-2 py-1 rounded-md">
-                    {[...selectedMonths].sort().map(ym => formatMonthLabel(ym)).join(" · ")}
+                    {selectedMonths ? [...selectedMonths].sort().map(ym => formatMonthLabel(ym)).join(" · ") : "All Months"}
                   </span>
                   <span className="text-gray-300">|</span>
                   <span className="text-accent font-black">
-                    {filteredData.length.toLocaleString()} rows
+                    {(filteredData?.length ?? 0).toLocaleString()} rows
                   </span>
                 </div>
               )}
@@ -1039,14 +1044,15 @@ const CallDetailingAnalyzer = () => {
                    <p className="text-[10px] font-black text-accent uppercase tracking-[0.2em] mb-1">📅 Report Period</p>
                    <h2 className="text-2xl md:text-3xl font-black tracking-tight uppercase">
                       {(() => {
-                        const sDates = filteredData.map(r => r.ReportDate).filter(d => d && /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
+                        const rows = filteredData || [];
+                        const sDates = rows.map(r => r.ReportDate).filter(d => d && /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
                         const pFrom = sDates[0] ?? "";
                         const pTo = sDates[sDates.length - 1] ?? "";
                         return (
                            <>{formatDateBanner(pFrom)} <span className="text-accent">→</span> {formatDateBanner(pTo)}
-                             {availableMonths.length > 1 && (
+                             {(availableMonths?.length ?? 0) > 1 && (
                                <span className="text-sm ml-3 text-gray-400 lowercase font-medium">
-                                 ({isAllSelected ? "All months" : `${selectedMonths.size} month${selectedMonths.size > 1 ? 's' : ''}`})
+                                 ({isAllSelected ? "All months" : `${selectedMonths?.size || 0} month${(selectedMonths?.size || 0) > 1 ? 's' : ''}`})
                                </span>
                              )}
                            </>
@@ -1057,13 +1063,14 @@ const CallDetailingAnalyzer = () => {
                 <div className="bg-white/10 backdrop-blur-md rounded-2xl px-6 py-3 border border-white/5 text-right">
                    <p className="text-2xl font-black leading-none">
                       {(() => {
-                        const sDates = filteredData.map(r => r.ReportDate).filter(d => d && /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
+                        const rows = filteredData || [];
+                        const sDates = rows.map(r => r.ReportDate).filter(d => d && /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
                         if (!sDates.length) return 0;
                         return Math.ceil((new Date(sDates[sDates.length - 1]) - new Date(sDates[0])) / (1000*60*60*24)) + 1;
                       })()} <span className="text-xs text-gray-400 uppercase">Days</span>
                    </p>
                    <p className="text-[10px] font-bold text-accent uppercase tracking-widest mt-1">
-                      {filteredData.length.toLocaleString()} Interactions
+                      {(filteredData?.length ?? 0).toLocaleString()} Interactions
                    </p>
                 </div>
              </div>
@@ -1156,8 +1163,8 @@ const CallDetailingAnalyzer = () => {
             periodFrom={periodFrom}
             periodTo={periodTo}
             selectedMonths={selectedMonths}
-            availableMonths={availableMonths}
-            filteredRowCount={filteredData.length}
+            availableMonths={availableMonths || []}
+            filteredRowCount={filteredData?.length ?? 0}
           />
 
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -1387,7 +1394,7 @@ const CallDetailingAnalyzer = () => {
                      <span className="text-3xl">📋</span>
                      <div>
                         <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tight">Raw Source Data</h3>
-                        <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mt-1">High-performance virtualized rendering ({filteredData.length.toLocaleString()} rows)</p>
+                        <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mt-1">High-performance virtualized rendering ({(filteredData?.length ?? 0).toLocaleString()} rows)</p>
                      </div>
                   </div>
                   <span className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-xs group-open:rotate-180 transition-transform">▼</span>

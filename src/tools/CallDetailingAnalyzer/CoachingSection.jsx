@@ -74,7 +74,7 @@ const CoachingSection = ({ data }) => {
       .map(s => ({
         ...s,
         totalCoached: s.hcoCoached + s.phCoached + s.hcpCoached,
-        isCoachingDay: (s.hcoCoached + s.phCoached + s.hcpCoached) >= 4
+        isCoachingDay: s.hcpCoached >= 4
       }));
   }, [data]);
 
@@ -110,12 +110,28 @@ const CoachingSection = ({ data }) => {
   }, [selectedSession, visitSearch]);
 
   const stats = useMemo(() => {
+    const approvedDays = coachingSessions
+      .filter(s => s.isCoachingDay).length;
+      
+    const totalHCPCalls = coachingSessions
+      .reduce((sum, s) => sum + s.hcpCoached, 0);
+
+    const avgHCP = approvedDays === 0 
+      ? 0 
+      : totalHCPCalls / approvedDays;
+
     return {
-      totalDays: coachingSessions.filter(s => s.isCoachingDay).length,
-      totalVisits: coachingSessions.reduce((sum, s) => sum + s.totalCoached, 0),
-      hco: coachingSessions.reduce((sum, s) => sum + s.hcoCoached, 0),
-      ph: coachingSessions.reduce((sum, s) => sum + s.phCoached, 0),
-      hcp: coachingSessions.reduce((sum, s) => sum + s.hcpCoached, 0),
+      totalDays:   approvedDays,
+      totalVisits: coachingSessions
+        .reduce((sum, s) => sum + s.totalCoached, 0),
+      hco: coachingSessions
+        .reduce((sum, s) => sum + s.hcoCoached, 0),
+      ph: coachingSessions
+        .reduce((sum, s) => sum + s.phCoached, 0),
+      hcp:         totalHCPCalls,
+      approvedDays: approvedDays,
+      avgHCPPerDay: Math.round(avgHCP * 10) / 10,
+      isOnTarget:   avgHCP >= 4,
     };
   }, [coachingSessions]);
 
@@ -150,6 +166,51 @@ const CoachingSection = ({ data }) => {
         <div className="bg-blue-50 border-2 border-blue-100 rounded-[2rem] p-6 text-center shadow-sm">
            <p className="text-3xl font-black text-blue-700">{stats.hcp}</p>
            <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mt-1">HCP Focused</p>
+        </div>
+
+        {/* New KPI Card: Avg HCP Coaching */}
+        <div className="bg-white rounded-2xl border-2 border-purple-100 p-4 flex flex-col items-center gap-1 relative overflow-hidden">
+          {/* Background glow */}
+          <div className={`absolute inset-0 opacity-30 rounded-2xl ${stats.isOnTarget ? 'bg-emerald-50' : 'bg-red-50'}`} />
+          
+          {/* Icon */}
+          <span className="text-xl relative z-10">🎯</span>
+          
+          {/* Main Value */}
+          <p className={`text-2xl font-black relative z-10 ${stats.isOnTarget ? 'text-emerald-600' : stats.avgHCPPerDay > 0 ? 'text-amber-500' : 'text-gray-300'}`}>
+            {stats.avgHCPPerDay > 0 ? stats.avgHCPPerDay.toFixed(1) : '—'}
+          </p>
+          
+          {/* Label */}
+          <p className="text-[11px] font-bold text-gray-600 text-center relative z-10">
+            Avg HCP Coaching/Day
+          </p>
+
+          {/* Target badge */}
+          <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full relative z-10 ${stats.isOnTarget ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-500'}`}>
+            {stats.isOnTarget ? '✓ On Target' : '✗ Below 4'}
+          </span>
+
+          {/* Breakdown */}
+          <div className="text-[9px] text-gray-400 text-center relative z-10 mt-1 space-y-0.5">
+            <p>{stats.hcp} HCP calls</p>
+            <p>÷ {stats.approvedDays} approved days</p>
+          </div>
+
+          {/* Mini progress bar */}
+          <div className="w-full h-1 bg-gray-100 rounded-full mt-1 relative z-10 overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-700 ${stats.isOnTarget ? 'bg-emerald-500' : 'bg-amber-400'}`}
+              style={{ width: `${Math.min((stats.avgHCPPerDay / 8) * 100, 100)}%` }}
+            />
+          </div>
+
+          {/* Scale labels */}
+          <div className="w-full flex justify-between relative z-10">
+            <span className="text-[8px] text-gray-300">0</span>
+            <span className="text-[8px] text-gray-400 font-bold">▲4</span>
+            <span className="text-[8px] text-gray-300">8+</span>
+          </div>
         </div>
       </div>
 
