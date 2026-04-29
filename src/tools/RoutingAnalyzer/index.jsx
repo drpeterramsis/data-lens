@@ -25,7 +25,7 @@ import { saveAs } from 'file-saver';
 
 // --- VERSION ---
 const ROUTING_VERSION = {
-  version: '1.0.436',
+  version: '1.0.437',
   releaseDate: 'Apr 2026',
   label: 'Advanced Routing Analysis Engine — Local Storage & Multi-file'
 };
@@ -166,7 +166,7 @@ const RoutingAnalyzer = () => {
   const [sortKey, setSortKey] = useState('customerName');
   const [sortDir, setSortDir] = useState('asc');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 50;
+  const [itemsPerPage, setItemsPerPage] = useState(50);
   const fileInputRef = useRef(null);
   const contentRef = useRef(null);
 
@@ -1185,7 +1185,7 @@ const RoutingAnalyzer = () => {
     return (
       <div className="space-y-3 pb-32">
         {/* Toggles Row — INSIDE the list */}
-        <div className="flex items-center justify-between gap-3 bg-white rounded-2xl border border-gray-100 px-4 py-2.5 shadow-sm sticky top-[185px] z-[5]">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-2.5 flex items-center justify-between gap-3 mb-3">
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mr-1">Toggles</span>
             {[
@@ -1246,190 +1246,251 @@ const RoutingAnalyzer = () => {
         {/* Table Area */}
         <div className="rounded-2xl border border-gray-100 overflow-hidden shadow-sm bg-white">
           <div className="overflow-x-auto">
-            <div style={{ maxHeight: 'calc(100vh - 420px)' }} className="overflow-y-auto scrollbar-thin">
-              <table className="w-full text-sm border-collapse min-w-[1000px]">
-                <thead>
-                  <tr className="bg-gray-900 text-white">
-                    <th onClick={() => handleSort('customerId')} className="sticky top-0 z-[4] px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
-                      ID <SortIcon col="customerId" />
+            <table className="w-full text-sm border-collapse min-w-[900px]">
+              <thead className="sticky top-0 z-[3]">
+                <tr className="bg-gray-900 text-white">
+                  <th onClick={() => handleSort('customerId')} className="px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                    ID <SortIcon col="customerId" />
+                  </th>
+                  {showMonthColumn && (
+                    <th onClick={() => handleSort('sourceMonth')} className="px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                      Months <SortIcon col="sourceMonth" />
                     </th>
-                    {showMonthColumn && (
-                      <th onClick={() => handleSort('sourceMonth')} className="sticky top-0 z-[4] px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
-                        Months <SortIcon col="sourceMonth" />
-                      </th>
-                    )}
-                    <th onClick={() => handleSort('customerName')} className="sticky top-0 z-[4] px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
-                      Name <SortIcon col="customerName" />
+                  )}
+                  <th onClick={() => handleSort('customerName')} className="px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                    Name <SortIcon col="customerName" />
+                  </th>
+                  <th onClick={() => handleSort('customerGrade')} className="px-3 py-2.5 text-center text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                    Grade <SortIcon col="customerGrade" />
+                  </th>
+                  <th onClick={() => handleSort('specialty')} className="px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                    Specialty <SortIcon col="specialty" />
+                  </th>
+                  {showMRColumn && (
+                    <th onClick={() => handleSort('mrName')} className="px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                      MR Name <SortIcon col="mrName" />
                     </th>
-                    <th onClick={() => handleSort('customerGrade')} className="sticky top-0 z-[4] px-3 py-2.5 text-center text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
-                      Grade <SortIcon col="customerGrade" />
-                    </th>
-                    <th onClick={() => handleSort('specialty')} className="sticky top-0 z-[4] px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
-                      Specialty <SortIcon col="specialty" />
-                    </th>
-                    {showMRColumn && (
-                      <th onClick={() => handleSort('mrName')} className="sticky top-0 z-[4] px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
-                        MR Name <SortIcon col="mrName" />
-                      </th>
-                    )}
-                    <th onClick={() => handleSort('totalPlanned')} className="sticky top-0 z-[4] px-3 py-2.5 text-center text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
-                      Planned <SortIcon col="totalPlanned" />
-                    </th>
-                    <th onClick={() => handleSort('totalReported')} className="sticky top-0 z-[4] px-3 py-2.5 text-center text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
-                      Reported <SortIcon col="totalReported" />
-                    </th>
-                    <th className="sticky top-0 z-[4] px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white">Planned Days</th>
-                    <th className="sticky top-0 z-[4] px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white">Reported Days</th>
-                    <th onClick={() => handleSort('daysInterval')} className="sticky top-0 z-[4] px-3 py-2.5 text-center text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
-                      Interval <SortIcon col="daysInterval" />
-                    </th>
-                    <th onClick={() => handleSort('_status')} className="sticky top-0 z-[4] px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
-                      Status <SortIcon col="_status" />
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {paginatedData.map((r, i) => {
-                    const status = getStatus(r.totalPlanned, r.totalReported);
-                    const missed = r.monthlyData ? [] : r.monthPlanned.filter(d => !r.monthReported.includes(d));
+                  )}
+                  <th onClick={() => handleSort('totalPlanned')} className="px-3 py-2.5 text-center text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                    Planned <SortIcon col="totalPlanned" />
+                  </th>
+                  <th onClick={() => handleSort('totalReported')} className="px-3 py-2.5 text-center text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                    Reported <SortIcon col="totalReported" />
+                  </th>
+                  <th className="px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white">Planned Days</th>
+                  <th className="px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white">Reported Days</th>
+                  <th onClick={() => handleSort('daysInterval')} className="px-3 py-2.5 text-center text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                    Interval <SortIcon col="daysInterval" />
+                  </th>
+                  <th onClick={() => handleSort('_status')} className="px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                    Status <SortIcon col="_status" />
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {paginatedData.map((r, i) => {
+                  const status = getStatus(r.totalPlanned, r.totalReported);
+                  const missed = r.monthlyData ? [] : r.monthPlanned.filter(d => !r.monthReported.includes(d));
 
-                    return (
-                      <tr key={r.customerId} className={i % 2 === 0 ? 'bg-white hover:bg-yellow-50/30 transition-colors' : 'bg-gray-50/50 hover:bg-yellow-50/30 transition-colors'}>
-                        <td className="px-2.5 py-1 text-[10px] font-mono font-bold text-gray-500 tracking-tighter border-b border-gray-50 whitespace-nowrap">{r.customerId}</td>
-                        {showMonthColumn && (
-                          <td className="px-2.5 py-1 text-[11px] border-b border-gray-50 whitespace-nowrap">
-                            <div className="flex flex-wrap gap-1">
-                              {(r.customerMonths || [r.sourceMonth]).map(m => (
-                                <span key={m} className="px-1.5 py-0.5 rounded-md text-[9px] font-black bg-yellow-50 text-yellow-700 border border-yellow-200">
-                                  {m.slice(0, 3)}
-                                </span>
-                              ))}
-                            </div>
-                          </td>
-                        )}
-                        <td className="px-2.5 py-1 text-[11px] text-gray-800 font-semibold border-b border-gray-50 max-w-[180px] truncate" title={r.customerName}>{r.customerName}</td>
-                        <td className="px-2.5 py-1 text-center border-b border-gray-50 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-black border ${
-                            r.customerGrade === 'A+' ? 'bg-purple-50 text-purple-700 border-purple-100' :
-                              r.customerGrade === 'A' ? 'bg-blue-50 text-blue-700 border-blue-100' :
-                                r.customerGrade === 'B' ? 'bg-green-50 text-green-700 border-green-100' :
-                                  'bg-gray-50 text-gray-600 border-gray-200'
-                            }`}>
-                            {r.customerGrade}
-                          </span>
-                        </td>
-                        <td className="px-2.5 py-1 text-[11px] text-gray-500 capitalize border-b border-gray-50 whitespace-nowrap">{r.specialty}</td>
-                        {showMRColumn && (
-                          <td className="px-2.5 py-1 text-[11px] text-gray-700 border-b border-gray-50 whitespace-nowrap max-w-[140px] truncate">{r.mrName}</td>
-                        )}
-                        <td className="px-2.5 py-1 text-center font-black text-gray-600 border-b border-gray-50 whitespace-nowrap">{r.totalPlanned}</td>
-                        <td className="px-2.5 py-1 text-center font-black text-gray-900 border-b border-gray-50 whitespace-nowrap">{r.totalReported}</td>
-                        <td className="px-2.5 py-1 border-b border-gray-50">
-                          <div className="flex flex-col gap-1 max-w-[120px]">
-                            {r.monthlyData
-                              ? Object.entries(r.monthlyData).map(([month, days]) => (
-                                <div key={month} className="flex items-center gap-1 flex-wrap">
-                                  <span className="text-[8px] font-black text-gray-400 w-8 flex-shrink-0">{month.slice(0, 3)}:</span>
-                                  {days.planned.map(d => (
-                                    <span key={d} className="inline-block px-1 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-black border border-blue-100">
-                                      {d}
-                                    </span>
-                                  ))}
-                                </div>
-                              ))
-                              : r.monthPlanned.map(d => (
-                                <span key={d} className="inline-block px-1 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-black border border-blue-100">
-                                  {d}
-                                </span>
-                              ))
-                            }
+                  return (
+                    <tr key={r.customerId} className={i % 2 === 0 ? 'bg-white hover:bg-yellow-50/30 transition-colors' : 'bg-gray-50/50 hover:bg-yellow-50/30 transition-colors'}>
+                      <td className="px-2.5 py-1 text-[10px] font-mono font-bold text-gray-500 tracking-tighter border-b border-gray-50 whitespace-nowrap">{r.customerId}</td>
+                      {showMonthColumn && (
+                        <td className="px-2.5 py-1 text-[11px] border-b border-gray-50 whitespace-nowrap">
+                          <div className="flex flex-wrap gap-1">
+                            {(r.customerMonths || [r.sourceMonth]).map(m => (
+                              <span key={m} className="px-1.5 py-0.5 rounded-md text-[9px] font-black bg-yellow-50 text-yellow-700 border border-yellow-200">
+                                {m.slice(0, 3)}
+                              </span>
+                            ))}
                           </div>
                         </td>
-                        <td className="px-2.5 py-1 border-b border-gray-50">
-                          <div className="flex flex-col gap-1 max-w-[120px]">
-                            {r.monthlyData
-                              ? Object.entries(r.monthlyData).map(([month, days]) => {
-                                const mMissed = days.planned.filter(d => !days.reported.includes(d));
-                                return (
-                                  <div key={month} className="flex items-center gap-1 flex-wrap">
-                                    <span className="text-[8px] font-black text-gray-400 w-8 flex-shrink-0">{month.slice(0, 3)}:</span>
-                                    {days.reported.map(d => (
-                                      <span key={d} className="inline-block px-1 py-0.5 bg-green-50 text-green-600 rounded text-[9px] font-black border border-green-100">
-                                        {d}
-                                      </span>
-                                    ))}
-                                    {mMissed.map(d => (
-                                      <span key={`m_${d}`} className="inline-block px-1 py-0.5 bg-red-50 text-red-500 rounded text-[9px] font-black border border-red-100 line-through">
-                                        {d}
-                                      </span>
-                                    ))}
-                                  </div>
-                                );
-                              })
-                              : (
-                                <div className="flex flex-wrap gap-0.5">
-                                  {r.monthReported.map(d => (
+                      )}
+                      <td className="px-2.5 py-1 text-[11px] text-gray-800 font-semibold border-b border-gray-50 max-w-[180px] truncate" title={r.customerName}>{r.customerName}</td>
+                      <td className="px-2.5 py-1 text-center border-b border-gray-50 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-black border ${
+                          r.customerGrade === 'A+' ? 'bg-purple-50 text-purple-700 border-purple-100' :
+                            r.customerGrade === 'A' ? 'bg-blue-50 text-blue-700 border-blue-100' :
+                              r.customerGrade === 'B' ? 'bg-green-50 text-green-700 border-green-100' :
+                                'bg-gray-50 text-gray-600 border-gray-200'
+                          }`}>
+                          {r.customerGrade}
+                        </span>
+                      </td>
+                      <td className="px-2.5 py-1 text-[11px] text-gray-500 capitalize border-b border-gray-50 whitespace-nowrap">{r.specialty}</td>
+                      {showMRColumn && (
+                        <td className="px-2.5 py-1 text-[11px] text-gray-700 border-b border-gray-50 whitespace-nowrap max-w-[140px] truncate">{r.mrName}</td>
+                      )}
+                      <td className="px-2.5 py-1 text-center font-black text-gray-600 border-b border-gray-50 whitespace-nowrap">{r.totalPlanned}</td>
+                      <td className="px-2.5 py-1 text-center font-black text-gray-900 border-b border-gray-50 whitespace-nowrap">{r.totalReported}</td>
+                      <td className="px-2.5 py-1 border-b border-gray-50">
+                        <div className="flex flex-col gap-1 max-w-[120px]">
+                          {r.monthlyData
+                            ? Object.entries(r.monthlyData).map(([month, days]) => (
+                              <div key={month} className="flex items-center gap-1 flex-wrap">
+                                <span className="text-[8px] font-black text-gray-400 w-8 flex-shrink-0">{month.slice(0, 3)}:</span>
+                                {days.planned.map(d => (
+                                  <span key={d} className="inline-block px-1 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-black border border-blue-100">
+                                    {d}
+                                  </span>
+                                ))}
+                              </div>
+                            ))
+                            : r.monthPlanned.map(d => (
+                              <span key={d} className="inline-block px-1 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-black border border-blue-100">
+                                {d}
+                              </span>
+                            ))
+                          }
+                        </div>
+                      </td>
+                      <td className="px-2.5 py-1 border-b border-gray-50">
+                        <div className="flex flex-col gap-1 max-w-[120px]">
+                          {r.monthlyData
+                            ? Object.entries(r.monthlyData).map(([month, days]) => {
+                              const mMissed = days.planned.filter(d => !days.reported.includes(d));
+                              return (
+                                <div key={month} className="flex items-center gap-1 flex-wrap">
+                                  <span className="text-[8px] font-black text-gray-400 w-8 flex-shrink-0">{month.slice(0, 3)}:</span>
+                                  {days.reported.map(d => (
                                     <span key={d} className="inline-block px-1 py-0.5 bg-green-50 text-green-600 rounded text-[9px] font-black border border-green-100">
                                       {d}
                                     </span>
                                   ))}
-                                  {missed.map(d => (
+                                  {mMissed.map(d => (
                                     <span key={`m_${d}`} className="inline-block px-1 py-0.5 bg-red-50 text-red-500 rounded text-[9px] font-black border border-red-100 line-through">
                                       {d}
                                     </span>
                                   ))}
                                 </div>
-                              )
-                            }
-                          </div>
-                        </td>
-                        <td className="px-2.5 py-1 text-center text-[11px] font-bold text-gray-400 border-b border-gray-50 whitespace-nowrap">{r.daysInterval}d</td>
-                        <td className="px-2.5 py-1 border-b border-gray-50 whitespace-nowrap">{getStatusBadge(status)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                              );
+                            })
+                            : (
+                              <div className="flex flex-wrap gap-0.5">
+                                {r.monthReported.map(d => (
+                                  <span key={d} className="inline-block px-1 py-0.5 bg-green-50 text-green-600 rounded text-[9px] font-black border border-green-100">
+                                    {d}
+                                  </span>
+                                ))}
+                                {missed.map(d => (
+                                  <span key={`m_${d}`} className="inline-block px-1 py-0.5 bg-red-50 text-red-500 rounded text-[9px] font-black border border-red-100 line-through">
+                                    {d}
+                                  </span>
+                                ))}
+                              </div>
+                            )
+                          }
+                        </div>
+                      </td>
+                      <td className="px-2.5 py-1 text-center text-[11px] font-bold text-gray-400 border-b border-gray-50 whitespace-nowrap">{r.daysInterval}d</td>
+                      <td className="px-2.5 py-1 border-b border-gray-50 whitespace-nowrap">{getStatusBadge(status)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
 
-        {totalPages > 1 && (
-          <div className="p-6 border-t bg-gray-50 flex items-center justify-between">
-            <button
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage(prev => prev - 1)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-gray-200 text-sm font-black text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
-            >
-              <ChevronLeft size={18} /> Prev
-            </button>
+        {totalPages >= 1 && (
+          <div className="flex items-center justify-between gap-4 pt-4 mt-2 border-t border-gray-100">
+            {/* LEFT — Records per page */}
             <div className="flex items-center gap-2">
-              {[...Array(Math.min(5, totalPages))].map((_, i) => {
-                let pageNum = currentPage;
-                if (currentPage < 3) pageNum = i + 1;
-                else if (currentPage > totalPages - 2) pageNum = totalPages - 4 + i;
-                else pageNum = currentPage - 2 + i;
-
-                if (pageNum <= 0 || pageNum > totalPages) return null;
-
-                return (
+              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">
+                Show:
+              </span>
+              <div className="flex items-center gap-1">
+                {[10, 25, 50, 100, 200].map(n => (
                   <button
-                    key={pageNum}
-                    onClick={() => setCurrentPage(pageNum)}
-                    className={`w-10 h-10 rounded-xl font-black text-sm transition-all ${currentPage === pageNum ? 'bg-accent text-white shadow-md' : 'bg-white border border-gray-200 text-gray-900 hover:bg-gray-50'}`}
+                    key={n}
+                    onClick={() => {
+                      setItemsPerPage(n);
+                      setCurrentPage(1);
+                    }}
+                    className={`w-9 h-8 rounded-lg text-[11px] font-black transition-all border ${itemsPerPage === n ? 'bg-gray-900 text-white border-gray-900 shadow-sm' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400 hover:text-gray-700'}`}
                   >
-                    {pageNum}
+                    {n}
                   </button>
-                )
-              })}
+                ))}
+              </div>
+              <span className="text-[10px] text-gray-300 font-bold">
+                per page
+              </span>
             </div>
-            <button
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage(prev => prev + 1)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-gray-200 text-sm font-black text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
-            >
-              Next <ChevronRight size={18} />
-            </button>
+
+            {/* CENTER — Page info */}
+            <div className="flex items-center gap-2">
+              {totalPages > 1 && (
+                <>
+                  {/* Prev */}
+                  <button
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(p => p - 1)}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-gray-200 text-xs font-black text-gray-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 transition-all"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                    Prev
+                  </button>
+
+                  {/* Page Numbers */}
+                  <div className="flex items-center gap-1">
+                    {(() => {
+                      const pages = [];
+                      let start = Math.max(1, currentPage - 2);
+                      let end = Math.min(totalPages, currentPage + 2);
+
+                      if (end - start < 4) {
+                        if (start === 1) end = Math.min(5, totalPages);
+                        else start = Math.max(1, end - 4);
+                      }
+
+                      if (start > 1) {
+                        pages.push(
+                          <button key={1} onClick={() => setCurrentPage(1)} className="w-8 h-8 rounded-lg text-xs font-black bg-white border border-gray-200 text-gray-600 hover:bg-gray-50">1</button>
+                        );
+                        if (start > 2) pages.push(<span key="s1" className="text-gray-300 text-xs px-1">…</span>);
+                      }
+
+                      for (let i = start; i <= end; i++) {
+                        pages.push(
+                          <button
+                            key={i}
+                            onClick={() => setCurrentPage(i)}
+                            className={`w-8 h-8 rounded-lg text-xs font-black transition-all ${currentPage === i ? 'bg-yellow-400 text-black shadow-sm' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
+                          >
+                            {i}
+                          </button>
+                        );
+                      }
+
+                      if (end < totalPages) {
+                        if (end < totalPages - 1) pages.push(<span key="s2" className="text-gray-300 text-xs px-1">…</span>);
+                        pages.push(
+                          <button key={totalPages} onClick={() => setCurrentPage(totalPages)} className="w-8 h-8 rounded-lg text-xs font-black bg-white border border-gray-200 text-gray-600 hover:bg-gray-50">{totalPages}</button>
+                        );
+                      }
+
+                      return pages;
+                    })()}
+                  </div>
+
+                  {/* Next */}
+                  <button
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(p => p + 1)}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-gray-200 text-xs font-black text-gray-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 transition-all"
+                  >
+                    Next
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* RIGHT — Total count */}
+            <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">
+              Page <span className="text-gray-900">{currentPage}</span> of <span className="text-gray-900">{totalPages}</span> · <span className="text-gray-900">{sortedData.length}</span> records
+            </div>
           </div>
         )}
       </div>
@@ -1492,6 +1553,10 @@ const RoutingAnalyzer = () => {
       </div>
     );
   };
+
+  const kpiTop = availableMonths.length > 1 ? 'top-[141px]' : 'top-[101px]';
+  const tabsTop = availableMonths.length > 1 ? 'top-[225px]' : 'top-[185px]';
+  const filterChipsTop = availableMonths.length > 1 ? 'top-[185px]' : 'top-[145px]';
 
   if (!rawData.length && !isLoading) {
     return (
@@ -1625,7 +1690,7 @@ const RoutingAnalyzer = () => {
       )}
 
       {/* Header Sticky */}
-      <div className={`sticky top-0 z-30 px-6 py-4 flex items-center justify-between gap-4 transition-all border-b ${isScrolled ? 'backdrop-blur-md shadow-lg bg-white/95 border-gray-100' : 'bg-white border-gray-100 shadow-sm'}`}>
+      <div className="sticky top-0 z-30 bg-white border-b border-gray-100 shadow-sm px-6 py-3 flex items-center justify-between gap-4">
         {/* Left — Logo + Title */}
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 bg-yellow-400 rounded-2xl flex items-center justify-center shadow-lg shadow-yellow-200">
@@ -1722,7 +1787,7 @@ const RoutingAnalyzer = () => {
           className="flex-1 overflow-y-auto bg-gray-50 flex flex-col pb-32 scrollbar-thin"
         >
           {/* Data Info Bar */}
-          <div className={`px-8 py-2.5 flex items-center justify-between sticky top-[65px] z-20 transition-all border-b ${isScrolled ? 'backdrop-blur-md bg-white/80 shadow-sm border-gray-100/50' : 'bg-white border-gray-100'}`}>
+          <div className="sticky top-[61px] z-20 bg-white border-b border-gray-100 px-6 py-2 flex items-center justify-between">
             <div className="flex items-center gap-5">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Dataset:</span>
@@ -1757,8 +1822,9 @@ const RoutingAnalyzer = () => {
 
           <div className="p-8 pb-32 space-y-8 max-w-[1600px] mx-auto w-full">
             {availableMonths.length > 1 && (
-              <div className="flex items-center gap-3 mb-3 p-3 bg-white rounded-2xl border border-gray-100 shadow-sm">
-                <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex-shrink-0">
+              <div className="sticky top-[101px] z-20 bg-white border-b border-gray-100 px-6 py-2">
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex-shrink-0">
                   📅 View Month:
                 </span>
                 <div className="flex items-center gap-2 flex-wrap">
@@ -1782,14 +1848,17 @@ const RoutingAnalyzer = () => {
                   })}
                 </div>
                 <span className="ml-auto text-[10px] text-gray-300 font-bold">{availableMonths.length} months loaded</span>
+                </div>
               </div>
             )}
             
-            {renderKPIs()}
+            <div className={`sticky ${kpiTop} z-[15] bg-white border-b border-gray-100/80 shadow-sm px-6 py-3`}>
+              {renderKPIs()}
+            </div>
 
             {/* Active Filter Chips */}
             {Object.entries(filters).some(([k,v]) => Array.isArray(v) ? v.length > 0 : v !== 'All') && (
-              <div className="flex flex-wrap items-center gap-2 p-4 bg-yellow-50/50 rounded-3xl border border-yellow-100/50 animate-in slide-in-from-left-4 duration-300">
+              <div className={`sticky ${filterChipsTop} z-[9] bg-yellow-50 border-b border-yellow-100 px-6 py-2 flex flex-wrap items-center gap-2`}>
                 <div className="flex items-center gap-1.5 mr-2">
                    <div className="w-1 h-3 bg-yellow-400 rounded-full" />
                    <span className="text-[10px] font-black text-yellow-700 uppercase tracking-widest">Active Filters</span>
@@ -1814,8 +1883,9 @@ const RoutingAnalyzer = () => {
             )}
 
             {/* Tabs Bar Fix */}
-            <div className="flex items-center justify-between flex-wrap gap-4 bg-white rounded-3xl p-3 border border-gray-100 shadow-sm sticky top-[105px] z-[15] backdrop-blur-sm bg-white/95">
-              <div className="flex items-center gap-1.5 flex-1 justify-center">
+            <div className={`sticky ${tabsTop} z-[10] bg-white border-b border-gray-100 shadow-sm px-6 py-2`}>
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div className="flex items-center gap-1.5 flex-1 justify-center">
                 {[
                   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
                   { id: 'by-mr',    label: 'By MR', icon: Users },
@@ -1834,6 +1904,7 @@ const RoutingAnalyzer = () => {
                 ))}
               </div>
             </div>
+          </div>
 
             <motion.div
               key={activeTab}
