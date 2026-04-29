@@ -233,26 +233,85 @@ const SideFilterSection = ({ label, options, selected, onChange }) => {
 
 const ActiveFiltersBar = ({ filters, setFilters }) => {
   const tags = [];
+
+  // Date range — keep as single tag
   if (filters.fromDate || filters.toDate) {
-    tags.push({ key: 'date', label: `📅 ${filters.fromDate || '...'} → ${filters.toDate || '...'}`, clear: () => setFilters(f => ({...f, fromDate: '', toDate: ''})) });
+    tags.push({
+      id: 'date',
+      label: `📅 ${filters.fromDate || '...'} → ${filters.toDate || '...'}`,
+      clear: () => setFilters(f => ({
+        ...f, fromDate: '', toDate: ''
+      }))
+    });
   }
-  [ { key: 'branch', label: 'Branch' }, { key: 'supervisor', label: 'Supervisor' }, { key: 'mrName', label: 'MR' }, { key: 'line', label: 'Line' }, { key: 'customerType', label: 'Type' }, { key: 'product', label: 'Product' } ].forEach(({ key, label }) => {
-    const val = filters[key];
-    if (val && val.length > 0) {
-      tags.push({ key, label: `${label}: ${val.length === 1 ? val[0] : val.length + ' selected'}`, clear: () => setFilters(f => ({...f, [key]: []})) });
-    }
+
+  // Array filters — one tag PER VALUE
+  const arrayFilters = [
+    { key: 'branch',       label: 'Branch'    },
+    { key: 'supervisor',   label: 'Supervisor' },
+    { key: 'mrName',       label: 'MR'        },
+    { key: 'line',         label: 'Line'      },
+    { key: 'customerType', label: 'Type'      },
+    { key: 'product',      label: 'Product'   },
+    { key: 'customer',     label: 'Customer'  },
+  ];
+
+  arrayFilters.forEach(({ key, label }) => {
+    const values = filters[key];
+    if (!Array.isArray(values)) return;
+    
+    values.forEach(val => {
+      tags.push({
+        id: `${key}-${val}`,
+        label: `${label}: ${val}`,
+        clear: () => setFilters(f => ({
+          ...f,
+          [key]: f[key].filter(v => v !== val)
+        }))
+      });
+    });
   });
+
   if (tags.length === 0) return null;
+
   return (
     <div className="flex items-center gap-2 flex-wrap px-6 py-2.5 bg-blue-50 border-b border-blue-100 shrink-0">
-      <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest shrink-0">Filtered by:</span>
-      {tags.map(tag => (
-        <div key={tag.key} className="flex items-center gap-1.5 bg-white border border-blue-200 text-blue-700 text-xs font-semibold px-2.5 py-1 rounded-full shadow-sm">
-          <span>{tag.label}</span>
-          <button onClick={tag.clear} className="text-blue-400 hover:text-red-500 transition-colors leading-none font-bold ml-0.5">✕</button>
-        </div>
-      ))}
-      <button onClick={() => setFilters({ branch:[], supervisor:[], mrName:[], line:[], customerType:[], product:[], fromDate:'', toDate:'' })} className="text-[10px] text-red-500 font-bold hover:underline ml-auto uppercase tracking-wide">Clear All</button>
+      
+      <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest shrink-0">
+        Filtered by:
+      </span>
+
+      <div className="flex flex-wrap gap-1.5 flex-1">
+        {tags.map(tag => (
+          <div
+            key={tag.id}
+            className="flex items-center gap-1.5 bg-white border border-blue-200 text-blue-700 text-xs font-semibold px-2.5 py-1 rounded-full shadow-sm max-w-[220px]">
+            <span className="truncate" title={tag.label}>
+              {tag.label}
+            </span>
+            <button
+              onClick={tag.clear}
+              className="text-blue-300 hover:text-red-500 transition-colors font-bold shrink-0 leading-none ml-0.5">
+              ✕
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* Clear All */}
+      {tags.length > 1 && (
+        <button
+          onClick={() => setFilters({
+            branch:[], supervisor:[],
+            mrName:[], line:[],
+            customerType:[], product:[],
+            customer:[], 
+            fromDate:'', toDate:''
+          })}
+          className="text-[10px] text-red-500 font-bold hover:underline uppercase tracking-wide shrink-0 ml-auto">
+          Clear All
+        </button>
+      )}
     </div>
   );
 };

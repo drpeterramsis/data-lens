@@ -3,9 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from '../context/AuthContext';
 
 const APP_VERSION = {
-  version: '2.6.2',
+  version: '3.0.2',
   releaseDate: 'Jun 2025',
-  label: 'Append Mode + Compare Period'
+  label: 'Filter Tags Show Individual Values'
 };
 
 export default function Footer() {
