@@ -924,6 +924,37 @@ const UploadChoiceModal = ({ onChoose, onCancel, existingCount }) => (
     const [invSort, setInvSort] = useState({
       key: 'invoiceDate', dir: 'desc'
     });
+
+    const [invoiceSearch, setInvoiceSearch] = 
+      useState('');
+    
+    const [productSearch, setProductSearch] = 
+      useState('');
+    
+    const highlight = (text, query) => {
+      if (!query?.trim() || !text) 
+        return text;
+      
+      const str   = text.toString();
+      const q     = query.trim();
+      const idx   = str.toLowerCase()
+                       .indexOf(q.toLowerCase());
+      
+      if (idx === -1) return str;
+      
+      return (
+        <>
+          {str.slice(0, idx)}
+          <mark className="bg-yellow-200 
+                           text-yellow-900 
+                           rounded-sm px-0.5 
+                           font-bold">
+            {str.slice(idx, idx + q.length)}
+          </mark>
+          {str.slice(idx + q.length)}
+        </>
+      );
+    };
   
     const sortedInvoices = useMemo(() => {
       return [...invoices].sort((a, b) => {
@@ -937,6 +968,50 @@ const UploadChoiceModal = ({ onChoose, onCancel, existingCount }) => (
         return invSort.dir === 'asc' ? cmp : -cmp;
       });
     }, [invoices, invSort]);
+
+    const visibleInvoices = useMemo(() => {
+      if (!invoiceSearch.trim()) 
+        return sortedInvoices;
+      
+      const q = invoiceSearch
+        .toLowerCase().trim();
+      
+      return sortedInvoices.filter(inv =>
+        inv.invoiceNo?.toString()
+           .toLowerCase().includes(q) ||
+        inv.customerName?.toLowerCase()
+           .includes(q)               ||
+        inv.mrName?.toLowerCase()
+           .includes(q)               ||
+        inv.customerType?.toLowerCase()
+           .includes(q)               ||
+        inv.lineName?.toLowerCase()
+           .includes(q)               ||
+        inv.branch?.toLowerCase()
+           .includes(q)               ||
+        fmt(inv.invoiceDate)
+           .toLowerCase().includes(q)
+      );
+    }, [sortedInvoices, invoiceSearch]);
+
+    const visibleProducts = useMemo(() => {
+      const products = activeInvoice?.products ?? [];
+      if (!productSearch.trim()) return products;
+      
+      const q = productSearch
+        .toLowerCase().trim();
+      
+      return products.filter(p =>
+        p.productName?.toLowerCase()
+         .includes(q) ||
+        p.productCode?.toString()
+         .toLowerCase().includes(q)
+      );
+    }, [activeInvoice, productSearch]);
+
+    useEffect(() => {
+      setProductSearch('');
+    }, [activeInvoice?.invoiceNo]);
   
     const toggleSort = (key) => {
       setInvSort(prev => ({
@@ -1105,6 +1180,58 @@ const UploadChoiceModal = ({ onChoose, onCancel, existingCount }) => (
                             border-r border-gray-100
                             overflow-y-auto">
               
+              {/* Search bar */}
+              <div className="px-3 py-2.5 
+                              border-b border-gray-100 
+                              bg-white sticky top-0 z-20">
+                <div className="relative">
+                  <Search 
+                    size={12} 
+                    className="absolute left-2.5 top-1/2 
+                               -translate-y-1/2 
+                               text-gray-300"/>
+                  <input
+                    type="text"
+                    value={invoiceSearch}
+                    onChange={e => 
+                      setInvoiceSearch(e.target.value)}
+                    placeholder="Search invoices, customers..."
+                    className="w-full pl-7 pr-7 py-1.5 
+                               text-xs border border-gray-200 
+                               rounded-lg outline-none
+                               focus:border-blue-400
+                               placeholder:text-gray-300"/>
+                  {invoiceSearch && (
+                    <button
+                      onClick={() => setInvoiceSearch('')}
+                      className="absolute right-2 top-1/2 
+                                 -translate-y-1/2 
+                                 text-gray-300 
+                                 hover:text-gray-600">
+                      ✕
+                    </button>
+                  )}
+                </div>
+                
+                {/* Result count */}
+                <div className="flex items-center 
+                                justify-between mt-1.5">
+                  <p className="text-[10px] text-gray-400">
+                    {invoiceSearch 
+                      ? `${visibleInvoices.length} of ${sortedInvoices.length} invoices`
+                      : `${sortedInvoices.length} invoices`
+                    }
+                  </p>
+                  {invoiceSearch && 
+                   visibleInvoices.length === 0 && (
+                    <p className="text-[10px] 
+                                  text-red-400 font-semibold">
+                      No results
+                    </p>
+                  )}
+                </div>
+              </div>
+
               {/* Table header */}
               <table className="w-full text-xs 
                                 border-collapse">
@@ -1153,7 +1280,7 @@ const UploadChoiceModal = ({ onChoose, onCancel, existingCount }) => (
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedInvoices.map((inv, i) => (
+                  {visibleInvoices.map((inv, i) => (
                     <tr
                       key={inv.invoiceNo}
                       onClick={() => 
@@ -1176,7 +1303,7 @@ const UploadChoiceModal = ({ onChoose, onCancel, existingCount }) => (
                                      font-mono 
                                      text-gray-700
                                      whitespace-nowrap">
-                        {inv.invoiceNo}
+                        {highlight(inv.invoiceNo, invoiceSearch)}
                       </td>
                       <td className="px-3 py-2 
                                      text-gray-500
@@ -1187,9 +1314,12 @@ const UploadChoiceModal = ({ onChoose, onCancel, existingCount }) => (
                                      text-gray-700 
                                      max-w-[130px] 
                                      truncate">
-                        {type === 'mr'
-                          ? inv.customerName
-                          : inv.mrName}
+                        {highlight(
+                          type === 'mr' 
+                            ? inv.customerName 
+                            : inv.mrName,
+                          invoiceSearch
+                        )}
                       </td>
                       <td className="px-3 py-2 
                                      text-right 
@@ -1312,6 +1442,47 @@ const UploadChoiceModal = ({ onChoose, onCancel, existingCount }) => (
                         products in this invoice
                       </p>
                     </div>
+
+                    {/* Product Search */}
+                    <div className="px-4 py-2.5 
+                                    border-b border-gray-100">
+                      <div className="relative">
+                        <Search 
+                          size={12} 
+                          className="absolute left-2.5 top-1/2 
+                                     -translate-y-1/2 
+                                     text-gray-300"/>
+                        <input
+                          type="text"
+                          value={productSearch}
+                          onChange={e => 
+                            setProductSearch(e.target.value)}
+                          placeholder="Search products..."
+                          className="w-full pl-7 pr-7 py-1.5 
+                                     text-xs border border-gray-200 
+                                     rounded-lg outline-none
+                                     focus:border-blue-400
+                                     placeholder:text-gray-300"/>
+                        {productSearch && (
+                          <button
+                            onClick={() => setProductSearch('')}
+                            className="absolute right-2 top-1/2 
+                                       -translate-y-1/2 
+                                       text-gray-300 
+                                       hover:text-gray-600">
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                      {productSearch && (
+                        <p className="text-[10px] text-gray-400 mt-1">
+                          {visibleProducts.length} of{' '}
+                          {(activeInvoice?.products ?? []).length} 
+                          {' '}products
+                        </p>
+                      )}
+                    </div>
+
                     <table className="w-full text-xs 
                                       border-collapse">
                       <thead className="bg-gray-50">
@@ -1332,7 +1503,16 @@ const UploadChoiceModal = ({ onChoose, onCancel, existingCount }) => (
                         </tr>
                       </thead>
                       <tbody>
-                        {activeInvoice.products
+                        {visibleProducts.length === 0 && (
+                          <tr>
+                            <td colSpan={6}
+                              className="text-center py-6 
+                                         text-gray-300 text-xs">
+                              No products match "{productSearch}"
+                            </td>
+                          </tr>
+                        )}
+                        {visibleProducts
                           .map((p, i) => (
                           <tr key={i}
                             className={i % 2 === 0
@@ -1342,12 +1522,12 @@ const UploadChoiceModal = ({ onChoose, onCancel, existingCount }) => (
                               text-gray-800 font-medium
                               max-w-[160px] truncate"
                               title={p.productName}>
-                              {p.productName}
+                              {highlight(p.productName, productSearch)}
                             </td>
                             <td className="px-3 py-2 
                               font-mono text-gray-500 
                               text-[10px]">
-                              {p.productCode || '—'}
+                              {highlight(p.productCode, productSearch)}
                             </td>
                             <td className="px-3 py-2 
                               text-right text-blue-700 
@@ -1505,6 +1685,12 @@ const UploadChoiceModal = ({ onChoose, onCancel, existingCount }) => (
   }, [filteredData, trendGroup]);
 
 
+  useEffect(() => {
+    if (!appendResult) return;
+    const t = setTimeout(() => setAppendResult(null), 6000);
+    return () => clearTimeout(t);
+  }, [appendResult]);
+
   const handleReset = () => { localStorage.removeItem(STORAGE_KEY); setData([]); setPersistenceInfo(null); setDataSources([]); setFilters({branch: [], supervisor: [], mrName: [], line: [], customerType: [], product: [], customer: [], fromDate: '', toDate: ''}); };
 
   if (parsing) return <div className="flex flex-col items-center justify-center h-screen"><div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" /><h3 className="text-xl font-black">{progress}</h3></div>;
@@ -1528,12 +1714,6 @@ const UploadChoiceModal = ({ onChoose, onCancel, existingCount }) => (
       </div>
     );
   }
-
-  useEffect(() => {
-    if (!appendResult) return;
-    const t = setTimeout(() => setAppendResult(null), 6000);
-    return () => clearTimeout(t);
-  }, [appendResult]);
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-gray-50">
