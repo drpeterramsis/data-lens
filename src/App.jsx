@@ -12,14 +12,20 @@ import CallDetailingAnalyzer from './tools/CallDetailingAnalyzer';
 import SalesAnalyzer from './tools/SalesAnalyzer';
 import UserManagement from './pages/admin/UserManagement';
 
+import ScrollToTopButton from './components/ScrollToTopButton';
+
 const AppLayout = ({ children }) => {
   return (
     <div className="min-h-screen bg-[#F8F9FA] flex flex-col font-sans selection:bg-accent/30 selection:text-accent-dark">
       <Navbar />
-      <main className="flex-1 w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 pt-20 pb-32">
+      <main 
+        style={{ paddingTop: "calc(var(--nav-height) + 16px)" }}
+        className="flex-1 w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 pb-32 space-y-4 sm:space-y-6"
+      >
         {children}
       </main>
       <Footer />
+      <ScrollToTopButton />
     </div>
   );
 };

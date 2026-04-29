@@ -409,23 +409,38 @@ const CallDetailingAnalyzer = () => {
     }, 10);
   }, []);
 
+  const scrollToSection = (id, extraOffset = 0) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    const navHeight = parseInt(
+      getComputedStyle(document.documentElement)
+        .getPropertyValue("--nav-height")
+    ) || 84;
+
+    const top = el.getBoundingClientRect().top
+      + window.scrollY
+      - navHeight
+      - 8
+      - extraOffset;
+
+    window.scrollTo({
+      top,
+      behavior: "smooth",
+    });
+  };
+
   const handleOpenCalendar = (mr) => {
     setSelectedMRForCalendar(mr);
     setTimeout(() => {
-      const el = document.getElementById("mr-calendar-section");
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
+      scrollToSection("mr-calendar-section");
     }, 100);
   };
 
   const handleCloseCalendar = () => {
     setSelectedMRForCalendar(null);
     setTimeout(() => {
-      const el = document.getElementById("section-performance");
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
+      scrollToSection("section-performance");
     }, 100);
   };
 
@@ -493,17 +508,26 @@ const CallDetailingAnalyzer = () => {
 
   const handleTabClick = (tabId) => {
     setActiveTab(tabId);
+
+    const sectionMap = {
+      performance: "section-performance",
+      forecast:    "section-forecast",
+      search:      "section-search",
+      coaching:    "section-coaching",
+      data:        "section-datatable",
+      insights:    "section-insights",
+    };
+
+    const sectionId = sectionMap[tabId];
+    if (!sectionId) return;
+
     if (tabId === "insights") {
       setInsightsOpen(true);
-      setTimeout(() => {
-        document.getElementById("section-insights")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 100);
-      return;
     }
-    const tab = tabs.find(t => t.id === tabId);
-    if (tab?.href) {
-      document.querySelector(tab.href)?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
+
+    setTimeout(() => {
+      scrollToSection(sectionId);
+    }, tabId === "insights" ? 150 : 50);
   };
 
   useEffect(() => {

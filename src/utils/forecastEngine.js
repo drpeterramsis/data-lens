@@ -18,11 +18,12 @@ export const isHCPDay = (d) => {
 };
 
 const getDatesInRange = (from, to) => {
+  if (!from || !to || from > to) return [];
   const dates = [];
   const cur = new Date(from + "T00:00:00");
   const end = new Date(to + "T00:00:00");
   let guard = 0;
-  while (cur <= end && guard < 400) {
+  while (cur <= end && guard < 500) {
     dates.push(cur.toISOString().split("T")[0]);
     cur.setDate(cur.getDate() + 1);
     guard++;
@@ -68,30 +69,55 @@ export const calculateForecast = ({
     }
 
     // MR personal vacations
-    const vac = mrVacations.filter(
+    const mrVacs = mrVacations.filter(
       v => v.mrName === mrName && date >= v.from && date <= v.to
     );
-    for (const v of vac) {
-      if (v.type === "full") return false;
-      if (v.type === "am" && (type === "HCO" || type === "PH")) return false;
-      if (v.type === "pm" && type === "HCP") return false;
+    for (const vac of mrVacs) {
+      if (vac.type === "full") return false;
+      if (vac.type === "am" && (type === "HCO" || type === "PH")) return false;
+      if (vac.type === "pm" && type === "HCP") return false;
     }
 
     return true;
   };
 
+  const getNextDay = (dateStr) => {
+    const d = new Date(dateStr + "T00:00:00");
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().split("T")[0];
+  };
+
   return mrStats.map(mr => {
     const lastDate = mr.lastDate;
-    if (!lastDate || lastDate >= periodEndDate) {
+    if (!lastDate) {
       return { mrName: mr.mrName, skipped: true };
     }
 
-    // Build remaining dates
-    const nextDay = new Date(lastDate + "T00:00:00");
-    nextDay.setDate(nextDay.getDate() + 1);
-    const remStartDate = nextDay.toISOString().split("T")[0];
+    const fromDate = getNextDay(lastDate);
 
-    const remainingDates = getDatesInRange(remStartDate, periodEndDate);
+    if (fromDate > periodEndDate) {
+      return {
+        mrName:      mr.mrName,
+        lineName:    mr.lineName,
+        lastDate,
+        fromDate,
+        hcoDone:     mr.totalHCO || 0,
+        phDone:      mr.totalPH || 0,
+        hcpDone:     mr.totalHCP || 0,
+        hcoRemDays:  0,
+        phRemDays:   0,
+        hcpRemDays:  0,
+        hcoRequired: null,
+        phRequired:  null,
+        hcpRequired: null,
+        hcoStatus:   mr.totalHCO >= (targets.hcoPerDay || targets.hco || 0) * (mr.hcoDays || 0) ? "achieved" : "impossible",
+        phStatus:    mr.totalPH >= (targets.phPerDay || targets.ph || 0) * (mr.phDays || 0) ? "achieved" : "impossible",
+        hcpStatus:   mr.totalHCP >= (targets.hcpPerDay || targets.hcp || 0) * (mr.hcpDays || 0) ? "achieved" : "impossible",
+        overallStatus: "impossible",
+      };
+    }
+
+    const remainingDates = getDatesInRange(fromDate, periodEndDate);
 
     // Count remaining working days per type
     const remHCO = remainingDates.filter(d => isAvailableForType(d, "HCO", mr.mrName)).length;
@@ -144,7 +170,7 @@ export const calculateForecast = ({
       mrName: mr.mrName,
       lineName: mr.lineName,
       lastDate,
-      fromDate: mr.fromDate,
+      fromDate,
 
       // HCO
       hcoDone: mr.totalHCO,

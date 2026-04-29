@@ -448,7 +448,6 @@ const ForecastTool = ({ data, targets, mrStats }) => {
                                <th colSpan="4" className="p-2 text-center border-l border-gray-600">🏥 HCO (Target: {targets?.hcoPerDay || 2}/day)</th>
                                <th colSpan="4" className="p-2 text-center border-l-2 border-gray-500">💊 Pharmacy (Target: {targets?.phPerDay || 10}/day)</th>
                                <th colSpan="4" className="p-2 text-center border-l-2 border-gray-500">👤 HCP (Target: {targets?.hcpPerDay || 9}/day)</th>
-                               <th className="p-2 text-center border-l-2 border-gray-500">Overall</th>
                             </tr>
                             <tr className="bg-gray-100 text-xs text-gray-600 font-semibold">
                                <th className="p-2 text-left sticky left-0 bg-gray-100 border-b border-gray-200 z-10">Name</th>
@@ -467,8 +466,6 @@ const ForecastTool = ({ data, targets, mrStats }) => {
                                <th className="p-2 text-center border-b border-gray-200">Days</th>
                                <th className="p-2 text-center border-b border-gray-200">Rate/d</th>
                                <th className="p-2 text-center border-b border-gray-200">Required/d</th>
-                               {/* Overall */}
-                               <th className="p-2 text-center border-l-2 border-gray-300 border-b border-gray-200">Status</th>
                             </tr>
                          </thead>
                          <tbody className="divide-y divide-gray-100">
@@ -484,7 +481,8 @@ const ForecastTool = ({ data, targets, mrStats }) => {
                                     <td className="p-3 align-top min-w-[160px] sticky left-0 bg-white border-r border-b border-gray-200 group-hover:bg-gray-50">
                                        <div className="font-bold text-sm text-gray-900">{row.mrName}</div>
                                        <div className="text-[11px] text-gray-500 mt-0.5">📅 Last: {formatDate(row.lastDate)}</div>
-                                       <div className="text-[11px] text-blue-500 mt-0.5">From: {formatDate(row.fromDate)}</div>
+                                       <div className="text-[11px] text-blue-500 mt-0.5">Rem. from: {formatDate(row.fromDate)}</div>
+                                       <div className="text-[10px] text-gray-400 mt-1">HCO: {row.hcoRemDays}d · PH: {row.phRemDays}d · HCP: {row.hcpRemDays}d left</div>
                                     </td>
                                     
                                     {/* HCO */}
@@ -531,24 +529,6 @@ const ForecastTool = ({ data, targets, mrStats }) => {
                                       totalTarget={row.hcpTotalTarget}
                                       remDays={row.hcpRemDays}
                                     />
-
-                                    <td className="p-3 text-center border-l-2 border-l-gray-300 border-b border-gray-200">
-                                       <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                                         row.overallStatus === "achieved" ? "bg-green-100 text-green-800" :
-                                         row.overallStatus === "on_track" ? "bg-green-100 text-green-800" :
-                                         row.overallStatus === "warning" ? "bg-yellow-100 text-yellow-800" :
-                                         row.overallStatus === "at_risk" ? "bg-orange-100 text-orange-800" :
-                                         row.overallStatus === "critical" ? "bg-red-100 text-red-800" :
-                                         "bg-gray-100 text-gray-600"
-                                       }`}>
-                                          {row.overallStatus === "achieved" ? "✅ Achieved" :
-                                           row.overallStatus === "on_track" ? "🟢 On Track" :
-                                           row.overallStatus === "warning" ? "🟡 Warning" :
-                                           row.overallStatus === "at_risk" ? "🟠 At Risk" :
-                                           row.overallStatus === "critical" ? "🔴 Critical" :
-                                           "❌ No Days"}
-                                       </span>
-                                    </td>
                                  </tr>
                                );
                             })}

@@ -21,7 +21,19 @@
 
 @layer base {
   :root {
+    --nav-height: 84px; /* fallback */
     color-scheme: light;
+  }
+  
+  /* All anchor target sections get scroll margin */
+  #section-performance,
+  #section-forecast,
+  #section-search,
+  #section-coaching,
+  #section-datatable,
+  #section-insights,
+  #mr-calendar-section {
+    scroll-margin-top: calc(var(--nav-height) + 8px);
   }
 
   * {

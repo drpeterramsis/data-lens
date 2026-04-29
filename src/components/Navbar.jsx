@@ -7,6 +7,19 @@ const Navbar = () => {
   const { user } = useAuth();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const navRef = React.useRef(null);
+
+  React.useEffect(() => {
+    const updateNavHeight = () => {
+      if (navRef.current) {
+        const h = navRef.current.offsetHeight;
+        document.documentElement.style.setProperty("--nav-height", `${h}px`);
+      }
+    };
+    updateNavHeight();
+    window.addEventListener("resize", updateNavHeight);
+    return () => window.removeEventListener("resize", updateNavHeight);
+  }, []);
 
   const getInitials = (name) => {
     if (!name || typeof name !== 'string') return '??';
@@ -29,7 +42,7 @@ const Navbar = () => {
 
   return (
     <>
-      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-3 sm:px-6 py-3 bg-gray-900 text-white shadow-md">
+      <nav ref={navRef} className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-3 sm:px-6 py-3 bg-gray-900 text-white shadow-md">
         {/* Logo */}
         <div className="flex items-center gap-2">
           <span className="text-xl">🔍</span>
