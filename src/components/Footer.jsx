@@ -33,7 +33,7 @@ export default function Footer() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 opacity-80 hover:opacity-100 transition-all cursor-default group">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] group-hover:scale-125 transition-transform"></span>
-            <span className="text-[9px] text-white font-black uppercase tracking-widest leading-none">V1.0.410 - Data Lens Live</span>
+            <span className="text-[9px] text-white font-black uppercase tracking-widest leading-none">V1.0.412 - Data Lens Live</span>
           </div>
           <div className="h-4 w-[1px] bg-white/10 mx-1 hidden sm:block" />
           <span className="text-[10px] sm:text-xs text-white font-medium">

@@ -42,6 +42,7 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 
 ## Version History
 
+- **v1.0.412:** Removed click/hover functionality from the "X d coached" tag in MR cards.
 - **v1.0.411:** Removed status labels from MR cards. Cleaner Team Overview table with color-coded rates and coaching indicators based on targets. Added disableHover support for tooltip component and applied it to MR card coaching tags.
 - **v1.0.410:** Removed status column from Team Overview. Added target-based coloring for rates. Highlighted coaching days with color. Removed hover effect on status labels.
 - **v1.0.404:** Fixed critical bug preventing "Clear Data" and "Upload New File" operations where CSVUploader's local storage backup overrode intentionally cleared states. Ensured full isolation of caching strategies between analysis modules and correctly plumbed fileName downstream to metadata.

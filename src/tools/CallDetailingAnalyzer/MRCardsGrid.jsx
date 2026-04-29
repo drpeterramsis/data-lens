@@ -262,22 +262,9 @@ const MRCard = ({ mr, isExpanded, onToggle, targets, onOpenCalendar }) => {
             </span>
             {/* Coaching mini tag */}
             {isCoached && (
-              <StatusTooltip
-                title="🎓 Coaching Activity"
-                color="yellow"
-                disableHover={true}
-                lines={[
-                  `Coached on ${mr.coachingDays} unique day(s)`,
-                  `Total coached interactions: ${mr.coachedVisits}`,
-                  `An MR is marked "Coached" when`,
-                  `IsMRCoachingSubmitted = true OR`,
-                  `IsManagerCoachingSubmitted = true`,
-                  `on that visit record`,
-                ]}>
-                <span className="flex items-center gap-1 text-[10px] font-semibold text-yellow-700 bg-yellow-100 px-1.5 py-0.5 rounded-full cursor-help">
-                  🎓 {mr.coachingDays}d coached
-                </span>
-              </StatusTooltip>
+              <span className="flex items-center gap-1 text-[10px] font-semibold text-yellow-700 bg-yellow-100 px-1.5 py-0.5 rounded-full">
+                🎓 {mr.coachingDays}d coached
+              </span>
             )}
           </div>
         </div>
