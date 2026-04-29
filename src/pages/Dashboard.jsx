@@ -6,7 +6,8 @@ import {
   Settings, 
   ChevronRight, 
   Activity, 
-  BarChart3 
+  BarChart3,
+  Map
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -30,6 +31,14 @@ const Dashboard = () => {
       icon: BarChart3,
       path: '/tools/sales-analyzer',
       accent: 'border-blue-400'
+    },
+    {
+      id: 'routing-analyzer',
+      title: 'Routing Analyzer',
+      description: 'Optimize field force routing, coverage mapping, and visit frequency analysis for maximum reach.',
+      icon: Map,
+      path: '/tools/routing-analyzer',
+      accent: 'border-accent'
     }
   ];
 

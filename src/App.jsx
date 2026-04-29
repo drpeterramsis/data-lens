@@ -10,6 +10,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import CallDetailingAnalyzer from './tools/CallDetailingAnalyzer';
 import SalesAnalyzer from './tools/SalesAnalyzer';
+import RoutingAnalyzer from './tools/RoutingAnalyzer';
 import UserManagement from './pages/admin/UserManagement';
 
 import ScrollToTopButton from './components/ScrollToTopButton';
@@ -54,6 +55,12 @@ const AppRoutes = () => {
       <Route path="/tools/sales-analyzer" element={
         <ProtectedRoute>
           <AppLayout><SalesAnalyzer /></AppLayout>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/tools/routing-analyzer" element={
+        <ProtectedRoute>
+          <AppLayout><RoutingAnalyzer /></AppLayout>
         </ProtectedRoute>
       } />
 

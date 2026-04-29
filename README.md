@@ -42,6 +42,10 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 
 ## Version History
 
+- **v1.0.431:** Routing Analyzer Overhaul: Implemented robust local storage for dataset persistence between sessions; added multi-file processing with 'Replace' and 'Append' modes; complete UI/UX transformation with a sticky "IDE-style" filter sidebar and new batch upload modal; enhanced KPI engine with improved visual design and target-based visit progress tracking; refined Header with real-time dataset context.
+- **v1.0.430:** Advanced Routing Analysis Engine update. Improved filtering and sorting.
+- **v1.0.429:** Routing Analyzer Intelligence Node update.
+- **v1.0.428:** Routing Analyzer Initial Release.
 - **v1.0.427:** Fixed syntax errors in `Footer.jsx` caused by manual edits. Restored and unified branding highlights using specific yellow (`#F5C518`) for developer name and version numbers.
 - **v1.0.426:** Refined footer branding with high-contrast yellow (`#F5C518`) for developer name and version identifiers. Optimized padding in `Sales Analyzer`.
 - **v1.0.425:** Updated footer branding with high-contrast yellow highlights for developer name and version identifiers. Incremented global versioning across config and components.
@@ -85,4 +89,4 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 - **v1.0.001:** Initial release. Authentication, CSV parsing, Analysis tools, and Admin panel implemented.
 
 ---
-© 2026 Data Lens Analytics | version 1.0.427
+© 2026 Data Lens Analytics | version 1.0.431

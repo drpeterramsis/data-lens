@@ -8,7 +8,8 @@
       "email": "admin@datalens.com",
       "password": "dlDL2@26",
       "role": "admin",
-      "active": true
+      "active": true,
+      "tools": ["call-detailing", "sales-analyzer", "routing-analyzer"]
     },
     {
       "id": "2",
@@ -18,7 +19,8 @@
       "email": "sara@datalens.com",
       "password": "sara123",
       "role": "manager",
-      "active": true
+      "active": true,
+      "tools": ["call-detailing", "sales-analyzer", "routing-analyzer"]
     },
     {
       "id": "3",
@@ -28,7 +30,8 @@
       "email": "omar@datalens.com",
       "password": "omar123",
       "role": "viewer",
-      "active": true
+      "active": true,
+      "tools": ["call-detailing"]
     },
     {
       "id": "4",
@@ -38,7 +41,8 @@
       "email": "mr_user@datalens.com",
       "password": "datalens2026",
       "role": "manager",
-      "active": true
+      "active": true,
+      "tools": ["call-detailing", "sales-analyzer", "routing-analyzer"]
     }
   ]
 }
