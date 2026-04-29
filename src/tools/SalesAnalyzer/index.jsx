@@ -11,6 +11,12 @@ import {
   PieChart, Pie, Cell, Legend, LineChart, Line 
 } from 'recharts';
 
+const APP_VERSION = {
+  version: '3.1.0',
+  releaseDate: 'Jun 2025',
+  label: 'Multi-File Upload + Append Mode'
+};
+
 const STORAGE_KEY = 'datalens_atr_sales_v1';
 const SALES_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444'];
 
@@ -503,6 +509,7 @@ const SalesAnalyzer = () => {
   const [uploadMode, setUploadMode] = useState('replace');
   const [appendResult, setAppendResult] = useState(null);
   const [showUploadChoice, setShowUploadChoice] = useState(false);
+  const [pendingFile, setPendingFile] = useState(null);
   const [dataSources, setDataSources] = useState([]);
 
   // Period Compare states
@@ -522,32 +529,57 @@ const SalesAnalyzer = () => {
       fromDate: '', toDate: ''
   });
   
-const UploadModeModal = ({ onChoose, onCancel, existingCount }) => (
-  <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+const UploadChoiceModal = ({ onChoose, onCancel, existingCount }) => (
+  <div 
+    className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
+    onClick={(e) => {
+      if (e.target === e.currentTarget) onCancel();
+    }}>
     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6">
-      <h3 className="text-lg font-black text-gray-900 mb-1">Upload New File</h3>
-      <p className="text-sm text-gray-400 mb-6">You have {existingCount.toLocaleString()} rows loaded. What do you want to do?</p>
+      <div className="flex items-center gap-3 mb-1">
+        <div className="bg-blue-100 p-2.5 rounded-xl">
+          <Upload size={18} className="text-blue-600"/>
+        </div>
+        <h3 className="text-lg font-black text-gray-900">Upload New File</h3>
+      </div>
+      <p className="text-sm text-gray-400 mb-6 ml-1">
+        You have <span className="font-bold text-gray-700">{existingCount.toLocaleString()} rows</span> already loaded. What would you like to do?
+      </p>
       <div className="flex flex-col gap-3">
-        <button onClick={() => onChoose('append')} className="w-full text-left px-5 py-4 rounded-2xl border-2 border-blue-200 hover:border-blue-500 hover:bg-blue-50 transition-all group">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-100 p-2.5 rounded-xl group-hover:bg-blue-200 transition-colors"><span>➕</span></div>
+        <button
+          onClick={() => onChoose('append')}
+          className="w-full text-left px-5 py-4 rounded-2xl border-2 border-blue-100 hover:border-blue-500 hover:bg-blue-50 transition-all group">
+          <div className="flex items-start gap-3">
+            <div className="bg-blue-100 p-2 rounded-xl mt-0.5 group-hover:bg-blue-200 transition-colors shrink-0">
+              <span className="text-lg">➕</span>
+            </div>
             <div>
-              <p className="font-black text-gray-900">Append to existing data</p>
-              <p className="text-xs text-gray-400 mt-0.5">Merge new file with current data. Duplicate invoices will be skipped.</p>
+              <p className="font-black text-gray-900 text-sm">Add to existing data</p>
+              <p className="text-xs text-gray-400 mt-1 leading-relaxed">
+                Merge new file with current data. Duplicate invoice numbers will be skipped automatically. Best for adding new time periods.
+              </p>
             </div>
           </div>
         </button>
-        <button onClick={() => onChoose('replace')} className="w-full text-left px-5 py-4 rounded-2xl border-2 border-gray-200 hover:border-red-300 hover:bg-red-50 transition-all group">
-          <div className="flex items-center gap-3">
-            <div className="bg-gray-100 p-2.5 rounded-xl group-hover:bg-red-100 transition-colors"><span>🔄</span></div>
+        <button
+          onClick={() => onChoose('replace')}
+          className="w-full text-left px-5 py-4 rounded-2xl border-2 border-gray-100 hover:border-red-300 hover:bg-red-50 transition-all group">
+          <div className="flex items-start gap-3">
+            <div className="bg-gray-100 p-2 rounded-xl mt-0.5 group-hover:bg-red-100 transition-colors shrink-0">
+              <span className="text-lg">🔄</span>
+            </div>
             <div>
-              <p className="font-black text-gray-900">Replace all data</p>
-              <p className="text-xs text-gray-400 mt-0.5">Delete current data and load new file fresh.</p>
+              <p className="font-black text-gray-900 text-sm">Replace all data</p>
+              <p className="text-xs text-gray-400 mt-1 leading-relaxed">
+                Delete current data and start fresh with new file.
+              </p>
             </div>
           </div>
         </button>
       </div>
-      <button onClick={onCancel} className="w-full mt-4 text-sm text-gray-400 hover:text-gray-600 font-semibold py-2">Cancel</button>
+      <button onClick={onCancel} className="w-full mt-4 text-sm text-gray-400 hover:text-gray-600 font-semibold py-2 transition-colors">
+        Cancel
+      </button>
     </div>
   </div>
 );
@@ -679,16 +711,148 @@ const UploadModeModal = ({ onChoose, onCancel, existingCount }) => (
     if (data.length > 0) {
       setShowUploadChoice(true);
     } else {
-      setUploadMode('replace');
-      fileInputRef.current.click();
+      fileInputRef.current?.click();
     }
   };
 
   const handleUploadChoice = (mode) => {
     setUploadMode(mode);
     setShowUploadChoice(false);
-    fileInputRef.current.click();
+    fileInputRef.current?.click();
   };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPendingFile(file);
+    processFile(file, uploadMode);
+    e.target.value = '';
+  };
+
+  const processFile = async (file, mode) => {
+    try {
+      setParsing(true);
+      setProgress('Reading file...');
+      const reader = new FileReader();
+
+      reader.onload = async (evt) => {
+        try {
+          const bstr = evt.target.result;
+          const wb = XLSX.read(bstr, { type: 'binary', cellDates: true });
+          setProgress('Detecting headers...');
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const rawData = XLSX.utils.sheet_to_json(ws, { header: 1 });
+          const headerRowIndex = rawData.findIndex(row => row.includes("اسم الصنف") && row.includes("المندوب") && row.includes("رقم الفاتورة"));
+          if (headerRowIndex === -1) { alert("Could not detect valid headers."); setParsing(false); return; }
+          const headers = rawData[headerRowIndex];
+          const rows = rawData.slice(headerRowIndex + 1);
+          setProgress(`Processing ${rows.length} rows...`);
+          const parsedRows = rows.map(row => {
+              const rowObj = {};
+              headers.forEach((h, i) => { if (COLUMN_MAP[h]) rowObj[COLUMN_MAP[h]] = row[i]; });
+              return rowObj;
+          })
+          .filter(row => row.productName)
+          .map(row => ({
+              ...row,
+              salesQty: parseFloat(row.salesQty) || 0,
+              salesValue: parseFloat(row.salesValue) || 0,
+              discountQty: parseFloat(row.discountQty) || 0,
+              discountValue: parseFloat(row.discountValue) || 0,
+              returnQty: parseFloat(row.returnQty) || 0,
+              returnValue: parseFloat(row.returnValue) || 0,
+              netQty: parseFloat(row.netQty) || 0,
+              netValue: parseFloat(row.netValue) || 0,
+              invoiceDate: row.invoiceDate instanceof Date ? row.invoiceDate : new Date(row.invoiceDate)
+          }));
+
+          if (mode === 'append' && data.length > 0) {
+            const existingKeys = new Set(data.map(r => r.invoiceNo));
+            const newRows = parsedRows.filter(r => !existingKeys.has(r.invoiceNo));
+            const skipped = parsedRows.length - newRows.length;
+            const merged = [...data, ...newRows];
+
+            setData(merged);
+            
+            setAppendResult({
+              mode:    'append',
+              added:   newRows.length,
+              skipped: skipped,
+              total:   merged.length,
+              file:    file.name,
+            });
+
+            saveToStorage(buildCachePayload(merged, file.name));
+          } else {
+            setData(parsedRows);
+            
+            setAppendResult({
+              mode:  'replace',
+              added: parsedRows.length,
+              total: parsedRows.length,
+              file:  file.name,
+            });
+
+            saveToStorage(buildCachePayload(parsedRows, file.name));
+          }
+
+          setDataSources(prev => {
+            const filtered = mode === 'replace' ? [] : prev;
+            const exists = filtered.find(s => s.fileName === file.name);
+            if (exists) return filtered;
+            
+            const fileDates = parsedRows
+              .filter(r => r.invoiceDate instanceof Date)
+              .map(r => r.invoiceDate.getTime());
+            
+            return [...filtered, {
+              fileName:  file.name,
+              rowCount:  parsedRows.length,
+              uploadedAt: new Date().toISOString(),
+              mode:      mode,
+              dateFrom:  fileDates.length ? new Date(Math.min(...fileDates)) : null,
+              dateTo:    fileDates.length ? new Date(Math.max(...fileDates)) : null,
+            }];
+          });
+          setParsing(false);
+        } catch (err) { console.error(err); alert("Error parsing file."); setParsing(false); }
+      };
+      reader.readAsBinaryString(file);
+    } catch (err) {
+      console.error('Parse error:', err);
+      alert('Error reading file: ' + err.message);
+      setParsing(false);
+    }
+  };
+
+  const buildCachePayload = (rows, fileName) => ({
+    savedAt:  new Date().toISOString(),
+    fileName: fileName,
+    rowCount: rows.length,
+    rows:     rows.map(r => ({
+      sup: r.supervisor,
+      mr:  r.mrName,
+      ct:  r.customerType,
+      cid: r.customerId,
+      cn:  r.customerName,
+      ca:  r.customerAddress,
+      psi: r.partySiteId,
+      ec:  r.entityCode,
+      ln:  r.lineName,
+      lc:  r.lineCode,
+      inv: r.invoiceNo,
+      dt:  r.invoiceDate instanceof Date ? r.invoiceDate.getTime() : null,
+      pc:  r.productCode,
+      pn:  r.productName,
+      sq:  r.salesQty   || 0,
+      sv:  r.salesValue || 0,
+      rq:  r.returnQty  || 0,
+      rv:  r.returnValue|| 0,
+      nq:  r.netQty     || 0,
+      nv:  r.netValue   || 0,
+      br:  r.branch,
+    }))
+  });
 
   const fmt = (date) => (!date || !(date instanceof Date)) ? '—' : date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
@@ -1340,89 +1504,8 @@ const UploadModeModal = ({ onChoose, onCancel, existingCount }) => (
       return Object.values(map).map(r => ({ ...r, invoiceCount: r.invoices.size })).sort((a,b) => a.period.localeCompare(b.period));
   }, [filteredData, trendGroup]);
 
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setParsing(true);
-    setProgress('Reading file...');
-    const reader = new FileReader();
 
-    reader.onload = async (evt) => {
-      try {
-        const bstr = evt.target.result;
-        const wb = XLSX.read(bstr, { type: 'binary', cellDates: true });
-        setProgress('Detecting headers...');
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const rawData = XLSX.utils.sheet_to_json(ws, { header: 1 });
-        const headerRowIndex = rawData.findIndex(row => row.includes("اسم الصنف") && row.includes("المندوب") && row.includes("رقم الفاتورة"));
-        if (headerRowIndex === -1) { alert("Could not detect valid headers."); setParsing(false); return; }
-        const headers = rawData[headerRowIndex];
-        const rows = rawData.slice(headerRowIndex + 1);
-        setProgress(`Processing ${rows.length} rows...`);
-        const parsedRows = rows.map(row => {
-            const rowObj = {};
-            headers.forEach((h, i) => { if (COLUMN_MAP[h]) rowObj[COLUMN_MAP[h]] = row[i]; });
-            return rowObj;
-        })
-        .filter(row => row.productName)
-        .map(row => ({
-            ...row,
-            salesQty: parseFloat(row.salesQty) || 0,
-            salesValue: parseFloat(row.salesValue) || 0,
-            discountQty: parseFloat(row.discountQty) || 0,
-            discountValue: parseFloat(row.discountValue) || 0,
-            returnQty: parseFloat(row.returnQty) || 0,
-            returnValue: parseFloat(row.returnValue) || 0,
-            netQty: parseFloat(row.netQty) || 0,
-            netValue: parseFloat(row.netValue) || 0,
-            invoiceDate: row.invoiceDate instanceof Date ? row.invoiceDate : new Date(row.invoiceDate)
-        }));
-
-        let finalRows = parsedRows;
-        let addedCount = parsedRows.length;
-        let skippedCount = 0;
-
-        if (uploadMode === 'append' && data.length > 0) {
-            const existingInvoices = new Set(data.map(r => r.invoiceNo));
-            const newRows = parsedRows.filter(r => !existingInvoices.has(r.invoiceNo));
-            skippedCount = parsedRows.length - newRows.length;
-            finalRows = [...data, ...newRows];
-            addedCount = newRows.length;
-            setAppendResult({ added: addedCount, skipped: skippedCount, total: finalRows.length });
-        } else {
-            setData(parsedRows);
-        }
-
-        setData(finalRows);
-        setDataSources(prev => {
-            const exists = prev.find(s => s.fileName === file.name);
-            if (exists) return prev;
-            return [...prev, {
-                fileName: file.name,
-                rowCount: parsedRows.length,
-                uploadedAt: new Date().toISOString(),
-                mode: uploadMode,
-                dateRange: {
-                    from: Math.min(...parsedRows.filter(r => r.invoiceDate).map(r => r.invoiceDate.getTime())),
-                    to: Math.max(...parsedRows.filter(r => r.invoiceDate).map(r => r.invoiceDate.getTime())),
-                }
-            }];
-        });
-
-        setParsing(false);
-        const cacheObject = {
-            uploadedAt: new Date().toISOString(),
-            fileName: file.name,
-            meta: { totalInvoices: finalRows.length, dateRange: { from: Math.min(...finalRows.map(r => r.invoiceDate.getTime())), to: Math.max(...finalRows.map(r => r.invoiceDate.getTime())) } },
-            rows: finalRows.map(r => ({ sup: r.supervisor, mr: r.mrName, ct: r.customerType, cid: r.customerId, cn: r.customerName, ln: r.lineName, inv: r.invoiceNo, dt: r.invoiceDate.getTime(), pc: r.productCode, pn: r.productName, sq: r.salesQty, sv: r.salesValue, rq: r.returnQty, rv: r.returnValue, nq: r.netQty, nv: r.netValue, br: r.branch }))
-        };
-        saveToStorage(cacheObject);
-      } catch (err) { console.error(err); alert("Error parsing file."); setParsing(false); }
-    };
-    reader.readAsBinaryString(file);
-  };
-
-  const handleReset = () => { localStorage.removeItem(STORAGE_KEY); setData([]); setPersistenceInfo(null); };
+  const handleReset = () => { localStorage.removeItem(STORAGE_KEY); setData([]); setPersistenceInfo(null); setDataSources([]); setFilters({branch: [], supervisor: [], mrName: [], line: [], customerType: [], product: [], customer: [], fromDate: '', toDate: ''}); };
 
   if (parsing) return <div className="flex flex-col items-center justify-center h-screen"><div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" /><h3 className="text-xl font-black">{progress}</h3></div>;
 
@@ -1432,19 +1515,25 @@ const UploadModeModal = ({ onChoose, onCancel, existingCount }) => (
         <div className="mb-12 text-center">
            <div className="inline-flex p-4 bg-[#F5C518]/10 rounded-2xl text-[#F5C518] mb-4 shadow-sm"><BarChart3 size={48} /></div>
            <h2 className="text-4xl font-black text-gray-900 tracking-tighter uppercase italic">ATR SALES ANALYZER</h2>
-           <p className="text-gray-500 text-sm font-medium uppercase tracking-[0.2em] mt-2">v1.0.005</p>
+           <p className="text-gray-500 text-sm font-medium uppercase tracking-[0.2em] mt-2">v{APP_VERSION.version}</p>
         </div>
         <div className="p-12 bg-white border-2 border-dashed border-gray-300 rounded-3xl flex flex-col items-center justify-center text-center cursor-pointer hover:border-blue-500 transition-colors" onClick={handleUploadClick}>
             <Upload size={48} className="text-gray-400 mb-4" />
             <h3 className="text-lg font-bold text-gray-700">Drop XLSX or CSV file here</h3>
             <p className="text-gray-400 text-sm mt-1">or click to browse</p>
-            <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xlsx,.csv" className="hidden" />
+            <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".xlsx,.csv" className="hidden" />
         </div>
-        {showUploadChoice && <UploadModeModal onChoose={handleUploadChoice} onCancel={() => setShowUploadChoice(false)} existingCount={data.length} />}
+        {showUploadChoice && <UploadChoiceModal onChoose={handleUploadChoice} onCancel={() => setShowUploadChoice(false)} existingCount={data.length} />}
 
       </div>
     );
   }
+
+  useEffect(() => {
+    if (!appendResult) return;
+    const t = setTimeout(() => setAppendResult(null), 6000);
+    return () => clearTimeout(t);
+  }, [appendResult]);
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-gray-50">
@@ -1458,40 +1547,100 @@ const UploadModeModal = ({ onChoose, onCancel, existingCount }) => (
         />
       )}
       {appendResult && (
-        <div className="fixed bottom-6 right-6 z-50 bg-gray-900 text-white px-5 py-4 rounded-2xl shadow-2xl flex items-start gap-3 animate-in slide-in-from-bottom-4">
-          <span className="text-2xl">✅</span>
-          <div>
-            <p className="font-black text-sm">Data Appended Successfully</p>
-            <p className="text-xs text-gray-400 mt-1">+{appendResult.added.toLocaleString()} new rows added</p>
-            <p className="text-xs text-gray-400">{appendResult.skipped > 0 && `${appendResult.skipped} duplicate invoices skipped`}</p>
-            <p className="text-xs text-emerald-400 font-bold mt-1">Total: {appendResult.total.toLocaleString()} rows in database</p>
+        <div className="fixed bottom-6 right-6 z-50 bg-gray-900 text-white px-5 py-4 rounded-2xl shadow-2xl flex items-start gap-3 max-w-sm">
+          <span className="text-2xl shrink-0">
+            {appendResult.mode === 'append' ? '✅' : '🔄'}
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className="font-black text-sm">
+              {appendResult.mode === 'append' ? 'Data Appended' : 'Data Replaced'}
+            </p>
+            <p className="text-xs text-gray-400 mt-1 truncate">
+              📄 {appendResult.file}
+            </p>
+            {appendResult.mode === 'append' && (
+              <>
+                <p className="text-xs text-emerald-400 font-semibold mt-1">
+                  +{appendResult.added.toLocaleString()} new rows
+                </p>
+                {appendResult.skipped > 0 && (
+                  <p className="text-xs text-gray-500">
+                    {appendResult.skipped.toLocaleString()} duplicates skipped
+                  </p>
+                )}
+              </>
+            )}
+            <p className="text-xs text-gray-300 font-bold mt-1">
+              Total: {appendResult.total.toLocaleString()} rows
+            </p>
           </div>
-          <button onClick={() => setAppendResult(null)} className="text-gray-500 hover:text-white ml-2">✕</button>
+          <button
+            onClick={() => setAppendResult(null)}
+            className="text-gray-500 hover:text-white shrink-0">
+            ✕
+          </button>
         </div>
       )}
       
       <div className="flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 shrink-0">
         <div>
           <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">ATR Sales Analysis</h2>
-          {dataSources.length > 0 && (
-            <div className="flex items-center gap-1.5 flex-wrap mt-2">
-              <span className="text-[10px] text-gray-400 font-bold uppercase">Sources:</span>
-              {dataSources.map((src, i) => (
-                <span key={i} className="bg-gray-100 text-gray-600 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-gray-200">
-                  📄 {src.fileName.replace('.xlsx','')} · {new Date(src.dateRange.from).toLocaleDateString('en-GB',{month:'short', year:'numeric'})} → {new Date(src.dateRange.to).toLocaleDateString('en-GB',{month:'short', year:'numeric'})}
-                </span>
-              ))}
-            </div>
-          )}
           <p className="text-xs text-gray-400 font-medium mt-0.5">
             {data.length.toLocaleString()} INVOICES · {totalProducts} PRODUCTS · {totalMRs} MRs · {formatDate(startDate)} → {formatDate(endDate)}
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={handleUploadClick}
+            className="flex items-center gap-2 text-xs font-black uppercase tracking-widest bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl transition-all shadow-sm">
+            <Upload size={13}/>
+            {data.length > 0 ? 'Add / Replace File' : 'Upload File'}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            onChange={handleFileChange}
+            className="hidden"
+            multiple={false}
+          />
           <button onClick={() => setFilters(f=>({...f, fromDate:'', toDate:''}))} className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:border-blue-400 hover:text-blue-600 transition-all font-semibold">📅 Full Period</button>
           <button onClick={handleReset} className="text-xs font-black uppercase tracking-widest bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-all shadow-sm flex items-center gap-2"><RefreshCw size={12}/> Reset</button>
         </div>
       </div>
+
+      {dataSources.length > 0 && (
+        <div className="flex items-center gap-3 px-6 py-2 bg-gray-50 border-b border-gray-100 shrink-0 overflow-x-auto">
+          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest shrink-0">
+            Loaded:
+          </span>
+          {dataSources.map((src, i) => (
+            <div key={i} className="flex items-center gap-2 bg-white border border-gray-200 px-3 py-1.5 rounded-full shrink-0 shadow-sm">
+              <span className="text-[10px] text-blue-500">
+                {src.mode === 'append' ? '➕' : '📄'}
+              </span>
+              <span className="text-[11px] font-semibold text-gray-700 max-w-[120px] truncate" title={src.fileName}>
+                {src.fileName.replace(/\.(xlsx|xls|csv)$/i, '')}
+              </span>
+              {src.dateFrom && src.dateTo && (
+                <span className="text-[10px] text-gray-400">
+                  {src.dateFrom.toLocaleDateString('en-GB', { month:'short', year:'2-digit' })}
+                  {' → '}
+                  {src.dateTo.toLocaleDateString('en-GB', { month:'short', year:'2-digit' })}
+                </span>
+              )}
+              <span className="text-[10px] text-gray-300">
+                {src.rowCount.toLocaleString()} rows
+              </span>
+            </div>
+          ))}
+          {dataSources.length > 1 && (
+            <span className="text-[10px] font-black text-emerald-600 shrink-0 ml-1">
+              Total: {data.length.toLocaleString()} rows
+            </span>
+          )}
+        </div>
+      )}
 
 
       <div className="flex flex-1 overflow-hidden h-[calc(100vh-theme(spacing.24))]">
