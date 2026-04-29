@@ -265,6 +265,7 @@ const MRCard = ({ mr, isExpanded, onToggle, targets, onOpenCalendar }) => {
               <StatusTooltip
                 title="🎓 Coaching Activity"
                 color="yellow"
+                disableHover={true}
                 lines={[
                   `Coached on ${mr.coachingDays} unique day(s)`,
                   `Total coached interactions: ${mr.coachedVisits}`,

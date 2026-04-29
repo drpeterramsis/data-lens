@@ -42,8 +42,8 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 
 ## Version History
 
-- **v1.0.409:** Implemented Status Labels with Hover Tooltips (v4.9). Every badge and status cell now includes a math-backed explanation tooltip with real-time performance breakdowns. Unified status logic with standardized thresholds.
-- **v1.0.408:** Implemented MR Card Coaching Style with yellow highlighting and emoji collage. Added multi-column sorting to the Forecast Table.
+- **v1.0.411:** Removed status labels from MR cards. Cleaner Team Overview table with color-coded rates and coaching indicators based on targets. Added disableHover support for tooltip component and applied it to MR card coaching tags.
+- **v1.0.410:** Removed status column from Team Overview. Added target-based coloring for rates. Highlighted coaching days with color. Removed hover effect on status labels.
 - **v1.0.404:** Fixed critical bug preventing "Clear Data" and "Upload New File" operations where CSVUploader's local storage backup overrode intentionally cleared states. Ensured full isolation of caching strategies between analysis modules and correctly plumbed fileName downstream to metadata.
 - **v1.0.403:** Implemented a new multi-month filtering system for the Call Detailing Analyzer. Added an interactive month selector, tooltip summaries, calendar multi-month default sorting, period banner reflection for selected months, and localized persistent storage. Fixed target calculations in the Forecast Table with a dedicated "Required Rate" column and updated table layout formatting.
 - **v1.0.402:** Fixed a critical rendering issue in the User Management and Dashboard screens where newly initialized administrative users that did not have specific platform modules assigned in their data configuration caused sudden application failures on tool parsing. Applied graceful fallbacks to the map iterations.
@@ -77,4 +77,4 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 - **v1.0.001:** Initial release. Authentication, CSV parsing, Analysis tools, and Admin panel implemented.
 
 ---
-© 2026 Data Lens Analytics | version 1.0.410
+© 2026 Data Lens Analytics | version 1.0.411

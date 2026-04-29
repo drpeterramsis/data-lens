@@ -4,7 +4,8 @@ const StatusTooltip = ({
   children,      // the badge/label element
   title,         // bold header line
   lines = [],    // array of explanation strings
-  color = "gray" // matches badge color family
+  color = "gray", // matches badge color family
+  disableHover = false // NEW: prop to disable hover
 }) => {
 
   const [open, setOpen] = useState(false);
@@ -44,9 +45,9 @@ const StatusTooltip = ({
       <div
         onClick={() => setOpen(o => !o)}
         className="cursor-help"
-        // Desktop hover
-        onMouseEnter={() => setOpen(true)}
-        onMouseLeave={() => setOpen(false)}>
+        // Desktop hover - disabled if disableHover is true
+        onMouseEnter={() => !disableHover && setOpen(true)}
+        onMouseLeave={() => !disableHover && setOpen(false)}>
         {children}
       </div>
 
