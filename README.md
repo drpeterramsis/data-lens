@@ -42,6 +42,7 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 
 ## Version History
 
+- **v1.0.436:** Routing Analyzer Multi-Month Optimization: Fixed major data redundancy by implementing cross-month deduplication logic (customerId + month unique keys); added dynamic column visibility to hide MR Name when redundant and show Month badges in aggregate view; moved status toggle controls into table scope for scroll-locked efficiency; overhauled Z-index layering stack for sticky headers and info bars across all screen heights.
 - **v1.0.435:** User Management System Overhaul: Integrated account deletion protocol with dual-confirmation modal; implemented safety triggers to prevent self-deletion and orphan administrative states (last admin safeguard); added responsive SVG delete controls to supervisor nodes.
 - **v1.0.434:** Routing Analyzer Enhancements: Added Multi-Month batch upload and merging; implemented "Select All/None" for sidebar filters; added month detection preview in upload modal; enabled sticky header backdrop-blur and scroll-sync transitions; improved customer list with cross-month merged data breakdown.
 - **v1.0.433:** Routing Analyzer Refinement: Implemented sortable table columns with frozen headers; added MR-specific search within filter sidebar; updated analysis engine to respond dynamically to all active filters; overhauled table rows for maximum density and ergonomic data reading.
@@ -93,4 +94,4 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 - **v1.0.001:** Initial release. Authentication, CSV parsing, Analysis tools, and Admin panel implemented.
 
 ---
-© 2026 Data Lens Analytics | version 1.0.435
+© 2026 Data Lens Analytics | version 1.0.436

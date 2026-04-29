@@ -25,8 +25,8 @@ import { saveAs } from 'file-saver';
 
 // --- VERSION ---
 const ROUTING_VERSION = {
-  version: '1.0.435',
-  releaseDate: 'Jun 2025',
+  version: '1.0.436',
+  releaseDate: 'Apr 2026',
   label: 'Advanced Routing Analysis Engine — Local Storage & Multi-file'
 };
 
@@ -74,6 +74,7 @@ const parseCSV = (text) => {
     };
   }).filter(r => r.customerId);
 
+  // period name prefixing
   const lineName = data.length > 0 ? data[0].lineName : '';
 
   return { data, month: monthName, lineName };
@@ -243,19 +244,21 @@ const RoutingAnalyzer = () => {
       
       if (mode === 'append' && rawData.length > 0) {
         setRawData(prev => {
-          // Deduplicate by customerId ONLY
-          // But KEEP same customerId across months
-          // Key = customerId + sourceMonth
-          const existingKeys = new Set(prev.map(r => `${r.customerId}_${r.sourceMonth}`));
-          const newRows = data.filter(r => !existingKeys.has(`${r.customerId}_${r.sourceMonth}`));
+          const existingKeys = new Set(
+            prev.map(r => `${r.customerId}__${r.sourceMonth}`)
+          );
+          const newRows = data.filter(r => 
+            !existingKeys.has(`${r.customerId}__${r.sourceMonth}`)
+          );
           return [...prev, ...newRows];
         });
-        // Add new month to available months
-        setAvailableMonths(prev => 
-          prev.includes(month) 
-            ? prev 
-            : [...prev, month]
-        );
+        setAvailableMonths(prev => {
+          const updated = [...prev];
+          if (!updated.includes(month)) {
+            updated.push(month);
+          }
+          return updated;
+        });
       } else {
         // Replace
         setRawData(data);
@@ -302,10 +305,12 @@ const RoutingAnalyzer = () => {
   const filteredData = useMemo(() => {
     if (!rawData.length) return [];
     let d = [...rawData];
-    
-    // Month Filter first
+
+    // Month filter FIRST
     if (selectedMonth !== 'All') {
-      d = d.filter(r => r.sourceMonth === selectedMonth);
+      d = d.filter(r => 
+        r.sourceMonth === selectedMonth
+      );
     }
 
     if (filters.mrName.length > 0) d = d.filter(r => filters.mrName.includes(r.mrName));
@@ -377,42 +382,36 @@ const RoutingAnalyzer = () => {
   }, [rawData, filters, searchQ, quickVisitFilter, gradeTargets, activeTab, selectedMonth]);
 
   const deduplicatedData = useMemo(() => {
-    if (selectedMonth !== 'All' || availableMonths.length <= 1) {
-      // Single month — no dedup needed
+    if (selectedMonth !== 'All' ||
+        availableMonths.length <= 1) {
       return filteredData;
     }
 
     // Group by customerId
     const map = new Map();
-    
+
     filteredData.forEach(r => {
       if (!map.has(r.customerId)) {
-        // First occurrence — use as base
         map.set(r.customerId, {
           ...r,
-          // Merge across months:
-          totalPlanned: 0,
+          totalPlanned:  0,
           totalReported: 0,
-          monthPlanned: [],
-          monthReported: [],
-          months: [],
+          monthlyData: {},
+          // months this customer appears in
+          customerMonths: [],
         });
       }
-      const existing = map.get(r.customerId);
-      existing.totalPlanned  += r.totalPlanned;
-      existing.totalReported += r.totalReported;
-      // Tag days with month prefix 
-      // to avoid day number collisions
-      if (!existing.months.includes(r.sourceMonth)) {
-        existing.months.push(r.sourceMonth);
+      const entry = map.get(r.customerId);
+      entry.totalPlanned  += r.totalPlanned;
+      entry.totalReported += r.totalReported;
+      if (!entry.customerMonths.includes(r.sourceMonth)) {
+        entry.customerMonths.push(r.sourceMonth);
       }
-      // Keep planned/reported days per month
-      if (!existing.monthlyData) {
-        existing.monthlyData = {};
-      }
-      existing.monthlyData[r.sourceMonth] = {
+      entry.monthlyData[r.sourceMonth] = {
         planned:  r.monthPlanned,
         reported: r.monthReported,
+        plannedCount:  r.totalPlanned,
+        reportedCount: r.totalReported,
       };
     });
 
@@ -460,58 +459,59 @@ const RoutingAnalyzer = () => {
     // Global raw counts (for info bar only)
     const rawTotal = rawData.length;
     
-    // ALL stats from filteredData
-    // so they respond to MR filter
-    const allCustomers  = filteredData.length;
+    // ALL stats from deduplicatedData
+    // so they respond to filters and show unique customer counts
+    const dData = deduplicatedData;
+    const allCustomers  = dData.length;
     
-    const deleted = filteredData.filter(r =>
+    const deleted = dData.filter(r =>
       r.totalPlanned === 0 && 
       r.totalReported === 0
     ).length;
     
-    const active = filteredData.filter(r =>
+    const active = dData.filter(r =>
       r.totalPlanned > 0 || r.totalReported > 0
     ).length;
 
-    const totalHCP = filteredData.filter(r =>
+    const totalHCP = dData.filter(r =>
       (r.customerType || '').toUpperCase() === 'HCP'
     ).length;
 
-    const totalPlanned = filteredData.reduce(
+    const totalPlanned = dData.reduce(
       (acc, r) => acc + r.totalPlanned, 0
     );
-    const totalReported = filteredData.reduce(
+    const totalReported = dData.reduce(
       (acc, r) => acc + r.totalReported, 0
     );
     const coverage = totalPlanned > 0 
       ? (totalReported / totalPlanned * 100) 
       : 0;
 
-    const uncovered = filteredData.filter(r =>
+    const uncovered = dData.filter(r =>
       r.totalReported === 0 && r.totalPlanned > 0
     ).length;
 
-    const fullyCovered = filteredData.filter(r =>
+    const fullyCovered = dData.filter(r =>
       r.totalPlanned > 0 && 
       r.totalReported >= r.totalPlanned
     ).length;
 
-    const partial = filteredData.filter(r =>
+    const partial = dData.filter(r =>
       r.totalReported > 0 && 
       r.totalReported < r.totalPlanned
     ).length;
 
-    const extraVisits = filteredData.filter(r =>
+    const extraVisits = dData.filter(r =>
       r.totalReported > r.totalPlanned
     ).length;
 
-    const targetMetCount = filteredData.filter(r =>
+    const targetMetCount = dData.filter(r =>
       r.totalPlanned > 0 &&
       r.totalReported >= 
         (gradeTargets[r.customerGrade] || 0)
     ).length;
 
-    const types = filteredData.reduce((acc, r) => {
+    const types = dData.reduce((acc, r) => {
       const t = r.customerType || 'Unknown';
       acc[t] = (acc[t] || 0) + 1;
       return acc;
@@ -533,22 +533,29 @@ const RoutingAnalyzer = () => {
       targetMetCount,
       types,
       // keep backward compat:
-      totalGross: filteredData.length,
+      totalGross: dData.length,
     };
-  }, [rawData, filteredData, gradeTargets]);
+  }, [rawData, deduplicatedData, gradeTargets]);
 
   // Export
   const handleExport = () => {
     // Export exactly what user sees:
-    // sortedData (filtered + toggled + searched
-    //             + sorted)
-    const dataToExport = sortedData.length > 0 
-      ? sortedData 
-      : filteredData;
+    // sortedData (filtered + toggled + searched + sorted)
+    const dataToExport = sortedData;
 
     const csvData = dataToExport.map((r, i) => {
       const status = getStatus(r.totalPlanned, r.totalReported);
-      const missed = r.monthPlanned.filter(d => !r.monthReported.includes(d));
+      let plannedStr = '';
+      let reportedStr = '';
+      
+      if (r.monthlyData) {
+        plannedStr = Object.entries(r.monthlyData).map(([m, d]) => `${m}: ${d.planned.join(', ')}`).join(' | ');
+        reportedStr = Object.entries(r.monthlyData).map(([m, d]) => `${m}: ${d.reported.join(', ')}`).join(' | ');
+      } else {
+        plannedStr = r.monthPlanned.join(', ');
+        reportedStr = r.monthReported.join(', ');
+      }
+
       return {
         '#': i + 1,
         'Customer ID':   r.customerId,
@@ -564,10 +571,10 @@ const RoutingAnalyzer = () => {
           ? (r.totalReported / r.totalPlanned * 100).toFixed(1) + '%' 
           : '0%',
         'Status':        status,
-        'Planned Days':  r.monthPlanned.join(', '),
-        'Reported Days': r.monthReported.join(', '),
-        'Missed Days':   missed.join(', '),
+        'Planned Days':  plannedStr,
+        'Reported Days': reportedStr,
         'Days Interval': r.daysInterval,
+        'Source Months': r.customerMonths ? r.customerMonths.join(', ') : r.sourceMonth,
       };
     });
 
@@ -587,7 +594,7 @@ const RoutingAnalyzer = () => {
     
     saveAs(
       blob, 
-      `Routing_${reportMonth}_${reportYear}${mrTag}${toggleTag}_${dataToExport.length}records.csv`
+      `Routing_${reportMonth || 'Combined'}_${reportYear}${mrTag}${toggleTag}_${dataToExport.length}records.csv`
     );
   };
 
@@ -1171,104 +1178,158 @@ const RoutingAnalyzer = () => {
     setCurrentPage(1);
   };
 
-  const renderCustomerList = () => (
-    <div className="bg-white rounded-3xl border shadow-sm overflow-hidden flex flex-col pb-32">
-      <div className="p-4 border-b bg-gray-50 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search by name, ID, MR, specialty, grade..."
-            value={searchQ}
-            onChange={(e) => {
-              setSearchQ(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm font-bold text-gray-900 placeholder:text-gray-300 focus:ring-2 focus:ring-yellow-400/20 focus:border-yellow-400 bg-white transition-all"
-          />
-          {searchQ && (
-            <button
-              onClick={() => {
-                setSearchQ('');
-                setCurrentPage(1);
-              }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 hover:text-red-500 transition-colors"
-            >
-              <X className="w-4 h-4 text-gray-400" />
-            </button>
-          )}
-        </div>
-        <div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest">
-           Showing <span className="text-gray-900">{paginatedData.length}</span> of <span className="text-gray-900">{sortedData.length}</span> results
-        </div>
-      </div>
+  const renderCustomerList = () => {
+    const showMonthColumn = selectedMonth === 'All' && availableMonths.length > 1;
+    const showMRColumn = filters.mrName.length !== 1;
 
-      <div className="rounded-2xl border border-gray-100 overflow-hidden shadow-sm bg-white mx-4 my-2">
-        <div className="overflow-x-auto">
-          <div style={{ maxHeight: '60vh' }} className="overflow-y-auto scrollbar-thin">
-            <table className="w-full text-sm border-collapse min-w-[1000px]">
-              <thead className="sticky top-0 z-10">
-                <tr className="bg-gray-900 text-white">
-                  <th onClick={() => handleSort('customerId')} className="px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
-                    ID <SortIcon col="customerId" />
-                  </th>
-                  <th onClick={() => handleSort('customerName')} className="px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
-                    Name <SortIcon col="customerName" />
-                  </th>
-                  <th onClick={() => handleSort('customerGrade')} className="px-3 py-2.5 text-center text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
-                    Grade <SortIcon col="customerGrade" />
-                  </th>
-                  <th onClick={() => handleSort('specialty')} className="px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
-                    Specialty <SortIcon col="specialty" />
-                  </th>
-                  <th onClick={() => handleSort('mrName')} className="px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
-                    MR Name <SortIcon col="mrName" />
-                  </th>
-                  <th onClick={() => handleSort('totalPlanned')} className="px-3 py-2.5 text-center text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
-                    Planned <SortIcon col="totalPlanned" />
-                  </th>
-                  <th onClick={() => handleSort('totalReported')} className="px-3 py-2.5 text-center text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
-                    Reported <SortIcon col="totalReported" />
-                  </th>
-                  <th className="px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white">Planned Days</th>
-                  <th className="px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white">Reported Days</th>
-                  <th onClick={() => handleSort('daysInterval')} className="px-3 py-2.5 text-center text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
-                    Interval <SortIcon col="daysInterval" />
-                  </th>
-                  <th onClick={() => handleSort('_status')} className="px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
-                    Status <SortIcon col="_status" />
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {paginatedData.map((r, i) => {
-                  const status = getStatus(r.totalPlanned, r.totalReported);
-                  const missed = r.monthPlanned.filter(d => !r.monthReported.includes(d));
-                  
-                  return (
-                    <tr key={r.customerId} className={i % 2 === 0 ? 'bg-white hover:bg-yellow-50/30 transition-colors' : 'bg-gray-50/50 hover:bg-yellow-50/30 transition-colors'}>
-                      <td className="px-2.5 py-1 text-[10px] font-mono font-bold text-gray-500 tracking-tighter border-b border-gray-50 whitespace-nowrap">{r.customerId}</td>
-                      <td className="px-2.5 py-1 text-[11px] text-gray-800 font-semibold border-b border-gray-50 max-w-[180px] truncate" title={r.customerName}>{r.customerName}</td>
-                      <td className="px-2.5 py-1 text-center border-b border-gray-50 whitespace-nowrap">
-                         <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-black border ${
+    return (
+      <div className="space-y-3 pb-32">
+        {/* Toggles Row — INSIDE the list */}
+        <div className="flex items-center justify-between gap-3 bg-white rounded-2xl border border-gray-100 px-4 py-2.5 shadow-sm sticky top-[185px] z-[5]">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mr-1">Toggles</span>
+            {[
+              { id: 'all', label: 'All', count: deduplicatedData.length },
+              { id: 'full', label: '✅ Full', count: stats.fullyCovered },
+              { id: 'partial', label: '🟡 Partial', count: stats.partial },
+              { id: 'uncovered', label: '❌ Uncovered', count: stats.uncovered },
+            ].map(opt => (
+              <button
+                key={opt.id}
+                onClick={() => {
+                  setQuickVisitFilter(opt.id);
+                  setCurrentPage(1);
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-tighter transition-all ${
+                  quickVisitFilter === opt.id
+                    ? 'bg-gray-900 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-400 hover:bg-gray-200 border border-gray-200'
+                }`}
+              >
+                {opt.label}
+                <span className={`text-[9px] px-1.5 py-0.5 rounded-md font-black ${
+                  quickVisitFilter === opt.id
+                    ? 'bg-white/20 text-white'
+                    : 'bg-white text-gray-500 border border-gray-200'
+                }`}>
+                  {opt.count}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
+              <input
+                type="text"
+                placeholder="Search name, ID, MR, specialty..."
+                value={searchQ}
+                onChange={e => {
+                  setSearchQ(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="pl-9 pr-8 py-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-800 w-64 placeholder:text-gray-300 focus:ring-2 focus:ring-yellow-400/20 focus:border-yellow-400 bg-white transition-all"
+              />
+              {searchQ && (
+                <button onClick={() => { setSearchQ(''); setCurrentPage(1); }} className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                  <X className="w-3.5 h-3.5 text-gray-300 hover:text-red-400" />
+                </button>
+              )}
+            </div>
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">
+              Showing <span className="text-gray-900">{sortedData.length}</span> of <span className="text-gray-900">{deduplicatedData.length}</span>
+            </span>
+          </div>
+        </div>
+
+        {/* Table Area */}
+        <div className="rounded-2xl border border-gray-100 overflow-hidden shadow-sm bg-white">
+          <div className="overflow-x-auto">
+            <div style={{ maxHeight: 'calc(100vh - 420px)' }} className="overflow-y-auto scrollbar-thin">
+              <table className="w-full text-sm border-collapse min-w-[1000px]">
+                <thead>
+                  <tr className="bg-gray-900 text-white">
+                    <th onClick={() => handleSort('customerId')} className="sticky top-0 z-[4] px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                      ID <SortIcon col="customerId" />
+                    </th>
+                    {showMonthColumn && (
+                      <th onClick={() => handleSort('sourceMonth')} className="sticky top-0 z-[4] px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                        Months <SortIcon col="sourceMonth" />
+                      </th>
+                    )}
+                    <th onClick={() => handleSort('customerName')} className="sticky top-0 z-[4] px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                      Name <SortIcon col="customerName" />
+                    </th>
+                    <th onClick={() => handleSort('customerGrade')} className="sticky top-0 z-[4] px-3 py-2.5 text-center text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                      Grade <SortIcon col="customerGrade" />
+                    </th>
+                    <th onClick={() => handleSort('specialty')} className="sticky top-0 z-[4] px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                      Specialty <SortIcon col="specialty" />
+                    </th>
+                    {showMRColumn && (
+                      <th onClick={() => handleSort('mrName')} className="sticky top-0 z-[4] px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                        MR Name <SortIcon col="mrName" />
+                      </th>
+                    )}
+                    <th onClick={() => handleSort('totalPlanned')} className="sticky top-0 z-[4] px-3 py-2.5 text-center text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                      Planned <SortIcon col="totalPlanned" />
+                    </th>
+                    <th onClick={() => handleSort('totalReported')} className="sticky top-0 z-[4] px-3 py-2.5 text-center text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                      Reported <SortIcon col="totalReported" />
+                    </th>
+                    <th className="sticky top-0 z-[4] px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white">Planned Days</th>
+                    <th className="sticky top-0 z-[4] px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white">Reported Days</th>
+                    <th onClick={() => handleSort('daysInterval')} className="sticky top-0 z-[4] px-3 py-2.5 text-center text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                      Interval <SortIcon col="daysInterval" />
+                    </th>
+                    <th onClick={() => handleSort('_status')} className="sticky top-0 z-[4] px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider whitespace-nowrap bg-gray-900 text-white cursor-pointer hover:bg-gray-800 select-none">
+                      Status <SortIcon col="_status" />
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {paginatedData.map((r, i) => {
+                    const status = getStatus(r.totalPlanned, r.totalReported);
+                    const missed = r.monthlyData ? [] : r.monthPlanned.filter(d => !r.monthReported.includes(d));
+
+                    return (
+                      <tr key={r.customerId} className={i % 2 === 0 ? 'bg-white hover:bg-yellow-50/30 transition-colors' : 'bg-gray-50/50 hover:bg-yellow-50/30 transition-colors'}>
+                        <td className="px-2.5 py-1 text-[10px] font-mono font-bold text-gray-500 tracking-tighter border-b border-gray-50 whitespace-nowrap">{r.customerId}</td>
+                        {showMonthColumn && (
+                          <td className="px-2.5 py-1 text-[11px] border-b border-gray-50 whitespace-nowrap">
+                            <div className="flex flex-wrap gap-1">
+                              {(r.customerMonths || [r.sourceMonth]).map(m => (
+                                <span key={m} className="px-1.5 py-0.5 rounded-md text-[9px] font-black bg-yellow-50 text-yellow-700 border border-yellow-200">
+                                  {m.slice(0, 3)}
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                        )}
+                        <td className="px-2.5 py-1 text-[11px] text-gray-800 font-semibold border-b border-gray-50 max-w-[180px] truncate" title={r.customerName}>{r.customerName}</td>
+                        <td className="px-2.5 py-1 text-center border-b border-gray-50 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-black border ${
                             r.customerGrade === 'A+' ? 'bg-purple-50 text-purple-700 border-purple-100' :
-                            r.customerGrade === 'A' ? 'bg-blue-50 text-blue-700 border-blue-100' :
-                            r.customerGrade === 'B' ? 'bg-green-50 text-green-700 border-green-100' :
-                            'bg-gray-50 text-gray-600 border-gray-200'
-                         }`}>
-                           {r.customerGrade}
-                         </span>
-                      </td>
-                      <td className="px-2.5 py-1 text-[11px] text-gray-500 capitalize border-b border-gray-50 whitespace-nowrap">{r.specialty}</td>
-                      <td className="px-2.5 py-1 text-[11px] text-gray-700 border-b border-gray-50 whitespace-nowrap">{r.mrName}</td>
-                      <td className="px-2.5 py-1 text-center font-black text-gray-600 border-b border-gray-50 whitespace-nowrap">{r.totalPlanned}</td>
-                      <td className="px-2.5 py-1 text-center font-black text-gray-900 border-b border-gray-50 whitespace-nowrap">{r.totalReported}</td>
-                      <td className="px-2.5 py-1 border-b border-gray-50">
-                        <div className="flex flex-col gap-1 max-w-[120px]">
-                          {r.monthlyData 
-                            ? Object.entries(r.monthlyData).map(([month, days]) => (
+                              r.customerGrade === 'A' ? 'bg-blue-50 text-blue-700 border-blue-100' :
+                                r.customerGrade === 'B' ? 'bg-green-50 text-green-700 border-green-100' :
+                                  'bg-gray-50 text-gray-600 border-gray-200'
+                            }`}>
+                            {r.customerGrade}
+                          </span>
+                        </td>
+                        <td className="px-2.5 py-1 text-[11px] text-gray-500 capitalize border-b border-gray-50 whitespace-nowrap">{r.specialty}</td>
+                        {showMRColumn && (
+                          <td className="px-2.5 py-1 text-[11px] text-gray-700 border-b border-gray-50 whitespace-nowrap max-w-[140px] truncate">{r.mrName}</td>
+                        )}
+                        <td className="px-2.5 py-1 text-center font-black text-gray-600 border-b border-gray-50 whitespace-nowrap">{r.totalPlanned}</td>
+                        <td className="px-2.5 py-1 text-center font-black text-gray-900 border-b border-gray-50 whitespace-nowrap">{r.totalReported}</td>
+                        <td className="px-2.5 py-1 border-b border-gray-50">
+                          <div className="flex flex-col gap-1 max-w-[120px]">
+                            {r.monthlyData
+                              ? Object.entries(r.monthlyData).map(([month, days]) => (
                                 <div key={month} className="flex items-center gap-1 flex-wrap">
-                                  <span className="text-[8px] font-black text-gray-400 w-8 flex-shrink-0">{month.slice(0,3)}:</span>
+                                  <span className="text-[8px] font-black text-gray-400 w-8 flex-shrink-0">{month.slice(0, 3)}:</span>
                                   {days.planned.map(d => (
                                     <span key={d} className="inline-block px-1 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-black border border-blue-100">
                                       {d}
@@ -1276,22 +1337,22 @@ const RoutingAnalyzer = () => {
                                   ))}
                                 </div>
                               ))
-                            : r.monthPlanned.map(d => (
+                              : r.monthPlanned.map(d => (
                                 <span key={d} className="inline-block px-1 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-black border border-blue-100">
                                   {d}
                                 </span>
                               ))
-                          }
-                        </div>
-                      </td>
-                      <td className="px-2.5 py-1 border-b border-gray-50">
-                        <div className="flex flex-col gap-1 max-w-[120px]">
-                          {r.monthlyData 
-                            ? Object.entries(r.monthlyData).map(([month, days]) => {
+                            }
+                          </div>
+                        </td>
+                        <td className="px-2.5 py-1 border-b border-gray-50">
+                          <div className="flex flex-col gap-1 max-w-[120px]">
+                            {r.monthlyData
+                              ? Object.entries(r.monthlyData).map(([month, days]) => {
                                 const mMissed = days.planned.filter(d => !days.reported.includes(d));
                                 return (
                                   <div key={month} className="flex items-center gap-1 flex-wrap">
-                                    <span className="text-[8px] font-black text-gray-400 w-8 flex-shrink-0">{month.slice(0,3)}:</span>
+                                    <span className="text-[8px] font-black text-gray-400 w-8 flex-shrink-0">{month.slice(0, 3)}:</span>
                                     {days.reported.map(d => (
                                       <span key={d} className="inline-block px-1 py-0.5 bg-green-50 text-green-600 rounded text-[9px] font-black border border-green-100">
                                         {d}
@@ -1305,7 +1366,7 @@ const RoutingAnalyzer = () => {
                                   </div>
                                 );
                               })
-                            : (
+                              : (
                                 <div className="flex flex-wrap gap-0.5">
                                   {r.monthReported.map(d => (
                                     <span key={d} className="inline-block px-1 py-0.5 bg-green-50 text-green-600 rounded text-[9px] font-black border border-green-100">
@@ -1319,60 +1380,61 @@ const RoutingAnalyzer = () => {
                                   ))}
                                 </div>
                               )
-                          }
-                        </div>
-                      </td>
-                      <td className="px-2.5 py-1 text-center text-[11px] font-bold text-gray-400 border-b border-gray-50 whitespace-nowrap">{r.daysInterval}d</td>
-                      <td className="px-2.5 py-1 border-b border-gray-50 whitespace-nowrap">{getStatusBadge(status)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                            }
+                          </div>
+                        </td>
+                        <td className="px-2.5 py-1 text-center text-[11px] font-bold text-gray-400 border-b border-gray-50 whitespace-nowrap">{r.daysInterval}d</td>
+                        <td className="px-2.5 py-1 border-b border-gray-50 whitespace-nowrap">{getStatusBadge(status)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
-      </div>
 
-      {totalPages > 1 && (
-        <div className="p-6 border-t bg-gray-50 flex items-center justify-between">
-          <button 
-            disabled={currentPage === 1}
-            onClick={() => setCurrentPage(prev => prev - 1)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-gray-200 text-sm font-black text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
-          >
-            <ChevronLeft size={18} /> Prev
-          </button>
-          <div className="flex items-center gap-2">
-            {[...Array(Math.min(5, totalPages))].map((_, i) => {
+        {totalPages > 1 && (
+          <div className="p-6 border-t bg-gray-50 flex items-center justify-between">
+            <button
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(prev => prev - 1)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-gray-200 text-sm font-black text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+            >
+              <ChevronLeft size={18} /> Prev
+            </button>
+            <div className="flex items-center gap-2">
+              {[...Array(Math.min(5, totalPages))].map((_, i) => {
                 let pageNum = currentPage;
                 if (currentPage < 3) pageNum = i + 1;
                 else if (currentPage > totalPages - 2) pageNum = totalPages - 4 + i;
                 else pageNum = currentPage - 2 + i;
-                
+
                 if (pageNum <= 0 || pageNum > totalPages) return null;
 
                 return (
-                    <button 
-                        key={pageNum}
-                        onClick={() => setCurrentPage(pageNum)}
-                        className={`w-10 h-10 rounded-xl font-black text-sm transition-all ${currentPage === pageNum ? 'bg-accent text-white shadow-md' : 'bg-white border border-gray-200 text-gray-900 hover:bg-gray-50'}`}
-                    >
-                        {pageNum}
-                    </button>
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`w-10 h-10 rounded-xl font-black text-sm transition-all ${currentPage === pageNum ? 'bg-accent text-white shadow-md' : 'bg-white border border-gray-200 text-gray-900 hover:bg-gray-50'}`}
+                  >
+                    {pageNum}
+                  </button>
                 )
-            })}
+              })}
+            </div>
+            <button
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(prev => prev + 1)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-gray-200 text-sm font-black text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+            >
+              Next <ChevronRight size={18} />
+            </button>
           </div>
-          <button 
-            disabled={currentPage === totalPages}
-            onClick={() => setCurrentPage(prev => prev + 1)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-gray-200 text-sm font-black text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
-          >
-            Next <ChevronRight size={18} />
-          </button>
-        </div>
-      )}
-    </div>
-  );
+        )}
+      </div>
+    );
+  };
 
   const renderCoverageMap = () => {
     const mrs = filterOptions.mrName;
@@ -1563,7 +1625,7 @@ const RoutingAnalyzer = () => {
       )}
 
       {/* Header Sticky */}
-      <div className={`sticky top-0 z-40 px-6 py-4 flex items-center justify-between gap-4 transition-all border-b ${isScrolled ? 'backdrop-blur-md shadow-lg bg-white/80 border-gray-100' : 'bg-white border-gray-100 shadow-sm'}`}>
+      <div className={`sticky top-0 z-30 px-6 py-4 flex items-center justify-between gap-4 transition-all border-b ${isScrolled ? 'backdrop-blur-md shadow-lg bg-white/95 border-gray-100' : 'bg-white border-gray-100 shadow-sm'}`}>
         {/* Left — Logo + Title */}
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 bg-yellow-400 rounded-2xl flex items-center justify-center shadow-lg shadow-yellow-200">
@@ -1660,7 +1722,7 @@ const RoutingAnalyzer = () => {
           className="flex-1 overflow-y-auto bg-gray-50 flex flex-col pb-32 scrollbar-thin"
         >
           {/* Data Info Bar */}
-          <div className={`px-8 py-2.5 flex items-center justify-between sticky top-0 z-20 transition-all border-b ${isScrolled ? 'backdrop-blur-md bg-white/80 shadow-sm border-gray-100/50' : 'bg-white border-gray-100'}`}>
+          <div className={`px-8 py-2.5 flex items-center justify-between sticky top-[65px] z-20 transition-all border-b ${isScrolled ? 'backdrop-blur-md bg-white/80 shadow-sm border-gray-100/50' : 'bg-white border-gray-100'}`}>
             <div className="flex items-center gap-5">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Dataset:</span>
@@ -1671,6 +1733,15 @@ const RoutingAnalyzer = () => {
                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Period:</span>
                 <span className="text-[11px] font-black text-yellow-600 italic">{reportMonth || 'Global'} 2026</span>
               </div>
+              {filters.mrName.length === 1 && (
+                <>
+                  <div className="h-4 w-px bg-gray-200" />
+                  <div className="flex items-center gap-2 px-3 py-1 bg-yellow-50 border border-yellow-200 rounded-xl">
+                    <span className="text-[10px] text-yellow-600 font-black uppercase tracking-widest">MR:</span>
+                    <span className="text-[11px] font-black text-yellow-800">{filters.mrName[0]}</span>
+                  </div>
+                </>
+              )}
               <div className="h-4 w-px bg-gray-200" />
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Assigned Line:</span>
@@ -1743,8 +1814,8 @@ const RoutingAnalyzer = () => {
             )}
 
             {/* Tabs Bar Fix */}
-            <div className="flex items-center justify-between flex-wrap gap-4 bg-white rounded-3xl p-3 border border-gray-100 shadow-sm sticky top-16 z-10 backdrop-blur-sm bg-white/95">
-              <div className="flex items-center gap-1.5">
+            <div className="flex items-center justify-between flex-wrap gap-4 bg-white rounded-3xl p-3 border border-gray-100 shadow-sm sticky top-[105px] z-[15] backdrop-blur-sm bg-white/95">
+              <div className="flex items-center gap-1.5 flex-1 justify-center">
                 {[
                   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
                   { id: 'by-mr',    label: 'By MR', icon: Users },
@@ -1755,50 +1826,10 @@ const RoutingAnalyzer = () => {
                   <button
                     key={tab.id}
                     onClick={() => { setActiveTab(tab.id); setCurrentPage(1); }}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${activeTab === tab.id ? 'bg-yellow-400 text-black shadow-lg shadow-yellow-400/20' : 'text-gray-400 hover:text-gray-700 hover:bg-gray-50'}`}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all flex-1 justify-center ${activeTab === tab.id ? 'bg-yellow-400 text-black shadow-lg shadow-yellow-400/20' : 'text-gray-400 hover:text-gray-700 hover:bg-gray-50'}`}
                   >
                     <tab.icon className={activeTab === tab.id ? 'w-4 h-4' : 'w-3.5 h-3.5 text-gray-300'} />
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex items-center gap-2.5 px-3 py-1 bg-gray-50 rounded-2xl border border-gray-100">
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mr-1">Toggles</span>
-                {[
-                  { id: 'all',       label: 'All',      
-                    count: filteredData.length },
-                  { id: 'full',      label: '✅ Full',   
-                    count: stats.fullyCovered },
-                  { id: 'partial',   label: '🟡 Partial',
-                    count: stats.partial },
-                  { id: 'uncovered', label: '❌ Uncovered',
-                    count: stats.uncovered },
-                ].map(opt => (
-                  <button
-                    key={opt.id}
-                    onClick={() => {
-                      setQuickVisitFilter(opt.id);
-                      setCurrentPage(1);
-                      // Auto-switch to list tab
-                      if (opt.id !== 'all') {
-                        setActiveTab('list');
-                      }
-                    }}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-tighter transition-all ${
-                      quickVisitFilter === opt.id 
-                        ? 'bg-gray-900 text-white shadow-md' 
-                        : 'text-gray-400 hover:text-gray-600 bg-white border border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    {opt.label}
-                    <span className={`text-[9px] px-1.5 py-0.5 rounded-md font-black ${
-                      quickVisitFilter === opt.id 
-                        ? 'bg-white/20 text-white' 
-                        : 'bg-gray-100 text-gray-500'
-                    }`}>
-                      {opt.count}
-                    </span>
+                    <span className="hidden sm:inline">{tab.label}</span>
                   </button>
                 ))}
               </div>
