@@ -14,7 +14,7 @@ import {
 import ReportsTab from '../reports/ReportsTab';
 
 const APP_VERSION = {
-  version: '1.0.446',
+  version: '1.0.447',
   releaseDate: 'Jun 2025',
   label: 'Multi-File Upload Fixed'
 };
@@ -1295,7 +1295,7 @@ const SalesAnalyzer = () => {
                           overflow-hidden">
   
             {/* LEFT — Invoice List */}
-            <div className="w-[420px] shrink-0 
+            <div className="w-[600px] shrink-0 lg:w-[50%]
                             border-r border-gray-100
                             overflow-y-auto">
               

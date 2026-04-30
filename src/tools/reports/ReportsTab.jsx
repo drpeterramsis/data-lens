@@ -2,7 +2,7 @@
 import React, { useState, useRef, useMemo } from 'react';
 import {
   ChevronDown, X, BarChart3, Table2,
-  Palette, Settings2, Download,
+  Palette, Settings2, Download, Maximize2, Minimize2
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -423,7 +423,9 @@ const Report1 = ({ data, filterOptions }) => {
       const label = groupBy === 'month' ? getMonthLabel(p) : p;
       activeCols.forEach(col => header.push(`${label} - ${col}`));
       header.push(`${label} - Total`);
-      header.push(`${label} - Avg/Month`);
+      if (groupBy !== 'month') {
+        header.push(`${label} - Avg/Month`);
+      }
     });
     rows.push(header);
 
@@ -436,9 +438,11 @@ const Report1 = ({ data, filterOptions }) => {
         });
         const t = getRowPeriodTotal(rowVal, period);
         row.push(metric === 'value' ? t.value : t.qty);
-        row.push(metric === 'value'
-          ? (t.value / (periodKeys.length || 1)).toFixed(0)
-          : (t.qty   / (periodKeys.length || 1)).toFixed(0));
+        if (groupBy !== 'month') {
+          row.push(metric === 'value'
+            ? (t.value / (periodKeys.length || 1)).toFixed(0)
+            : (t.qty   / (periodKeys.length || 1)).toFixed(0));
+        }
       });
       rows.push(row);
     });
@@ -716,7 +720,7 @@ const Report1 = ({ data, filterOptions }) => {
                   {periodKeys.map(period => (
                     <th
                       key={period}
-                      colSpan={activeCols.length + 2} // cols + Total + Avg
+                      colSpan={activeCols.length + (groupBy === 'month' ? 1 : 2)} // cols + Total + (Avg if not month)
                       className="bg-amber-300 text-black px-3 py-2 text-center text-xs font-black border border-amber-200 uppercase tracking-wide"
                     >
                       {groupBy === 'month' ? getMonthLabel(period) : getQuarterLabel(period)}
@@ -735,7 +739,7 @@ const Report1 = ({ data, filterOptions }) => {
                 {/* ── Row 2: Column names ── */}
                 <tr>
                   {periodKeys.map(period =>
-                    [...activeCols, '__total', '__avg'].map((col, ci) => {
+                    [...activeCols, '__total', ...(groupBy === 'month' ? [] : ['__avg'])].map((col, ci) => {
                       const isTotal = col === '__total';
                       const isAvg   = col === '__avg';
                       return (
@@ -799,15 +803,17 @@ const Report1 = ({ data, filterOptions }) => {
                             {renderCell(periodTotal.qty, periodTotal.value)}
                           </td>,
                           // Avg cell
-                          <td
-                            key={`${period}__avg`}
-                            className="px-2 py-2 text-center border-b border-gray-100 border-r border-blue-100 bg-blue-50 text-xs font-black text-blue-700"
-                          >
-                            {renderCell(
-                              periodAvg.qty,
-                              periodAvg.value
-                            )}
-                          </td>,
+                          ...(groupBy === 'month' ? [] : [
+                            <td
+                              key={`${period}__avg`}
+                              className="px-2 py-2 text-center border-b border-gray-100 border-r border-blue-100 bg-blue-50 text-xs font-black text-blue-700"
+                            >
+                              {renderCell(
+                                periodAvg.qty,
+                                periodAvg.value
+                              )}
+                            </td>
+                          ]),
                         ];
                       })}
 
@@ -849,12 +855,14 @@ const Report1 = ({ data, filterOptions }) => {
                       <td key={`tot_${period}__total`} className="px-2 py-2.5 text-center text-xs font-black border-t border-gray-700 border-r border-gray-700 bg-amber-500 text-black">
                         {fmtN(metric === 'value' ? periodGrand.value : periodGrand.qty)}
                       </td>,
-                      <td key={`tot_${period}__avg`} className="px-2 py-2.5 text-center text-xs font-black border-t border-gray-700 border-r border-gray-700 bg-blue-500 text-white">
-                        {fmtN(metric === 'value'
-                          ? periodGrand.value / (periodKeys.length || 1)
-                          : periodGrand.qty   / (periodKeys.length || 1)
-                        )}
-                      </td>,
+                      ...(groupBy === 'month' ? [] : [
+                        <td key={`tot_${period}__avg`} className="px-2 py-2.5 text-center text-xs font-black border-t border-gray-700 border-r border-gray-700 bg-blue-500 text-white">
+                          {fmtN(metric === 'value'
+                            ? periodGrand.value / (periodKeys.length || 1)
+                            : periodGrand.qty   / (periodKeys.length || 1)
+                          )}
+                        </td>
+                      ]),
                     ];
                   })}
                   {/* Grand totals */}
@@ -898,6 +906,7 @@ const Report1 = ({ data, filterOptions }) => {
 // ─────────────────────────────────────────────
 const ReportsTab = ({ data, filterOptions }) => {
   const [activeReport, setActiveReport] = useState('report1');
+  const [isFullscreen, setIsFullscreen]   = useState(false);
 
   const reports = [
     { id: 'report1', label: '📊 Chain × Product Matrix', desc: 'Compare chains/customers by product across periods' },
@@ -905,24 +914,34 @@ const ReportsTab = ({ data, filterOptions }) => {
   ];
 
   return (
-    <div className="flex flex-col h-full">
+    <div className={isFullscreen ? 'fixed inset-0 z-[200] bg-gray-50 flex flex-col p-4 w-screen h-screen' : 'flex flex-col h-full'}>
       {/* Report selector */}
-      <div className="flex-shrink-0 flex items-center gap-2 px-4 py-3 bg-white border-b border-gray-100 overflow-x-auto">
-        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest flex-shrink-0">Reports:</span>
-        {reports.map(r => (
-          <button
-            key={r.id}
-            onClick={() => setActiveReport(r.id)}
-            title={r.desc}
-            className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border whitespace-nowrap ${activeReport === r.id ? 'bg-amber-400 text-black border-amber-400 shadow-sm' : 'bg-white text-gray-500 border-gray-200 hover:border-amber-200 hover:text-amber-700'}`}
-          >
-            {r.label}
-          </button>
-        ))}
+      <div className={`flex-shrink-0 flex items-center justify-between gap-2 px-4 py-3 bg-white border-gray-100 overflow-x-auto ${isFullscreen ? 'rounded-t-2xl border shadow-sm' : 'border-b'}`}>
+        <div className="flex items-center gap-2">
+          <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest flex-shrink-0">Reports:</span>
+          {reports.map(r => (
+            <button
+              key={r.id}
+              onClick={() => setActiveReport(r.id)}
+              title={r.desc}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border whitespace-nowrap ${activeReport === r.id ? 'bg-amber-400 text-black border-amber-400 shadow-sm' : 'bg-white text-gray-500 border-gray-200 hover:border-amber-200 hover:text-amber-700'}`}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={() => setIsFullscreen(!isFullscreen)}
+          title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase text-gray-500 hover:text-gray-900 border border-gray-200 hover:border-gray-400 transition-all bg-white ml-auto"
+        >
+          {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+          <span className="hidden sm:inline">{isFullscreen ? 'Exit' : 'Fullscreen'}</span>
+        </button>
       </div>
 
       {/* Report content */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className={`flex-1 overflow-y-auto ${isFullscreen ? 'bg-white border-x border-b border-gray-100 rounded-b-2xl shadow-sm p-4' : 'p-4'}`}>
         {activeReport === 'report1' && (
           <Report1 data={data} filterOptions={filterOptions} />
         )}
