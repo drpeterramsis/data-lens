@@ -20,7 +20,7 @@ const NAV_H_VAR    = 'var(--nav-height, 64px)';
 const FOOTER_H     = 48;  // px  must match Footer.jsx
 
 const ROUTING_VERSION = {
-  version: '1.0.444',
+  version: '1.0.445',
   releaseDate: 'Apr 2026',
   label: 'Advanced Routing Analysis Engine',
 };

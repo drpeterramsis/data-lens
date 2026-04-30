@@ -11,8 +11,10 @@ import {
   PieChart, Pie, Cell, Legend, LineChart, Line 
 } from 'recharts';
 
+import ReportsTab from '../reports/ReportsTab';
+
 const APP_VERSION = {
-  version: '3.2.0',
+  version: '1.0.446',
   releaseDate: 'Jun 2025',
   label: 'Multi-File Upload Fixed'
 };
@@ -1105,7 +1107,10 @@ const SalesAnalyzer = () => {
         inv.branch?.toLowerCase()
            .includes(q)               ||
         fmt(inv.invoiceDate)
-           .toLowerCase().includes(q)
+           .toLowerCase().includes(q) ||
+        inv.products.some(p => 
+          p.productName?.toLowerCase().includes(q) || 
+          p.productCode?.toString().toLowerCase().includes(q))
       );
     }, [sortedInvoices, invoiceSearch]);
 
@@ -1175,16 +1180,15 @@ const SalesAnalyzer = () => {
     return (
       <div
         onClick={handleBackdrop}
-        className="fixed inset-0 z-50 
-                   bg-black/40 backdrop-blur-sm
-                   flex items-center justify-center
-                   p-4">
+        className="fixed inset-0 z-[100] 
+                   bg-gray-100 backdrop-blur-md
+                   flex flex-col
+                   p-2 md:p-4">
   
         <div className="bg-white rounded-3xl 
-                        shadow-2xl w-full 
-                        max-w-5xl max-h-[90vh] 
+                        shadow-2xl w-full h-full
                         flex flex-col
-                        overflow-hidden">
+                        overflow-hidden border border-gray-200">
   
           {/* ── MODAL HEADER ── */}
           <div className="flex items-start 
@@ -1991,7 +1995,7 @@ const SalesAnalyzer = () => {
           </div>
 
           <div className="flex gap-2 px-6 pb-3 shrink-0 flex-wrap">
-            {['Overview','By Product','By MR','By Customer','By Branch','Trend', 'Compare'].map(tab => (
+            {['Overview','By Product','By MR','By Customer','By Branch','Trend', 'Compare', 'Reports'].map(tab => (
               <button key={tab} onClick={() => setActiveTab(tab)} className={`px-5 py-2 rounded-full text-sm font-semibold transition-all border ${activeTab === tab ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-400 hover:text-blue-600'}`}>{tab}</button>
             ))}
           </div>
@@ -2188,6 +2192,9 @@ const SalesAnalyzer = () => {
                         <MRCompareTable periodAData={periodAData} periodBData={periodBData} labelA="Period A" labelB="Period B" />
                     )}
                   </div>
+              )}
+              {activeTab === 'Reports' && (
+                <ReportsTab data={filteredData} filterOptions={filterOptions} />
               )}
             </div>
           </div>

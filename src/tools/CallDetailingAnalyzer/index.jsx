@@ -18,7 +18,7 @@ import CoachingSection from './CoachingSection';
 import InlineCalendar from './InlineCalendar';
 
 const APP_VERSION = {
-  version: '2.1.0',
+  version: '1.0.445',
   releaseDate: 'Jun 2025',
   label: 'Avg HCP Coaching KPI Card Added'
 };

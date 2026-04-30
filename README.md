@@ -42,6 +42,8 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 
 ## Version History
 
+- **v1.0.446:** Re-added the Reports tab dynamically, made Drilldown Modal full-screen per User Request.
+- **v1.0.445:** Fixed import error for ReportsTab in SalesAnalyzer and imported missing React hooks into ReportsTab.jsx. Updated versioning across all modules.
 - **v1.0.440:** Routing Analyzer UI Overhaul: Implemented a compact, fixed layout with fixed header, KPIs, and tabs sections. The content area is now independently scrollable. Improved UI density and refined the collapsible sidebar for better user experience.
 - **v1.0.438:** Routing Analyzer UI Fixes: Overhauled sticky header hierarchy with opaque backgrounds (white/solid) to prevent table row bleed-through during scroll; implemented dynamic `top` positioning for Info Bar, Month Selector, KPI Cards, and Tabs based on multi-month state; transitioned `itemsPerPage` to stateful control with new "Show [10-200]" selector integrated into pagination; removed rigid table max-heights to support natural page-wide sticky behaviors.
 - **v1.0.436:** Routing Analyzer Multi-Month Optimization: Fixed major data redundancy by implementing cross-month deduplication logic (customerId + month unique keys); added dynamic column visibility to hide MR Name when redundant and show Month badges in aggregate view; moved status toggle controls into table scope for scroll-locked efficiency; overhauled Z-index layering stack for sticky headers and info bars across all screen heights.
@@ -96,4 +98,4 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 - **v1.0.001:** Initial release. Authentication, CSV parsing, Analysis tools, and Admin panel implemented.
 
 ---
-© 2026 Data Lens Analytics | version 1.0.440
+© 2026 Data Lens Analytics | version 1.0.446
