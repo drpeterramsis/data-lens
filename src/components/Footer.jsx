@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from '../context/AuthContext';
 
 const APP_VERSION_DATA = {
-  version: '1.0.437',
+  version: '1.0.440',
   releaseDate: 'Apr 2026',
   label: 'Advanced Routing Analysis Engine — Local Storage & Multi-file'
 };

@@ -1,10 +1,9 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { SidebarProvider, useSidebar } from './context/SidebarContext';
+import { SidebarProvider } from './context/SidebarContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
-import Sidebar from './components/Sidebar';
 import Footer from './components/Footer';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -12,52 +11,90 @@ import CallDetailingAnalyzer from './tools/CallDetailingAnalyzer';
 import SalesAnalyzer from './tools/SalesAnalyzer';
 import RoutingAnalyzer from './tools/RoutingAnalyzer';
 import UserManagement from './pages/admin/UserManagement';
-
 import ScrollToTopButton from './components/ScrollToTopButton';
 
+// ── Must match Footer.jsx h-[48px] ──
+const FOOTER_H = 48;
+
+// ════════════════════════════════════════════
+// APP LAYOUT
+// ════════════════════════════════════════════
 const AppLayout = ({ children }) => {
   return (
-    <div className="min-h-screen bg-[#F8F9FA] flex flex-col font-sans selection:bg-accent/30 selection:text-accent-dark">
+    <div className="flex flex-col min-h-screen bg-gray-50">
+
+      {/* Navbar — fixed at top, sets --nav-height via its own useEffect */}
       <Navbar />
-      <main 
-        style={{ paddingTop: "calc(var(--nav-height) + 16px)" }}
-        className="flex-1 w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 pb-32 space-y-4 sm:space-y-6"
+
+      {/* Main body — sits between Navbar and Footer */}
+      <main
+        className="flex-1 flex flex-col overflow-hidden"
+        style={{
+          marginTop:    'var(--nav-height, 64px)',
+          marginBottom: `${FOOTER_H}px`,
+        }}
       >
         {children}
       </main>
+
+      {/* Footer — fixed at bottom */}
       <Footer />
+
+      {/* Scroll to top button */}
       <ScrollToTopButton />
     </div>
   );
 };
 
+// ════════════════════════════════════════════
+// ROUTES
+// ════════════════════════════════════════════
 const AppRoutes = () => {
   const { user } = useAuth();
 
   return (
     <Routes>
-      {/* Root redirect to login or dashboard */}
-      <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <Login />} />
-      
-      {/* Main App Routes */}
-      <Route path="/dashboard" element={
-        <ProtectedRoute>
-          <AppLayout><Dashboard /></AppLayout>
-        </ProtectedRoute>
-      } />
 
-      <Route path="/tools/call-detailing" element={
-        <ProtectedRoute>
-          <AppLayout><CallDetailingAnalyzer /></AppLayout>
-        </ProtectedRoute>
-      } />
+      {/* Public */}
+      <Route path="/" element={<Login />} />
 
-      <Route path="/tools/sales-analyzer" element={
-        <ProtectedRoute>
-          <AppLayout><SalesAnalyzer /></AppLayout>
-        </ProtectedRoute>
-      } />
+      {/* Dashboard */}
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <Dashboard />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
 
+      {/* Call Detailing */}
+      <Route
+        path="/tools/call-detailing"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <CallDetailingAnalyzer />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Sales Analyzer */}
+      <Route
+        path="/tools/sales-analyzer"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <SalesAnalyzer />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Routing Analyzer */}
       <Route
         path="/routing-analyzer"
         element={
@@ -69,28 +106,37 @@ const AppRoutes = () => {
         }
       />
 
-      {/* Admin Route still protected for adminOnly check */}
-      <Route path="/admin/users" element={
-        <ProtectedRoute adminOnly={true}>
-          <AppLayout><UserManagement /></AppLayout>
-        </ProtectedRoute>
-      } />
+      {/* User Management — Admin only */}
+      <Route
+        path="/admin/users"
+        element={
+          <ProtectedRoute requireAdmin>
+            <AppLayout>
+              <UserManagement />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
 
-      {/* Catch-all redirect to dash */}
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      {/* Fallback */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+
     </Routes>
   );
 };
 
+// ════════════════════════════════════════════
+// APP
+// ════════════════════════════════════════════
 function App() {
   return (
-    <AuthProvider>
-      <SidebarProvider>
-        <BrowserRouter>
+    <BrowserRouter>
+      <AuthProvider>
+        <SidebarProvider>
           <AppRoutes />
-        </BrowserRouter>
-      </SidebarProvider>
-    </AuthProvider>
+        </SidebarProvider>
+      </AuthProvider>
+    </BrowserRouter>
   );
 }
 
