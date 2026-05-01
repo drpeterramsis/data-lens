@@ -42,7 +42,10 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 
 ## Version History
 
-- **v1.0.468:** Added Clear All button for periods, and improved conditional rendering to prevent heavy calculations when less than 2 periods exist.
+- **v1.0.482:** Fixed `CartesianGrid` reference error in `AtRiskAnalysisTab`.
+- **v1.0.481:** Fixed missing icon imports (`TrendingUp`, `Cell`) in `Navbar` and `SalesForecast` components.
+- **v1.0.480:** Implemented the **Sales Forecast Tool**. Added automated .xlsx / .csv parsing for sales targets and achievement data. Added 6 analysis tabs: Performance Overview, Forecast & Projection, Rankings, Gap Analysis, At Risk Analysis, and Drill Down. Implemented period-based projections (MTD to Month-end), Risk Matrix scatter plot, and 4-level deep Drill Down (Line → DM → MR → Product). Integrated cross-tab navigation and global filters.
+- **v1.0.479:** Refined ATR Sales Analyzer By Customer search to include Product, Line, MR, Supervisor, and Branch fields. Updated Trend Analysis charts to match the high-fidelity style of the Compare tool (axis-less, custom tooltips, and smooth line aesthetics). Synchronized global versioning to v1.0.479 across all UI modules.
 - **v1.0.467:** Enhanced Compare tool: Quick Month picker is now single row, added inactive dates note, fixed period creation absolute dates, added Save/Load period preset manager handling data availability validation, and added period description editing field within the card.
 - **v1.0.466:** Overhauled the Compare Tool tab in SalesAnalyzer: removed default periods, added empty and single-period states, implemented compact month cards in the Quick Month Picker, hid already added months, and ensured instant calculation.
 - **v1.0.451:** Fixed missing Search icon import in ReportsTab.jsx.
@@ -117,4 +120,4 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 - **v1.0.001:** Initial release. Authentication, CSV parsing, Analysis tools, and Admin panel implemented.
 
 ---
-© 2026 Data Lens Analytics | version 1.0.479
+© 2026 Data Lens Analytics | version 1.0.482

@@ -10,6 +10,7 @@ import Dashboard from './pages/Dashboard';
 import CallDetailingAnalyzer from './tools/CallDetailingAnalyzer';
 import SalesAnalyzer from './tools/SalesAnalyzer';
 import RoutingAnalyzer from './tools/RoutingAnalyzer';
+import SalesForecastTool from './tools/SalesForecast';
 import UserManagement from './pages/admin/UserManagement';
 import ScrollToTopButton from './components/ScrollToTopButton';
 
@@ -101,6 +102,18 @@ const AppRoutes = () => {
           <ProtectedRoute>
             <AppLayout>
               <RoutingAnalyzer />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Sales Forecast */}
+      <Route
+        path="/tools/sales-forecast"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <SalesForecastTool />
             </AppLayout>
           </ProtectedRoute>
         }

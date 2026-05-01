@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useLocation, NavLink } from 'react-router-dom';
-import { LayoutDashboard, Settings, Activity, BarChart3, Menu, X, Map } from 'lucide-react';
+import { LayoutDashboard, Settings, Activity, BarChart3, Menu, X, Map, TrendingUp } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const Navbar = () => {
@@ -30,6 +30,7 @@ const Navbar = () => {
     { title: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, role: 'all' },
     { title: 'Call Detailing', path: '/tools/call-detailing', icon: Activity, role: 'user' },
     { title: 'ATR Sales Analyzer', path: '/tools/sales-analyzer', icon: BarChart3, role: 'user' },
+    { title: 'Sales Forecast', path: '/tools/sales-forecast', icon: TrendingUp, role: 'user' },
     { title: 'Routing Analyzer', path: '/routing-analyzer', icon: Map, role: 'user' },
     { title: 'User Management', path: '/admin/users', icon: Settings, role: 'admin' },
   ];
