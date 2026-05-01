@@ -2206,7 +2206,7 @@ const SalesAnalyzer = () => {
                   </div>
               )}
               {activeTab === 'Reports' && (
-                <ReportsTab data={filteredData} filterOptions={filterOptions} />
+                <ReportsTab data={filteredData} filterOptions={filterOptions} filters={filters} />
               )}
             </div>
           </div>

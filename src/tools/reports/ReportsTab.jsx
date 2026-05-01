@@ -528,10 +528,10 @@ const Report1 = ({ data, filterOptions }) => {
     <div className="space-y-4">
 
       {/* ── Config Panel ── */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className={`relative z-40 bg-white rounded-2xl border border-gray-100 shadow-sm ${showConfig ? '' : 'overflow-hidden'}`}>
         <button 
           onClick={() => setShowConfig(!showConfig)}
-          className="w-full flex items-center justify-between p-4 bg-gray-50/50 hover:bg-gray-50 transition-colors"
+          className={`w-full flex items-center justify-between p-4 bg-gray-50/50 hover:bg-gray-50 transition-colors ${showConfig ? 'rounded-t-2xl' : ''}`}
         >
           <div className="flex items-center gap-2">
             <Settings2 className="w-4 h-4 text-blue-500" />
@@ -1129,7 +1129,7 @@ const Report1 = ({ data, filterOptions }) => {
 // ─────────────────────────────────────────────
 // REPORTS TAB — CONTAINER
 // ─────────────────────────────────────────────
-const ReportsTab = ({ data, filterOptions }) => {
+const ReportsTab = ({ data, filterOptions, filters = {} }) => {
   const [activeReport, setActiveReport] = useState('report1');
   const [isFullscreen, setIsFullscreen]   = useState(false);
 
@@ -1137,6 +1137,45 @@ const ReportsTab = ({ data, filterOptions }) => {
     { id: 'report1', label: '📊 Chain × Product Matrix', desc: 'Compare chains/customers by product across periods' },
     // Future reports go here
   ];
+
+  // Global filters summary for fullscreen mode
+  const renderGlobalFiltersInfo = () => {
+    if (!isFullscreen) return null;
+    
+    let parts = [];
+    if (filters.fromDate || filters.toDate) {
+      parts.push(`Date: ${filters.fromDate || '...'} to ${filters.toDate || '...'}`);
+    }
+    
+    // Check array filters
+    const keys = [
+      {k: 'branch', l: 'Branch'}, {k: 'supervisor', l: 'Supervisor'},
+      {k: 'mrName', l: 'MR'}, {k: 'line', l: 'Line'}, 
+      {k: 'customerType', l: 'Cust Type'}, {k: 'customer', l: 'Customer'},
+      {k: 'product', l: 'Product'}
+    ];
+    
+    keys.forEach(({k, l}) => {
+      if (Array.isArray(filters[k]) && filters[k].length > 0) {
+        parts.push(`${l}: ${filters[k].join(', ')}`);
+      }
+    });
+
+    if (parts.length === 0) return null;
+
+    return (
+      <div className="flex-shrink-0 bg-blue-50 border-x border-b border-blue-100 p-3 flex flex-wrap items-center gap-2 text-xs">
+        <span className="font-bold text-blue-800 uppercase tracking-wider text-[10px] whitespace-nowrap">Global Filters:</span>
+        <div className="flex flex-wrap gap-2 text-blue-700">
+          {parts.map((p, i) => (
+            <span key={i} className="bg-white border border-blue-200 px-2 py-1 rounded shadow-sm break-all font-medium">
+              {p}
+            </span>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className={isFullscreen ? 'fixed inset-0 z-[200] bg-gray-50 flex flex-col p-4 w-screen h-screen' : 'flex flex-col h-full'}>
@@ -1164,6 +1203,8 @@ const ReportsTab = ({ data, filterOptions }) => {
           <span className="hidden sm:inline">{isFullscreen ? 'Exit' : 'Fullscreen'}</span>
         </button>
       </div>
+
+      {renderGlobalFiltersInfo()}
 
       {/* Report content */}
       <div className={`flex-1 overflow-y-auto ${isFullscreen ? 'bg-white border-x border-b border-gray-100 rounded-b-2xl shadow-sm p-4' : 'p-4'}`}>
