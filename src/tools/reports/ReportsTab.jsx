@@ -242,6 +242,177 @@ const ChartSettings = ({ settings, onChange }) => (
 );
 
 // ─────────────────────────────────────────────
+// DRILLDOWN MODAL
+// ─────────────────────────────────────────────
+const DrilldownModal = ({ info, onClose }) => {
+  const [search, setSearch] = useState('');
+  const [filterType, setFilterType] = useState('all'); // all | sale | return
+
+  if (!info) return null;
+
+  const fmtD = (d) => (!d || !(d instanceof Date)) ? '—' : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+  // Group by Invoice to show a list of invoices
+  const invoicesMap = {};
+  info.invoices.forEach(r => {
+    if (!invoicesMap[r.invoiceNo]) {
+      invoicesMap[r.invoiceNo] = {
+        invoiceNo: r.invoiceNo,
+        invoiceDate: r.invoiceDate,
+        customerName: r.customerName,
+        mrName: r.mrName,
+        branch: r.branch,
+        netQty: 0,
+        netValue: 0,
+        returnQty: 0,
+        products: []
+      };
+    }
+    const inv = invoicesMap[r.invoiceNo];
+    inv.netQty += r.netQty;
+    inv.netValue += r.netValue;
+    inv.returnQty += Math.abs(r.returnQty || 0);
+    inv.products.push(r);
+  });
+
+  const allInvoices = Object.values(invoicesMap).sort((a,b) => b.invoiceDate - a.invoiceDate);
+  
+  const filteredInvoices = allInvoices.filter(inv => {
+    const matchesSearch = 
+      inv.invoiceNo?.toString().includes(search) ||
+      inv.customerName?.toLowerCase().includes(search.toLowerCase()) ||
+      inv.mrName?.toLowerCase().includes(search.toLowerCase());
+    
+    if (filterType === 'return') return matchesSearch && inv.returnQty > 0;
+    if (filterType === 'sale') return matchesSearch && inv.netQty > 0;
+    return matchesSearch;
+  });
+
+  return (
+    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-gray-900/60 backdrop-blur-sm">
+      <div className="bg-white w-full max-w-6xl h-full max-h-[90vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
+        {/* Header */}
+        <div className="px-6 py-4 bg-gray-900 border-b border-gray-800 flex items-center justify-between">
+          <div>
+            <h3 className="text-white font-black text-lg tracking-tight flex items-center gap-2">
+              <Table2 className="w-5 h-5 text-blue-400" />
+              Drill-down: <span className="text-blue-400">{info.title}</span>
+            </h3>
+            <p className="text-gray-400 text-xs font-medium">Showing {filteredInvoices.length} invoices found in this selection</p>
+          </div>
+          <button 
+            onClick={onClose}
+            className="p-2 hover:bg-white/10 rounded-full text-gray-400 hover:text-white transition-all"
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        {/* Filters */}
+        <div className="px-6 py-3 bg-gray-50 border-b border-gray-100 flex flex-wrap items-center justify-between gap-4">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input 
+              type="text" 
+              placeholder="Search invoice #, customer, or MR..."
+              className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:border-blue-500 outline-none transition-all shadow-sm"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+          </div>
+          <div className="flex bg-white p-1 border border-gray-200 rounded-xl shadow-sm">
+            {['all', 'sale', 'return'].map(t => (
+              <button
+                key={t}
+                onClick={() => setFilterType(t)}
+                className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${filterType === t ? 'bg-gray-900 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-auto p-6">
+          <div className="grid grid-cols-1 gap-6">
+            {filteredInvoices.map(inv => (
+              <div key={inv.invoiceNo} className="border border-gray-100 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                <div className="bg-gray-50 px-4 py-3 border-b border-gray-100 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-3">
+                    <span className="bg-blue-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest shadow-sm">#{inv.invoiceNo}</span>
+                    <span className="text-xs font-bold text-gray-800">{fmtD(inv.invoiceDate)}</span>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs">
+                    <div className="flex flex-col items-end">
+                      <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Net Value</span>
+                      <span className="font-bold text-gray-800">{inv.netValue.toLocaleString()} EGP</span>
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Net Qty</span>
+                      <span className="font-bold text-emerald-600">{inv.netQty.toLocaleString()}</span>
+                    </div>
+                    {inv.returnQty > 0 && (
+                      <div className="flex flex-col items-end">
+                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Returns</span>
+                        <span className="font-bold text-red-500">{inv.returnQty.toLocaleString()}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4 bg-white">
+                   <div className="space-y-1">
+                     <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Customer</p>
+                     <p className="text-xs font-bold text-gray-700">{inv.customerName}</p>
+                   </div>
+                   <div className="space-y-1">
+                     <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Medical Rep</p>
+                     <p className="text-xs font-bold text-gray-700">{inv.mrName}</p>
+                   </div>
+                   <div className="space-y-1">
+                     <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Branch</p>
+                     <p className="text-xs font-bold text-gray-700">{inv.branch}</p>
+                   </div>
+                </div>
+                
+                {/* Product list preview */}
+                <div className="bg-white border-t border-gray-50">
+                  <table className="w-full text-[10px]">
+                    <thead className="bg-gray-50 text-gray-500">
+                      <tr>
+                        <th className="px-4 py-1.5 text-left font-bold uppercase tracking-widest border-b border-gray-100">Product</th>
+                        <th className="px-4 py-1.5 text-right font-bold uppercase tracking-widest border-b border-gray-100 w-24">Net Qty</th>
+                        <th className="px-4 py-1.5 text-right font-bold uppercase tracking-widest border-b border-gray-100 w-24">Net Value</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {inv.products.map((p, pidx) => (
+                        <tr key={pidx} className="hover:bg-blue-50/30 transition-colors">
+                          <td className="px-4 py-1.5 text-gray-800 font-medium">{p.productName}</td>
+                          <td className="px-4 py-1.5 text-right font-mono font-bold text-emerald-600">{p.netQty.toLocaleString()}</td>
+                          <td className="px-4 py-1.5 text-right font-mono text-gray-600">{p.netValue.toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
+            {filteredInvoices.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-24 text-gray-400 bg-gray-50/50 rounded-3xl border-2 border-dashed border-gray-200">
+                 <Search className="w-12 h-12 mb-4 opacity-20" />
+                 <p className="text-lg font-black uppercase tracking-widest opacity-40">No matching invoices</p>
+                 <button onClick={() => setSearch('')} className="mt-4 text-blue-500 font-bold hover:underline">Clear search filters</button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
 // REPORT 1 — CHAIN × PRODUCT MATRIX
 // ─────────────────────────────────────────────
 const Report1 = ({ data, filterOptions }) => {
@@ -259,6 +430,35 @@ const Report1 = ({ data, filterOptions }) => {
   const [showSettings, setShowSettings] = useState(false);
   const [showConfig,   setShowConfig]   = useState(true);
   const [activeView,   setActiveView]   = useState('table');         // table | chart
+  const [drillDownInfo, setDrillDownInfo] = useState(null);
+
+  const handleDrillDown = (itemVal, periodKey, colVal = null) => {
+    let filtered = baseData.filter(r => {
+      if (itemVal !== '__global' && r[rowDim] !== itemVal) return false;
+      
+      if (periodKey !== 'all') {
+        const d = r.invoiceDate;
+        const key = groupBy === 'month' ? getMonthKey(d) : getQuarterKey(d);
+        if (key !== periodKey) return false;
+      }
+
+      if (colVal === '__returns') {
+        return (r.returnQty !== 0 || r.returnValue !== 0);
+      }
+      if (colVal && colVal !== '__total' && r[colDim] !== colVal) return false;
+      
+      return true;
+    });
+
+    const periodLabel = periodKey === 'all' ? 'Grand Total' : (groupBy === 'month' ? getMonthLabel(periodKey) : getQuarterLabel(periodKey));
+    const itemLabel = itemVal === '__global' ? 'All Rows' : itemVal;
+    const colLabelPart = colVal === '__returns' ? '| Returns' : (colVal && colVal !== '__total' ? `| ${colVal}` : '');
+
+    setDrillDownInfo({
+      title: `${itemLabel} ${colLabelPart} (${periodLabel})`,
+      invoices: filtered
+    });
+  };
 
   const [chartSettings, setChartSettings] = useState(() => {
     try {
@@ -625,6 +825,7 @@ const Report1 = ({ data, filterOptions }) => {
   // ────────────────────────────────────────────
   return (
     <div className="space-y-4">
+      <DrilldownModal info={drillDownInfo} onClose={() => setDrillDownInfo(null)} />
 
       {/* ── Config Panel ── */}
       <div className={`relative z-40 bg-white rounded-2xl border border-gray-100 shadow-sm ${showConfig ? '' : 'overflow-hidden'}`}>
@@ -1068,7 +1269,8 @@ const Report1 = ({ data, filterOptions }) => {
                             return (
                               <td
                                 key={`${period}__total`}
-                                className="px-2 py-2 text-center border-b border-gray-100 border-r border-amber-100 bg-amber-50 text-xs font-black text-amber-800"
+                                onClick={() => handleDrillDown(rowVal, period, '__total')}
+                                className="px-2 py-2 text-center border-b border-gray-100 border-r border-amber-100 bg-amber-50 text-xs font-black text-amber-800 cursor-pointer hover:bg-amber-100/80 transition-colors"
                               >
                                 {renderCell(periodTotal.qty, periodTotal.value)}
                               </td>
@@ -1088,7 +1290,8 @@ const Report1 = ({ data, filterOptions }) => {
                             return (
                               <td
                                 key={`${period}__returns`}
-                                className="px-2 py-2 text-center border-b border-gray-100 border-r border-red-100 bg-red-50 text-xs font-black text-red-800"
+                                onClick={() => handleDrillDown(rowVal, period, '__returns')}
+                                className="px-2 py-2 text-center border-b border-gray-100 border-r border-red-100 bg-red-50 text-xs font-black text-red-800 cursor-pointer hover:bg-red-100/80 transition-colors"
                               >
                                 {renderCell(periodTotal.returnQty, periodTotal.returnValue)}
                               </td>
@@ -1098,7 +1301,8 @@ const Report1 = ({ data, filterOptions }) => {
                           return (
                             <td
                               key={`${period}_${col}`}
-                              className="px-2 py-2 text-center border-b border-gray-100 border-r border-gray-50 text-xs"
+                              onClick={() => handleDrillDown(rowVal, period, col)}
+                              className="px-2 py-2 text-center border-b border-gray-100 border-r border-gray-50 text-xs cursor-pointer hover:bg-blue-50/50 hover:text-blue-600 transition-colors group"
                             >
                               {renderCell(c.qty, c.value)}
                             </td>
@@ -1107,7 +1311,10 @@ const Report1 = ({ data, filterOptions }) => {
                       })}
 
                       {/* Grand Total */}
-                      <td className="px-3 py-2 text-center border-b border-gray-100 border-r border-blue-100 bg-blue-50 text-xs font-black text-blue-800">
+                      <td 
+                        onClick={() => handleDrillDown(rowVal, 'all', '__total')}
+                        className="px-3 py-2 text-center border-b border-gray-100 border-r border-blue-100 bg-blue-50 text-xs font-black text-blue-800 cursor-pointer hover:bg-blue-100/80 transition-colors"
+                      >
                         {renderCell(grand.qty, grand.value)}
                       </td>
                       {/* Grand Avg */}
@@ -1147,7 +1354,11 @@ const Report1 = ({ data, filterOptions }) => {
                     return colsToRender.map((col, ci) => {
                       if (col === '__total') {
                         return (
-                          <td key={`tot_${period}__total`} className="px-2 py-2.5 text-center text-xs font-black border-t border-gray-700 border-r border-gray-700 bg-amber-500 text-black">
+                          <td 
+                            key={`tot_${period}__total`} 
+                            onClick={() => handleDrillDown('__global', period, '__total')}
+                            className="px-2 py-2.5 text-center text-xs font-black border-t border-gray-700 border-r border-gray-700 bg-amber-500 text-black cursor-pointer hover:bg-amber-600 transition-colors"
+                          >
                             {fmtN(metric === 'value' ? periodGrand.value : periodGrand.qty)}
                           </td>
                         );
@@ -1164,13 +1375,21 @@ const Report1 = ({ data, filterOptions }) => {
                       }
                       if (col === '__returns') {
                         return (
-                          <td key={`tot_${period}__returns`} className="px-2 py-2.5 text-center text-xs font-black border-t border-gray-700 border-r border-gray-700 bg-red-500 text-white">
+                          <td 
+                            key={`tot_${period}__returns`} 
+                            onClick={() => handleDrillDown('__global', period, '__returns')}
+                            className="px-2 py-2.5 text-center text-xs font-black border-t border-gray-700 border-r border-gray-700 bg-red-500 text-white cursor-pointer hover:bg-red-600 transition-colors"
+                          >
                             {fmtN(metric === 'value' ? periodGrand.returnValue : periodGrand.returnQty)}
                           </td>
                         );
                       }
                       return (
-                        <td key={`tot_${period}_${col}`} className="px-2 py-2.5 text-center text-xs font-bold border-t border-gray-700 border-r border-gray-700">
+                        <td 
+                          key={`tot_${period}_${col}`} 
+                          onClick={() => handleDrillDown('__global', period, col)}
+                          className="px-2 py-2.5 text-center text-xs font-bold border-t border-gray-700 border-r border-gray-700 cursor-pointer hover:bg-gray-800 transition-colors"
+                        >
                           {fmtN(metric === 'value' ? colTotals[ci].value : colTotals[ci].qty)}
                         </td>
                       );
