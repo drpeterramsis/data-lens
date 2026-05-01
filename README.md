@@ -42,6 +42,8 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 
 ## Version History
 
+- **v1.0.449:** Added structured CSV and XLSX export options in Reports with layout preservation (merged cells, multi-level headers). Updated versioning strategy.
+- **v1.0.448:** Added filters summary to Reports fullscreen mode and fixed dropdown overlay issues by adjusting Z-index and relative positioning.
 - **v1.0.447:** Expanded Drilldown invoice list width, added Fullscreen option to Reports, hid Average/Month for monthly intervals.
 - **v1.0.446:** Re-added the Reports tab dynamically, made Drilldown Modal full-screen per User Request.
 - **v1.0.445:** Fixed import error for ReportsTab in SalesAnalyzer and imported missing React hooks into ReportsTab.jsx. Updated versioning across all modules.
@@ -99,4 +101,4 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 - **v1.0.001:** Initial release. Authentication, CSV parsing, Analysis tools, and Admin panel implemented.
 
 ---
-© 2026 Data Lens Analytics | version 1.0.447
+© 2026 Data Lens Analytics | version 1.0.449

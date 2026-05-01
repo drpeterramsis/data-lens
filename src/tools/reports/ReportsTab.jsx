@@ -11,6 +11,7 @@ import {
 } from 'recharts';
 import Papa from 'papaparse';
 import { saveAs } from 'file-saver';
+import * as XLSX from 'xlsx';
 
 // ─────────────────────────────────────────────
 // HELPERS
@@ -482,41 +483,139 @@ const Report1 = ({ data, filterOptions }) => {
   }, [matrix, periodKeys, activeCols, activeRows, metric, groupBy]);
 
   // ── Export CSV ──
-  const handleExport = () => {
+  const handleExportCSV = () => {
     const rows = [];
-    // Header
-    const header = ['Product/Row'];
-    periodKeys.forEach(p => {
-      const label = groupBy === 'month' ? getMonthLabel(p) : p;
-      activeCols.forEach(col => header.push(`${label} - ${col}`));
-      header.push(`${label} - Total`);
-      if (groupBy !== 'month') {
-        header.push(`${label} - Avg/Month`);
-      }
+    
+    // Header Row 1: Periods
+    const row1 = [dimOptions.find(o => o.value === rowDim)?.label];
+    periodKeys.forEach(period => {
+      const label = groupBy === 'month' ? getMonthLabel(period) : getQuarterLabel(period);
+      const hideTotal = isSingleColMonthly && !periodHasReturns[period];
+      let colSpan = activeCols.length;
+      if (!hideTotal) colSpan++;
+      if (groupBy !== 'month') colSpan++;
+      if (isSingleColMonthly && periodHasReturns[period]) colSpan++;
+      
+      row1.push(label);
+      for(let i=1; i<colSpan; i++) row1.push(''); // Fill empty for CSV
     });
-    rows.push(header);
+    row1.push('Grand Total');
+    row1.push('');
+    rows.push(row1);
 
+    // Header Row 2: Sub-headers
+    const row2 = [''];
+    periodKeys.forEach(period => {
+        const hideTotal = isSingleColMonthly && !periodHasReturns[period];
+        const hasReturnsCol = isSingleColMonthly && periodHasReturns[period];
+        activeCols.forEach(col => row2.push(col));
+        if (hasReturnsCol) row2.push('Returns');
+        if (!hideTotal) row2.push('Net Total');
+        if (groupBy !== 'month') row2.push('Avg/Mo');
+    });
+    row2.push('Total');
+    row2.push('Avg/Mo');
+    rows.push(row2);
+
+    // Body
     activeRows.forEach(rowVal => {
-      const row = [rowVal];
-      periodKeys.forEach(period => {
-        activeCols.forEach(col => {
-          const c = getCell(rowVal, period, col);
-          row.push(metric === 'value' ? c.value : c.qty);
+        const rData = [rowVal];
+        periodKeys.forEach(period => {
+             const periodTotal = getRowPeriodTotal(rowVal, period);
+             const hideTotal = isSingleColMonthly && !periodHasReturns[period];
+             const hasReturnsCol = isSingleColMonthly && periodHasReturns[period];
+             activeCols.forEach(col => {
+                 const c = getCell(rowVal, period, col);
+                 rData.push(metric === 'value' ? c.value : c.qty);
+             });
+             if (hasReturnsCol) rData.push(metric === 'value' ? periodTotal.returnValue : periodTotal.returnQty);
+             if (!hideTotal) rData.push(metric === 'value' ? periodTotal.value : periodTotal.qty);
+             if (groupBy !== 'month') {
+                 rData.push(((metric === 'value' ? periodTotal.value : periodTotal.qty) / (periodKeys.length || 1)).toFixed(2));
+             }
         });
-        const t = getRowPeriodTotal(rowVal, period);
-        row.push(metric === 'value' ? t.value : t.qty);
-        if (groupBy !== 'month') {
-          row.push(metric === 'value'
-            ? (t.value / (periodKeys.length || 1)).toFixed(0)
-            : (t.qty   / (periodKeys.length || 1)).toFixed(0));
-        }
-      });
-      rows.push(row);
+        const grand = getRowGrandTotal(rowVal);
+        const avg = getRowAvg(rowVal);
+        rData.push(metric === 'value' ? grand.value : grand.qty);
+        rData.push(metric === 'value' ? avg.value.toFixed(2) : avg.qty.toFixed(2));
+        rows.push(rData);
     });
 
     const csv  = Papa.unparse(rows);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    saveAs(blob, `Report1_${groupBy}_${metric}.csv`);
+    saveAs(blob, `Report_${groupBy}_${metric}.csv`);
+  };
+
+  const handleExportXLSX = () => {
+    const wb = XLSX.utils.book_new();
+    const ws_data = [];
+    const merges = [];
+    
+    // Header Row 1: Periods
+    const row1 = [dimOptions.find(o => o.value === rowDim)?.label];
+    let currentCol = 1;
+    periodKeys.forEach(period => {
+      const label = groupBy === 'month' ? getMonthLabel(period) : getQuarterLabel(period);
+      const hideTotal = isSingleColMonthly && !periodHasReturns[period];
+      let colSpan = activeCols.length;
+      if (!hideTotal) colSpan++;
+      if (groupBy !== 'month') colSpan++;
+      if (isSingleColMonthly && periodHasReturns[period]) colSpan++;
+      
+      row1[currentCol] = label;
+      if (colSpan > 1) {
+        merges.push({ s: { r: 0, c: currentCol }, e: { r: 0, c: currentCol + colSpan - 1 } });
+      }
+      currentCol += colSpan;
+    });
+    row1[currentCol] = 'Grand Total';
+    merges.push({ s: { r: 0, c: currentCol }, e: { r: 0, c: currentCol + 1 } });
+    ws_data.push(row1);
+    
+    // Header Row 2: Sub-headers
+    const row2 = [''];
+    currentCol = 1;
+    periodKeys.forEach(period => {
+        const hideTotal = isSingleColMonthly && !periodHasReturns[period];
+        const hasReturnsCol = isSingleColMonthly && periodHasReturns[period];
+        activeCols.forEach(col => { row2[currentCol++] = col; });
+        if (hasReturnsCol) row2[currentCol++] = 'Returns';
+        if (!hideTotal) row2[currentCol++] = 'Net Total';
+        if (groupBy !== 'month') row2[currentCol++] = 'Avg/Mo';
+    });
+    row2[currentCol++] = 'Total';
+    row2[currentCol++] = 'Avg/Mo';
+    ws_data.push(row2);
+    
+    // Body Rows
+    activeRows.forEach(rowVal => {
+        const rData = [rowVal];
+        periodKeys.forEach(period => {
+             const periodTotal = getRowPeriodTotal(rowVal, period);
+             const hideTotal = isSingleColMonthly && !periodHasReturns[period];
+             const hasReturnsCol = isSingleColMonthly && periodHasReturns[period];
+             activeCols.forEach(col => {
+                 const c = getCell(rowVal, period, col);
+                 rData.push(metric === 'value' ? c.value : c.qty);
+             });
+             if (hasReturnsCol) rData.push(metric === 'value' ? periodTotal.returnValue : periodTotal.returnQty);
+             if (!hideTotal) rData.push(metric === 'value' ? periodTotal.value : periodTotal.qty);
+             if (groupBy !== 'month') {
+                 rData.push((metric === 'value' ? periodTotal.value : periodTotal.qty) / (periodKeys.length || 1));
+             }
+        });
+        const grand = getRowGrandTotal(rowVal);
+        const avg = getRowAvg(rowVal);
+        rData.push(metric === 'value' ? grand.value : grand.qty);
+        rData.push(metric === 'value' ? avg.value : avg.qty);
+        ws_data.push(rData);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(ws_data);
+    ws['!merges'] = merges;
+    XLSX.utils.book_append_sheet(wb, ws, "Report");
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    saveAs(new Blob([wbout], { type: "application/octet-stream" }), `Report_${groupBy}_${metric}.xlsx`);
   };
 
   const isDataExcessive = activeRows.length > 20 || activeCols.length > 20;
@@ -755,12 +854,23 @@ const Report1 = ({ data, filterOptions }) => {
               <Palette className="w-3.5 h-3.5" /> Chart Style
             </button>
           )}
-          <button
-            onClick={handleExport}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase bg-emerald-500 text-white border border-emerald-500 hover:bg-emerald-600 transition-all"
-          >
-            <Download className="w-3.5 h-3.5" /> Export CSV
-          </button>
+          <div className="flex items-center gap-1.5 p-1 bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+            <button
+              onClick={handleExportCSV}
+              title="Export CSV"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase text-gray-700 hover:bg-gray-50 hover:text-emerald-600 transition-all"
+            >
+              <Download className="w-3.5 h-3.5" /> CSV
+            </button>
+            <div className="w-px h-4 bg-gray-100" />
+            <button
+              onClick={handleExportXLSX}
+              title="Export XLSX"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase text-emerald-600 hover:bg-emerald-50 transition-all"
+            >
+              <Download className="w-3.5 h-3.5" /> XLSX
+            </button>
+          </div>
         </div>
       </div>
       )}

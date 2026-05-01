@@ -3,9 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from '../context/AuthContext';
 
 const APP_VERSION_DATA = {
-  version: '1.0.447',
+  version: '1.0.449',
   releaseDate: 'Apr 2026',
-  label: 'Advanced Routing Analysis Engine — Local Storage & Multi-file'
+  label: 'Structured Export & UX Fixes'
 };
 
 export default function Footer() {
