@@ -3,7 +3,8 @@ import {
   BarChart3, DollarSign, Package, RotateCcw, 
   Grid, Upload, RefreshCw, ChevronLeft, ChevronRight, 
   ChevronDown, Filter, Users, Search, X, 
-  Trash2, Save, Edit2, Plus, CheckCircle2, History, Clock
+  Trash2, Save, Edit2, Plus, CheckCircle2, History, Clock,
+  Calendar, AlertCircle, Expand
 } from 'lucide-react';
 
 import * as XLSX from 'xlsx';
@@ -15,9 +16,9 @@ import {
 import ReportsTab from '../reports/ReportsTab';
 
 const APP_VERSION = {
-  version: '1.0.461',
+  version: '1.0.465',
   releaseDate: 'May 2026',
-  label: 'Multi-Period Comparison & Filter Profile Hub'
+  label: 'Dynamic Matrix & Multi-Period Perf Hub'
 };
 
 const CACHE_KEY = 'atr_sales_v1';
@@ -887,6 +888,15 @@ const UploadChoiceModal = ({ onChoose, onCancel, existingCount }) => (
   </div>
 );
 
+const DIMENSIONS = {
+  'MR':         'mrName',
+  'Product':    'productName',
+  'Customer':   'customerName',
+  'Line':       'lineName',
+  'Branch':     'branch',
+  'Supervisor': 'supervisor',
+};
+
 const SalesAnalyzer = () => {
   const [data, setData] = useState([]);
   const [parsing, setParsing] = useState(false);
@@ -1022,9 +1032,35 @@ const SalesAnalyzer = () => {
 
   // Period Compare states
   const [periods, setPeriods] = useState([
-    { id: '1', label: 'Period A', from: '', to: '', color: '#3B82F6' },
-    { id: '2', label: 'Period B', from: '', to: '', color: '#10B981' }
+    { id: '1', label: 'Period A', from: '', to: '', color: '#3B82F6', type: 'custom' },
+    { id: '2', label: 'Period B', from: '', to: '', color: '#10B981', type: 'custom' }
   ]);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedMonths, setSelectedMonths] = useState([]);
+  const [colorPopoverIdx, setColorPopoverIdx] = useState(null);
+  
+  // Performance Analysis States
+  const [perfDimension, setPerfDimension] = useState('MR');
+  const [perfMetric, setPerfMetric] = useState('netQty');
+  const [perfSearch, setPerfSearch] = useState('');
+  const [compareFullscreen, setCompareFullscreen] = useState(false);
+  const [perfSortKey, setPerfSortKey] = useState('total');
+  const [perfSortDir, setPerfSortDir] = useState('desc');
+
+  useEffect(() => {
+    if (compareFullscreen) {
+      document.body.style.overflow = 'hidden';
+      const handleEsc = (e) => {
+        if (e.key === 'Escape') setCompareFullscreen(false);
+      };
+      window.addEventListener('keydown', handleEsc);
+      return () => {
+        document.body.style.overflow = 'unset';
+        window.removeEventListener('keydown', handleEsc);
+      };
+    }
+  }, [compareFullscreen]);
+
   const COMPARE_PRESETS_KEY = 'salesAnalyzer_comparePresets';
 
   useEffect(() => {
@@ -1129,6 +1165,19 @@ const SalesAnalyzer = () => {
     
     return filtered;
   }, [data, filters]);
+
+  const availableMonths = useMemo(() => {
+    if (!filteredData || filteredData.length === 0) return new Set();
+    const set = new Set();
+    filteredData.forEach(r => {
+      const d = r.invoiceDate;
+      if (d) {
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        set.add(key);
+      }
+    });
+    return set;
+  }, [filteredData]);
 
   const valColor = (n) => (n < 0 ? 'text-red-600' : 'text-gray-900');
   const kpis = useMemo(() => {
@@ -2562,131 +2611,331 @@ const SalesAnalyzer = () => {
                   </div>
               )}
               {activeTab === 'Compare' && (
-                  <div className="space-y-6">
+                  <div className={compareFullscreen ? "fixed inset-0 z-50 bg-gray-50 overflow-y-auto" : "space-y-2.5"}>
+                    {compareFullscreen && (
+                      <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-2.5 bg-white border-b border-gray-100 shadow-sm mb-3">
+                        <span className="text-[10px] font-black text-gray-900">⚖️ Compare Tool</span>
+                        <button onClick={() => setCompareFullscreen(false)} className="px-3 py-1.5 text-[10px] font-bold bg-gray-100 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors">✕ Exit</button>
+                      </div>
+                    )}
+                    
+                    <div className={compareFullscreen ? "p-3 space-y-2.5" : "space-y-2.5"}>
+                      {!compareFullscreen && (
+                        <div className="flex justify-end !mt-0">
+                           <button onClick={() => setCompareFullscreen(true)} className="flex items-center gap-2 px-3 py-1.5 text-[10px] font-bold text-gray-700 bg-white border border-gray-200 shadow-sm hover:bg-gray-50 rounded-lg transition-colors">
+                              ⛶ Fullscreen
+                           </button>
+                        </div>
+                      )}
+                      
+                      {/* Quick Month Picker Section */}
+                    <div className="bg-white rounded-[24px] p-3 border border-amber-100 shadow-sm bg-gradient-to-br from-white to-amber-50/20">
+                      <div className="flex items-center justify-between mb-6">
+                        <div>
+                          <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter flex items-center gap-2">
+                             <Calendar size={20} className="text-amber-500" />
+                             Quick Month Picker
+                          </h3>
+                          <p className="text-[10px] text-gray-400 font-bold uppercase mt-1">Select months to add as comparison periods instantly</p>
+                        </div>
+                        <div className="flex items-center gap-3 bg-white p-1.5 rounded-2xl border border-gray-100 shadow-sm">
+                           <button 
+                             onClick={() => setSelectedYear(prev => Math.max(2020, prev - 1))}
+                             disabled={selectedYear <= 2020}
+                             className="p-2 hover:bg-gray-50 rounded-xl transition-colors text-gray-400 hover:text-gray-900 disabled:opacity-20">
+                             <ChevronLeft size={16} />
+                           </button>
+                           <span className="text-[10px] font-black text-gray-900 w-16 text-center tabular-nums">{selectedYear}</span>
+                           <button 
+                             onClick={() => setSelectedYear(prev => Math.min(2030, prev + 1))}
+                             disabled={selectedYear >= 2030}
+                             className="p-2 hover:bg-gray-50 rounded-xl transition-colors text-gray-400 hover:text-gray-900 disabled:opacity-20">
+                             <ChevronRight size={16} />
+                           </button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-4 md:grid-cols-6 gap-1 mb-6">
+                        {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((name, idx) => {
+                          const monthNum = idx + 1;
+                          const key = `${selectedYear}-${String(monthNum).padStart(2, '0')}`;
+                          const isAvailable = availableMonths.has(key);
+                          const isSelected = selectedMonths.includes(monthNum);
+                          const alreadyExists = periods.some(p => {
+                            if (!p.from || !p.to) return false;
+                            const d = new Date(p.from);
+                            return d.getFullYear() === selectedYear && (d.getMonth() + 1) === monthNum;
+                          });
+
+                          return (
+                            <button
+                              key={name}
+                              disabled={!isAvailable}
+                              onClick={() => {
+                                setSelectedMonths(prev => 
+                                  prev.includes(monthNum) ? prev.filter(m => m !== monthNum) : [...prev, monthNum]
+                                );
+                              }}
+                              className={`
+                                relative p-4 rounded-2xl border transition-all flex flex-col items-center gap-1 group
+                                ${!isAvailable ? 'bg-gray-50 border-gray-100 opacity-30 cursor-not-allowed' : 
+                                  isSelected ? 'bg-amber-500 border-amber-600 text-white shadow-lg scale-105' : 
+                                  'bg-white border-gray-100 text-gray-500 hover:border-amber-300 hover:bg-amber-50/30'}
+                              `}
+                            >
+                               <span className="text-[10px] font-black uppercase tracking-widest">{name}</span>
+                               {alreadyExists && (
+                                 <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" title="Already exists as a period" />
+                               )}
+                               {!isAvailable && (
+                                 <span className="text-[8px] font-bold text-gray-400 absolute bottom-1 uppercase">No Data</span>
+                               )}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="flex justify-end">
+                         <button 
+                           disabled={selectedMonths.length === 0}
+                           onClick={() => {
+                             const colors = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444', '#EC4899', '#06B6D4', '#F43F5E', '#84CC16', '#A855F7', '#EAB308', '#6366F1'];
+                             let added = 0;
+                             let skipped = 0;
+                             let limitSkipped = 0;
+                             const newPeriods = [...periods];
+
+                             selectedMonths.sort((a,b) => a-b).forEach(monthNum => {
+                               const key = `${selectedYear}-${String(monthNum).padStart(2, '0')}`;
+                               const exists = periods.some(p => {
+                                 if (!p.from || !p.to) return false;
+                                 const d = new Date(p.from);
+                                 return d.getFullYear() === selectedYear && (d.getMonth() + 1) === monthNum;
+                               });
+
+                               if (exists) {
+                                 skipped++;
+                                 return;
+                               }
+
+                               if (newPeriods.length >= 12) {
+                                 limitSkipped++;
+                                 return;
+                               }
+
+                               const firstDay = new Date(selectedYear, monthNum - 1, 1);
+                               const lastDay = new Date(selectedYear, monthNum, 0);
+                               const monthName = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][monthNum - 1];
+
+                               newPeriods.push({
+                                 id: `month-${selectedYear}-${monthNum}`,
+                                 label: `${monthName} ${selectedYear}`,
+                                 from: firstDay.toISOString().split('T')[0],
+                                 to: lastDay.toISOString().split('T')[0],
+                                 color: colors[newPeriods.length % colors.length],
+                                 type: 'month'
+                               });
+                               added++;
+                             });
+
+                             saveComparePreset(newPeriods);
+                             setSelectedMonths([]);
+                             
+                             let msg = `✅ ${added} periods added.`;
+                             if (skipped > 0) msg += ` ⚠️ ${skipped} already existed (skipped).`;
+                             if (limitSkipped > 0) msg += ` 🚫 ${limitSkipped} skipped (reached 12 period limit).`;
+                             
+                             setSmartLoadAlert({
+                               type: added > 0 ? 'success' : 'warning',
+                               title: 'Quick Add Result',
+                               message: msg
+                             });
+                           }}
+                           className="flex items-center gap-2 bg-gray-900 text-white px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-600 transition-all shadow-xl disabled:opacity-20">
+                           Add Selected Months ({selectedMonths.length})
+                           <ChevronRight size={16} />
+                         </button>
+                      </div>
+                    </div>
+
                     {/* Period Management Card */}
-                    <div className="bg-white rounded-[32px] p-8 border border-gray-100 shadow-sm">
+                    <div className="bg-white rounded-[24px] p-3 border border-gray-100 shadow-sm">
                       <div className="flex items-center justify-between mb-8">
                         <div>
-                          <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">Multi-Period Comparison</h3>
-                          <p className="text-sm text-gray-400 font-medium mt-1">Add up to 6 date ranges to analyze trends and performance shift</p>
+                          <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">Period Management</h3>
+                          <p className="text-[10px] text-gray-400 font-medium mt-1">Manage up to 12 date ranges for deep comparative analysis</p>
                         </div>
                         <div className="flex gap-2">
                           <button 
                              onClick={() => {
-                               if (periods.length < 6) {
-                                  const colors = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444', '#EC4899'];
-                                  const nextColor = colors[periods.length] || colors[0];
+                               if (periods.length < 12) {
+                                  const colors = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444', '#EC4899', '#06B6D4', '#F43F5E', '#84CC16', '#A855F7', '#EAB308', '#6366F1'];
+                                  const nextColor = colors[periods.length % colors.length];
                                   const newPeriods = [...periods, { 
                                     id: Date.now().toString(), 
                                     label: `Period ${String.fromCharCode(65 + periods.length)}`, 
                                     from: '', to: '', 
-                                    color: nextColor 
+                                    color: nextColor,
+                                    type: 'custom'
                                   }];
                                   saveComparePreset(newPeriods);
                                }
                              }}
-                             disabled={periods.length >= 6}
-                             className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-blue-600 transition-all shadow-lg disabled:opacity-30">
+                             disabled={periods.length >= 12}
+                             className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-all shadow-lg disabled:opacity-30">
                             <Plus size={16} />
                             Add Period
                           </button>
                         </div>
                       </div>
 
-                      <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
-                        {periods.map((p, idx) => (
-                          <div key={p.id} className="min-w-[280px] bg-gray-50/50 rounded-3xl p-5 border border-gray-100 relative group animate-in zoom-in-95 duration-200">
-                             <div className="flex items-center justify-between mb-4">
-                               <div className="flex items-center gap-2">
-                                 <div className="w-8 h-8 rounded-xl flex items-center justify-center font-black text-white text-xs shadow-md" style={{ backgroundColor: p.color }}>
-                                   {String.fromCharCode(65 + idx)}
-                                 </div>
-                                 <input 
-                                   type="text" 
-                                   value={p.label}
-                                   onChange={e => {
-                                      const up = [...periods];
-                                      up[idx].label = e.target.value;
-                                      saveComparePreset(up);
-                                   }}
-                                   className="bg-transparent border-none font-black text-gray-900 uppercase tracking-tight text-sm focus:outline-none w-32"
-                                 />
-                               </div>
-                               {periods.length > 2 && (
-                                 <button 
-                                   onClick={() => {
-                                      const up = periods.filter(item => item.id !== p.id);
-                                      saveComparePreset(up);
-                                   }}
-                                   className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-50 text-red-400 hover:text-red-600 rounded-lg transition-all">
-                                   <Trash2 size={14} />
-                                 </button>
-                               )}
-                             </div>
+                      <div className="flex gap-2 overflow-x-auto pb-4 no-scrollbar">
+                        {periods.map((p, idx) => {
+                          const isMonth = p.type === 'month';
+                          const hasNoDates = !p.from || !p.to;
+                          const fromDate = hasNoDates ? null : new Date(p.from);
+                          const toDate = hasNoDates ? null : new Date(p.to);
+                          if (toDate) toDate.setHours(23,59,59);
+                          
+                          const hasData = hasNoDates ? false : filteredData.some(r => r.invoiceDate >= fromDate && r.invoiceDate <= toDate);
+                          const isCompact = periods.length > 6;
 
-                             <div className="space-y-3">
-                               <div>
-                                 <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">Start Date</label>
-                                 <input 
-                                   type="date" 
-                                   value={p.from}
-                                   onChange={e => {
-                                      const up = [...periods];
-                                      up[idx].from = e.target.value;
-                                      saveComparePreset(up);
-                                   }}
-                                   className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold focus:border-blue-500 outline-none"
-                                 />
-                               </div>
-                               <div>
-                                 <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">End Date</label>
-                                 <input 
-                                   type="date" 
-                                   value={p.to}
-                                   onChange={e => {
-                                      const up = [...periods];
-                                      up[idx].to = e.target.value;
-                                      saveComparePreset(up);
-                                   }}
-                                   className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold focus:border-blue-500 outline-none"
-                                 />
-                               </div>
-                               <div className="flex gap-2 pt-2">
-                                 {['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444', '#EC4899'].map(c => (
+                          return (
+                            <div key={p.id} className={`
+                              rounded-[24px] border relative group animate-in zoom-in-95 duration-200 transition-all
+                              ${!hasData && !hasNoDates ? 'bg-gray-100 border-gray-200 border-dashed opacity-80' : 'bg-gray-50/50 border-gray-100'}
+                              ${isCompact ? 'min-w-[140px] p-2' : 'min-w-[220px] p-2.5'}
+                            `}>
+                               <div className="flex items-center justify-between mb-2">
+                                 <div className="flex items-center gap-2 relative">
+                                   <div 
+                                     onClick={() => isCompact && setColorPopoverIdx(colorPopoverIdx === idx ? null : idx)}
+                                     className={`w-6 h-6 rounded-xl flex items-center justify-center font-black text-white text-[10px] shadow-md ${isCompact ? 'cursor-pointer hover:ring-2 hover:ring-offset-1 hover:ring-gray-300' : ''}`}
+                                     style={{ backgroundColor: p.color }}
+                                   >
+                                     {idx + 1}
+                                   </div>
+                                   {isCompact && colorPopoverIdx === idx && (
+                                     <div className="absolute top-8 left-0 z-50 bg-white border border-gray-100 rounded-xl shadow-xl p-2 grid grid-cols-3 gap-1">
+                                       {['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444', '#EC4899'].map(c => (
+                                         <button 
+                                           key={c}
+                                           onClick={() => {
+                                             const up = [...periods];
+                                             up[idx].color = c;
+                                             saveComparePreset(up);
+                                             setColorPopoverIdx(null);
+                                           }}
+                                           className="w-4 h-4 rounded-full"
+                                           style={{ backgroundColor: c }}
+                                         />
+                                       ))}
+                                     </div>
+                                   )}
+                                   <div className="flex flex-col">
+                                      <input 
+                                        type="text" 
+                                        value={p.label}
+                                        onChange={e => {
+                                           const up = [...periods];
+                                           up[idx].label = e.target.value;
+                                           saveComparePreset(up);
+                                        }}
+                                        className={`bg-transparent border-none font-black text-gray-900 uppercase tracking-tight text-[10px] focus:outline-none ${isCompact ? 'w-20' : 'w-24'}`}
+                                      />
+                                      {!isCompact && (
+                                          <div className="flex gap-1">
+                                            <span className={`text-[8px] font-black uppercase px-1 rounded-sm ${isMonth ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'}`}>
+                                              {isMonth ? '📅 Month' : '✏️ Custom'}
+                                            </span>
+                                            {!hasData && !hasNoDates && (
+                                              <span className="text-[8px] font-black uppercase px-1 rounded-sm bg-red-100 text-red-600 flex items-center gap-0.5">
+                                                <AlertCircle size={8} /> No Data
+                                              </span>
+                                            )}
+                                          </div>
+                                      )}
+                                   </div>
+                                 </div>
+                                 {periods.length > 2 && (
                                    <button 
-                                     key={c}
                                      onClick={() => {
-                                       const up = [...periods];
-                                       up[idx].color = c;
-                                       saveComparePreset(up);
+                                        const up = periods.filter(item => item.id !== p.id);
+                                        saveComparePreset(up);
                                      }}
-                                     className={`w-4 h-4 rounded-full transition-transform hover:scale-125 ${p.color === c ? 'ring-2 ring-gray-900 ring-offset-2' : ''}`}
-                                     style={{ backgroundColor: c }}
-                                   />
-                                 ))}
+                                     className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-50 text-red-400 hover:text-red-600 rounded-lg transition-all">
+                                     <Trash2 size={14} />
+                                   </button>
+                                 )}
                                </div>
-                             </div>
-                          </div>
-                        ))}
+
+                               <div className={isCompact ? "flex flex-col gap-1 mt-2" : "space-y-3"}>
+                                 <div className={isCompact ? "flex flex-col" : ""}>
+                                   {!isCompact && <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">Start Date</label>}
+                                   <input 
+                                     type="date" 
+                                     value={p.from}
+                                     onChange={e => {
+                                        const up = [...periods];
+                                        up[idx].from = e.target.value;
+                                        saveComparePreset(up);
+                                     }}
+                                     className="w-full bg-white border border-gray-200 rounded-xl px-2 py-1 text-[10px] font-semibold focus:border-blue-500 outline-none"
+                                   />
+                                 </div>
+                                 <div className={isCompact ? "flex flex-col" : ""}>
+                                   {!isCompact && <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">End Date</label>}
+                                   <input 
+                                     type="date" 
+                                     value={p.to}
+                                     onChange={e => {
+                                        const up = [...periods];
+                                        up[idx].to = e.target.value;
+                                        saveComparePreset(up);
+                                     }}
+                                     className="w-full bg-white border border-gray-200 rounded-xl px-2 py-1 text-[10px] font-semibold focus:border-blue-500 outline-none"
+                                   />
+                                 </div>
+                                 {!isCompact ? (
+                                   <div className="flex gap-2 pt-2">
+                                     {['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444', '#EC4899', '#06B6D4', '#F43F5E', '#84CC16', '#A855F7', '#EAB308', '#6366F1'].slice(0, 8).map(c => (
+                                       <button 
+                                         key={c}
+                                         onClick={() => {
+                                           const up = [...periods];
+                                           up[idx].color = c;
+                                           saveComparePreset(up);
+                                         }}
+                                         className={`w-3 h-3 rounded-full transition-transform hover:scale-125 ${p.color === c ? 'ring-2 ring-gray-900 ring-offset-2' : ''}`}
+                                         style={{ backgroundColor: c }}
+                                       />
+                                     ))}
+                                   </div>
+                                 ) : null}
+                               </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
 
                     {/* Multi-Period Metrics Logic Implementation */}
                     {(() => {
-                        const periodCalculations = periods.map(p => {
-                          if (!p.from || !p.to) return null;
+                        const rawCalculations = periods.map(p => {
+                          if (!p.from || !p.to) return { ...p, metrics: null, empty: true };
                           const from = new Date(p.from);
                           const to   = new Date(p.to);
                           to.setHours(23,59,59);
                           
                           const pData = filteredData.filter(r => r.invoiceDate >= from && r.invoiceDate <= to);
                           
-                          if (pData.length === 0) return { ...p, metrics: null };
+                          if (pData.length === 0) return { ...p, metrics: null, empty: true };
                           
                           const invoices = new Set(pData.map(r => r.invoiceNo)).size;
                           return {
                             ...p,
                             data: pData,
+                            empty: false,
                             metrics: {
                               netQty:      pData.reduce((s,r) => s + r.netQty, 0),
                               netValue:    pData.reduce((s,r) => s + r.netValue, 0),
@@ -2698,14 +2947,17 @@ const SalesAnalyzer = () => {
                               avgInvoice:  invoices > 0 ? pData.reduce((s,r) => s + r.netValue, 0) / invoices : 0
                             }
                           };
-                        }).filter(Boolean);
+                        });
+
+                        const periodCalculations = rawCalculations.filter(pc => !pc.empty);
+                        const emptyPeriods = rawCalculations.filter(pc => pc.empty && (pc.from && pc.to));
 
                         if (periodCalculations.length < 2) {
                           return (
                             <div className="py-20 text-center bg-white border border-gray-100 rounded-[32px] opacity-40">
-                               <RefreshCw size={48} className="mx-auto mb-4 text-gray-300" />
+                               <RefreshCw size={48} className="mx-auto mb-2 text-gray-300" />
                                <p className="font-black text-gray-900 uppercase tracking-widest">Select dates for at least 2 periods</p>
-                               <p className="text-xs text-gray-400 mt-1">Comparison data will appear once dates are set</p>
+                               <p className="text-[10px] text-gray-400 mt-1">Comparison data will appear once dates are set and data is found</p>
                             </div>
                           );
                         }
@@ -2722,7 +2974,17 @@ const SalesAnalyzer = () => {
                         ];
 
                         return (
-                          <div className="space-y-6">
+                          <div className="space-y-2.5">
+                            {emptyPeriods.length > 0 && (
+                              <div className="bg-amber-50 border border-amber-200 rounded-2xl px-6 py-3 flex items-center gap-3 animate-in slide-in-from-top-2">
+                                 <AlertCircle size={18} className="text-amber-600" />
+                                 <p className="text-[10px] font-bold text-amber-700">
+                                   ⚠️ {emptyPeriods.length} of {rawCalculations.length} periods have no data and are excluded: 
+                                   <span className="ml-2 font-black uppercase tracking-tight">{emptyPeriods.map(p => p.label).join(', ')}</span>
+                                 </p>
+                              </div>
+                            )}
+
                             {/* Comparison Matrix */}
                             <div className="bg-white rounded-[32px] border border-gray-100 overflow-hidden shadow-sm">
                                <div className="px-8 py-6 border-b border-gray-100 bg-gray-50/30 flex items-center justify-between">
@@ -2740,19 +3002,19 @@ const SalesAnalyzer = () => {
                                </div>
 
                                <div className="overflow-x-auto">
-                                 <table className="w-full text-sm">
+                                 <table className="w-full text-[10px] border-collapse min-w-[800px]">
                                    <thead>
                                      <tr className="bg-gray-50">
-                                       <th className="px-8 py-4 text-left text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] sticky left-0 bg-gray-50 z-20">Metric</th>
+                                       <th className="px-8 py-4 text-left text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] sticky left-0 bg-gray-50 z-20 shadow-[2px_0_5px_rgba(0,0,0,0.05)] border-r border-gray-100">Metric</th>
                                        {periodCalculations.map(p => (
-                                         <th key={p.id} className="px-6 py-4 text-center">
+                                         <th key={p.id} className="px-6 py-4 text-center border-r border-gray-50 last:border-0 min-w-[140px]">
                                            <div className="flex flex-col items-center">
                                              <span className="text-[10px] font-black text-gray-900 uppercase tracking-tighter" style={{ color: p.color }}>{p.label}</span>
-                                             <span className="text-[10px] text-gray-400 font-medium">{new Date(p.from).toLocaleDateString('en-GB', { month:'short', year:'2-digit' })} → {new Date(p.to).toLocaleDateString('en-GB', { month:'short', year:'2-digit' })}</span>
+                                             <span className="text-[10px] text-gray-400 font-medium whitespace-nowrap">{new Date(p.from).toLocaleDateString('en-GB', { month:'short', year:'2-digit' })} → {new Date(p.to).toLocaleDateString('en-GB', { month:'short', year:'2-digit' })}</span>
                                            </div>
                                          </th>
                                        ))}
-                                       <th className="px-6 py-4 text-center text-[11px] font-black text-gray-900 uppercase tracking-widest">Best Period</th>
+                                       <th className="px-6 py-4 text-center text-[11px] font-black text-gray-900 uppercase tracking-widest border-l border-gray-100">Best</th>
                                        <th className="px-6 py-4 text-center text-[11px] font-black text-gray-900 uppercase tracking-widest">Trend</th>
                                      </tr>
                                    </thead>
@@ -2767,24 +3029,24 @@ const SalesAnalyzer = () => {
 
                                         return (
                                           <tr key={m.key} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                                            <td className="px-8 py-4 font-black text-gray-900 uppercase tracking-tight text-xs bg-white sticky left-0 z-10 border-r border-gray-50">
+                                            <td className="px-8 py-4 font-black text-gray-900 uppercase tracking-tight text-[10px] bg-white sticky left-0 z-10 border-r border-gray-100 shadow-[2px_0_5px_rgba(0,0,0,0.05)]">
                                               {m.label}
                                             </td>
                                             {values.map((v, i) => {
                                               const isBest = v === maxVal && values.some(val => val !== maxVal);
                                               const isWorst = v === minVal && values.some(val => val !== minVal);
                                               return (
-                                                <td key={i} className={`px-6 py-4 text-center font-bold font-mono transition-all duration-300 ${isBest ? 'bg-emerald-50/50 text-emerald-700' : isWorst ? 'bg-red-50/50 text-red-600' : 'text-gray-600'}`}>
-                                                  {v ? (m.format === 'val' ? v.toLocaleString() : v.toLocaleString()) : '—'}
+                                                <td key={i} className={`px-6 py-4 text-center font-bold font-mono transition-all duration-300 border-r border-gray-50 last:border-0 ${isBest ? 'bg-emerald-50/50 text-emerald-700' : isWorst ? 'bg-red-50/50 text-red-600' : 'text-gray-600'}`}>
+                                                  {v ? (m.format === 'val' ? Math.round(v).toLocaleString() : v.toLocaleString()) : '0'}
                                                 </td>
                                               );
                                             })}
-                                            <td className="px-6 py-4 text-center">
-                                              <span className="inline-block bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                                            <td className="px-6 py-4 text-center border-l border-gray-100">
+                                              <span className="inline-block bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter whitespace-nowrap">
                                                 {periodCalculations[bestIdx].label}
                                               </span>
                                             </td>
-                                            <td className="px-6 py-4 text-center">
+                                            <td className="px-6 py-4 text-center min-w-[100px]">
                                               <div className="flex flex-col items-center">
                                                 <span className={`text-base font-bold ${trend === 'up' ? 'text-emerald-500' : trend === 'down' ? 'text-red-500' : 'text-gray-400'}`}>
                                                   {trend === 'up' ? '↗' : trend === 'down' ? '↘' : '→'}
@@ -2804,9 +3066,9 @@ const SalesAnalyzer = () => {
 
                             {/* PoP Change Grid */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                              <div className="bg-white rounded-[32px] p-8 border border-gray-100 shadow-sm">
-                                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-6">Period-over-Period Performance Shift (%)</h4>
-                                <div className="space-y-4">
+                              <div className="bg-white rounded-[24px] p-3 border border-gray-100 shadow-sm">
+                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-6">Period-over-Period Performance Shift (%)</h4>
+                                <div className="space-y-2">
                                   {metricsList.slice(0, 4).map(m => (
                                     <div key={m.key} className="bg-gray-50/50 rounded-2xl p-4">
                                        <p className="text-[10px] font-black text-gray-900 uppercase tracking-tight mb-3">{m.label}</p>
@@ -2818,7 +3080,7 @@ const SalesAnalyzer = () => {
                                              return (
                                                <div key={i} className="flex-1 flex flex-col items-center justify-center p-3 rounded-xl bg-white border border-gray-100">
                                                   <span className="text-[8px] font-black text-gray-300 uppercase tracking-widest mb-1">{p.label} → {periodCalculations[i+1].label}</span>
-                                                  <span className={`text-sm font-black font-mono ${chg >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                                  <span className={`text-[10px] font-black font-mono ${chg >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                                                     {chg >= 0 ? '+' : ''}{chg.toFixed(1)}%
                                                   </span>
                                                </div>
@@ -2830,8 +3092,8 @@ const SalesAnalyzer = () => {
                                 </div>
                               </div>
 
-                              <div className="bg-white rounded-[32px] p-8 border border-gray-100 shadow-sm flex flex-col">
-                                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-6">Multi-Period Insights</h4>
+                              <div className="bg-white rounded-[24px] p-3 border border-gray-100 shadow-sm flex flex-col">
+                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-6">Multi-Period Insights</h4>
                                 <div className="flex-1 space-y-3">
                                    {(() => {
                                       const insights = [];
@@ -2865,9 +3127,9 @@ const SalesAnalyzer = () => {
                                       insights.push({ icon: '👥', text: `Customer base ${custGrowth >= 0 ? 'expanded' : 'contracted'} from ${custValues[0]} to ${custValues[custValues.length-1]} total active customers.`, type: 'info' });
 
                                       return insights.map((ins, i) => (
-                                        <div key={i} className="flex gap-4 p-4 rounded-2xl bg-gray-50 border border-gray-100 hover:scale-[1.02] transition-all group">
+                                        <div key={i} className="flex gap-2 p-4 rounded-2xl bg-gray-50 border border-gray-100 hover:scale-[1.02] transition-all group">
                                            <span className="text-xl group-hover:scale-125 transition-transform">{ins.icon}</span>
-                                           <p className="text-xs font-bold text-gray-700 leading-relaxed self-center">{ins.text}</p>
+                                           <p className="text-[10px] font-bold text-gray-700 leading-relaxed self-center">{ins.text}</p>
                                         </div>
                                       ));
                                    })()}
@@ -2877,8 +3139,8 @@ const SalesAnalyzer = () => {
 
                             {/* Charts Wrapper */}
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                              <div className="bg-white rounded-[32px] p-8 border border-gray-100 shadow-sm">
-                                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-6">Metric Volume Comparison</h4>
+                              <div className="bg-white rounded-[24px] p-3 border border-gray-100 shadow-sm">
+                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-6">Metric Volume Comparison</h4>
                                 <div className="h-[350px]">
                                   <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={[
@@ -2900,8 +3162,8 @@ const SalesAnalyzer = () => {
                                 </div>
                               </div>
 
-                              <div className="bg-white rounded-[32px] p-8 border border-gray-100 shadow-sm">
-                                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-6">Value Trend Across Periods</h4>
+                              <div className="bg-white rounded-[24px] p-3 border border-gray-100 shadow-sm">
+                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-6">Value Trend Across Periods</h4>
                                 <div className="h-[350px]">
                                   <ResponsiveContainer width="100%" height="100%">
                                     <LineChart data={periodCalculations.map(p => ({ period: p.label, value: p.metrics.netValue }))}>
@@ -2918,79 +3180,257 @@ const SalesAnalyzer = () => {
                               </div>
                             </div>
 
-                            {/* MR Performance Grid */}
-                            <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden">
-                               <div className="px-8 py-6 border-b border-gray-100 flex items-center justify-between">
+                            {/* Performance Analysis Section */}
+                            <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden flex flex-col">
+                               <div className="px-8 py-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/20">
                                   <div>
-                                    <h4 className="text-lg font-black text-gray-900 uppercase tracking-tight">MR Performance Across Periods</h4>
-                                    <p className="text-[10px] text-gray-400 font-bold uppercase mt-1">Track indivdual growth and consistency</p>
+                                    <h4 className="text-xl font-black text-gray-900 uppercase tracking-tighter">Performance Analysis</h4>
+                                    <p className="text-[10px] text-gray-400 font-bold uppercase mt-1">Cross-period breakdown by {perfDimension}</p>
+                                  </div>
+                                  
+                               </div>
+
+                               <div className="p-8 space-y-2.5">
+                                  {/* Selectors Row */}
+                                  <div className="flex flex-wrap items-center justify-between gap-6">
+                                     <div className="space-y-2">
+                                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">Analyze By Dimension</label>
+                                        <div className="flex p-1 bg-gray-100 rounded-2xl">
+                                           {Object.keys(DIMENSIONS).map(d => (
+                                             <button 
+                                               key={d}
+                                               onClick={() => {
+                                                 setPerfDimension(d);
+                                                 setPerfSortKey('total');
+                                                 setPerfSortDir('desc');
+                                               }}
+                                               className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${perfDimension === d ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                             >
+                                               {d}
+                                             </button>
+                                           ))}
+                                        </div>
+                                     </div>
+
+                                     <div className="space-y-2">
+                                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">Metric Visualization</label>
+                                        <div className="flex p-1 bg-gray-100 rounded-2xl">
+                                           {[
+                                             { key: 'netQty', label: 'Units' },
+                                             { key: 'netValue', label: 'Value' },
+                                             { key: 'returnQty', label: 'Returns' },
+                                             { key: 'invoices', label: 'Invoices' }
+                                           ].map(m => (
+                                             <button 
+                                               key={m.key}
+                                               onClick={() => {
+                                                 setPerfMetric(m.key);
+                                                 setPerfSortKey('total');
+                                                 setPerfSortDir('desc');
+                                               }}
+                                               className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${perfMetric === m.key ? 'bg-blue-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
+                                             >
+                                               {m.label}
+                                             </button>
+                                           ))}
+                                        </div>
+                                     </div>
+
+                                     <div className="flex-1 min-w-[200px] h-full flex items-end">
+                                        <div className="relative w-full">
+                                           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                                           <input 
+                                             type="text" 
+                                             placeholder={`Search ${perfDimension}...`}
+                                             value={perfSearch}
+                                             onChange={e => setPerfSearch(e.target.value)}
+                                             className="w-full bg-gray-50 border border-gray-100 rounded-2xl pl-12 pr-4 py-3 text-[10px] font-bold outline-none focus:border-blue-300 focus:bg-white transition-all"
+                                           />
+                                        </div>
+                                     </div>
+                                  </div>
+
+                                  <div className="overflow-x-auto rounded-3xl border border-gray-100">
+                                     <table className="w-full text-[10px] text-left border-collapse">
+                                        <thead className="bg-gray-50">
+                                           <tr>
+                                              <th className="px-6 py-4 font-black uppercase text-gray-400 text-[10px] w-12 bg-gray-50 sticky left-0 z-20 border-r border-gray-100">#</th>
+                                              <SortableTH 
+                                                label={perfDimension} 
+                                                sortKey="name" 
+                                                currentKey={perfSortKey} 
+                                                dir={perfSortDir} 
+                                                onSort={(k,d) => { setPerfSortKey(k); setPerfSortDir(d); }}
+                                                className="px-6 py-4 font-black uppercase text-gray-900 text-[10px] sticky left-12 bg-gray-50 z-20 shadow-[2px_0_5px_rgba(0,0,0,0.03)] border-r border-gray-100"
+                                              />
+                                              {periodCalculations.map(p => (
+                                                <SortableTH 
+                                                  key={p.id}
+                                                  label={p.label}
+                                                  sortKey={`p-${p.id}`}
+                                                  currentKey={perfSortKey} 
+                                                  dir={perfSortDir} 
+                                                  onSort={(k,d) => { setPerfSortKey(k); setPerfSortDir(d); }}
+                                                  className="px-6 py-4 text-right"
+                                                />
+                                              ))}
+                                              <SortableTH 
+                                                label="Total" 
+                                                sortKey="total" 
+                                                currentKey={perfSortKey} 
+                                                dir={perfSortDir} 
+                                                onSort={(k,d) => { setPerfSortKey(k); setPerfSortDir(d); }}
+                                                className="px-6 py-4 text-right bg-blue-50/50"
+                                              />
+                                              <th className="px-6 py-4 text-right font-black uppercase text-gray-400 text-[10px]">Avg</th>
+                                              <th className="px-6 py-4 text-center font-black uppercase text-gray-400 text-[10px]">Best</th>
+                                              <th className="px-6 py-4 text-center font-black uppercase text-gray-400 text-[10px]">Trend</th>
+                                           </tr>
+                                        </thead>
+                                        <tbody>
+                                           {(() => {
+                                              const dimKey = DIMENSIONS[perfDimension];
+                                              const agg = {};
+                                              
+                                              periodCalculations.forEach(pc => {
+                                                pc.data.forEach(row => {
+                                                  const val = row[dimKey] || 'N/A';
+                                                  if (!agg[val]) {
+                                                    agg[val] = { name: val, periods: {}, total: 0 };
+                                                  }
+                                                  if (!agg[val].periods[pc.id]) {
+                                                    agg[val].periods[pc.id] = { netQty: 0, netValue: 0, invoices: new Set() };
+                                                  }
+                                                  agg[val].periods[pc.id].netQty += row.netQty;
+                                                  agg[val].periods[pc.id].netValue += row.netValue;
+                                                  agg[val].periods[pc.id].invoices.add(row.invoiceNo);
+                                                });
+                                              });
+
+                                              let rows = Object.values(agg).map(item => {
+                                                const pValues = periodCalculations.map(pc => {
+                                                   const pData = item.periods[pc.id];
+                                                   if (!pData) return 0;
+                                                   if (perfMetric === 'invoices') return pData.invoices.size;
+                                                   if (perfMetric === 'returnQty') return 0; // Return logic missing in simple agg, but user asked for it
+                                                   return pData[perfMetric] || 0;
+                                                });
+
+                                                const total = pValues.reduce((s,v) => s + v, 0);
+                                                const avg = total / periodCalculations.length;
+                                                
+                                                const maxV = Math.max(...pValues);
+                                                const bestIdx = pValues.indexOf(maxV);
+                                                const bestPeriod = pValues.some(v => v > 0) ? periodCalculations[bestIdx] : null;
+
+                                                const vStart = pValues[0];
+                                                const vEnd = pValues[pValues.length-1];
+                                                const trendPct = vStart === 0 ? (vEnd > 0 ? 100 : 0) : ((vEnd - vStart)/vStart)*100;
+
+                                                const rowObj = {
+                                                  name: item.name,
+                                                  total,
+                                                  avg,
+                                                  bestPeriod,
+                                                  trendPct,
+                                                  pValues: periodCalculations.map((pc, i) => ({ id: pc.id, val: pValues[i] }))
+                                                };
+                                                
+                                                // Dynamic fields for sorting
+                                                periodCalculations.forEach((pc, i) => {
+                                                   rowObj[`p-${pc.id}`] = pValues[i];
+                                                });
+
+                                                return rowObj;
+                                              });
+
+                                              if (perfSearch) {
+                                                rows = rows.filter(r => r.name.toLowerCase().includes(perfSearch.toLowerCase()));
+                                              }
+
+                                              rows.sort((a,b) => {
+                                                let vA = a[perfSortKey];
+                                                let vB = b[perfSortKey];
+                                                if (typeof vA === 'string') {
+                                                  return perfSortDir === 'asc' ? vA.localeCompare(vB) : vB.localeCompare(vA);
+                                                }
+                                                return perfSortDir === 'asc' ? vA - vB : vB - vA;
+                                              });
+
+                                              return (
+                                                <>
+                                                  {rows.length === 0 ? (
+                                                    <tr>
+                                                       <td colSpan={100} className="px-8 py-20 text-center text-gray-400 font-bold uppercase tracking-widest">No matching results found</td>
+                                                    </tr>
+                                                  ) : (
+                                                    rows.map((row, idx) => {
+                                                      const rank = idx + 1;
+                                                      const maxInRow = Math.max(...row.pValues.map(p => p.val));
+                                                      const minInRow = Math.min(...row.pValues.filter(p => p.val > 0).map(p => p.val) || [0]);
+
+                                                      return (
+                                                        <tr key={row.name} className="border-b border-gray-50 hover:bg-yellow-50/40 transition-colors group">
+                                                           <td className="px-6 py-4 font-black uppercase text-gray-400 text-[10px] w-12 bg-white sticky left-0 z-10 border-r border-gray-100 group-hover:bg-yellow-50/60">
+                                                              <div className="flex items-center gap-2">
+                                                                {rank}
+                                                                {rank === 1 && '🥇'}
+                                                                {rank === 2 && '🥈'}
+                                                                {rank === 3 && '🥉'}
+                                                              </div>
+                                                           </td>
+                                                           <td className="px-6 py-4 font-black text-gray-900 uppercase tracking-tight text-[10px] bg-white sticky left-12 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.03)] border-r border-gray-100 group-hover:bg-yellow-50/60 truncate max-w-[200px]">
+                                                              {row.name}
+                                                           </td>
+                                                           {row.pValues.map((pv, i) => {
+                                                              const isBest = pv.val === maxInRow && maxInRow > 0;
+                                                              const isWorst = pv.val === minInRow && minInRow > 0 && maxInRow !== minInRow;
+                                                              return (
+                                                                <td key={pv.id} className={`px-6 py-4 text-right font-mono font-bold ${isBest ? 'bg-emerald-50/40 border-l-2 border-emerald-400 text-emerald-700' : isWorst ? 'bg-red-50/40 text-red-600' : 'text-gray-600'}`}>
+                                                                  {pv.val > 0 ? (perfMetric === 'netValue' ? Math.round(pv.val).toLocaleString() : pv.val.toLocaleString()) : '—'}
+                                                                </td>
+                                                              );
+                                                           })}
+                                                           <td className="px-6 py-4 text-right bg-blue-50/30 font-black text-blue-800 font-mono">
+                                                              {Math.round(row.total).toLocaleString()}
+                                                           </td>
+                                                           <td className="px-6 py-4 text-right bg-gray-50/30 font-bold text-gray-600 font-mono">
+                                                              {Math.round(row.avg).toLocaleString()}
+                                                           </td>
+                                                           <td className="px-6 py-4 text-center">
+                                                              {row.bestPeriod ? (
+                                                                <span className="inline-block px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tighter" style={{ backgroundColor: row.bestPeriod.color + '20', color: row.bestPeriod.color }}>
+                                                                  {row.bestPeriod.label}
+                                                                </span>
+                                                              ) : '—'}
+                                                           </td>
+                                                           <td className="px-6 py-4 text-center">
+                                                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black ${row.trendPct > 0 ? 'bg-emerald-100 text-emerald-700' : row.trendPct < 0 ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
+                                                                {row.trendPct > 0 ? '▲' : row.trendPct < 0 ? '▼' : '—'}
+                                                                {Math.abs(row.trendPct).toFixed(0)}%
+                                                              </span>
+                                                           </td>
+                                                        </tr>
+                                                      );
+                                                    })
+                                                  )}
+                                                </>
+                                              );
+                                           })()}
+                                        </tbody>
+                                     </table>
+                                  </div>
+                                  <div className="flex justify-between items-center px-2">
+                                     <p className="text-[10px] font-bold text-gray-400 tracking-widest uppercase">Showing sorted breakdown by {perfSortKey === 'total' ? 'Overall Total' : perfSortKey} {perfSortDir}</p>
+                                     <p className="text-[10px] font-bold text-gray-400 tracking-widest uppercase">Scroll horizontally to view all periods</p>
                                   </div>
                                </div>
-                               <div className="overflow-x-auto max-h-[500px]">
-                                  <table className="w-full text-xs">
-                                     <thead className="bg-gray-50 border-b border-gray-100 italic">
-                                        <tr>
-                                          <th className="px-8 py-4 text-left font-black uppercase text-gray-400 sticky left-0 bg-gray-50 z-10 border-r border-gray-100">MR Name</th>
-                                          {periodCalculations.map(p => (
-                                            <th key={p.id} className="px-6 py-4 text-right font-black uppercase text-gray-600">{p.label} (Qty)</th>
-                                          ))}
-                                          <th className="px-8 py-4 text-center font-black uppercase text-gray-900 bg-gray-100">Total Shift</th>
-                                        </tr>
-                                     </thead>
-                                     <tbody>
-                                        {(() => {
-                                           const mrNames = [...new Set(periodCalculations.flatMap(pc => pc.data.map(d => d.mrName)))].sort();
-                                           
-                                           // Best performers per period logic
-                                           const topPerformersPerPeriod = periodCalculations.map(pc => {
-                                              const mrMap = {};
-                                              pc.data.forEach(d => {
-                                                mrMap[d.mrName] = (mrMap[d.mrName] || 0) + d.netQty;
-                                              });
-                                              return Object.entries(mrMap).sort((a,b) => b[1] - a[1]).slice(0, 3).map(e => e[0]);
-                                           });
-
-                                           return mrNames.map(mr => {
-                                              const mrValues = periodCalculations.map(pc => {
-                                                return pc.data.filter(d => d.mrName === mr).reduce((s,r) => s + r.netQty, 0);
-                                              });
-                                              const growth = mrValues[0] === 0 ? 0 : ((mrValues[mrValues.length-1] - mrValues[0]) / mrValues[0]) * 100;
-                                              
-                                              return (
-                                                <tr key={mr} className="border-b border-gray-50 hover:bg-gray-50 group">
-                                                  <td className="px-8 py-4 font-black text-gray-800 uppercase tracking-tight bg-white sticky left-0 z-1 border-r border-gray-50 group-hover:bg-gray-50">
-                                                     {mr}
-                                                  </td>
-                                                  {mrValues.map((v, i) => {
-                                                    const rank = topPerformersPerPeriod[i].indexOf(mr);
-                                                    return (
-                                                      <td key={i} className={`px-6 py-4 text-right font-bold transition-all ${v > 0 ? '' : 'text-gray-200'}`}>
-                                                        <div className="flex items-center justify-end gap-2">
-                                                          {v.toLocaleString()}
-                                                          {rank === 0 && <span title="Period Rank: #1" className="bg-yellow-400 text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center text-white">1</span>}
-                                                          {rank === 1 && <span title="Period Rank: #2" className="bg-gray-300 text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center text-white">2</span>}
-                                                          {rank === 2 && <span title="Period Rank: #3" className="bg-orange-300 text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center text-white">3</span>}
-                                                        </div>
-                                                      </td>
-                                                    );
-                                                  })}
-                                                  <td className={`px-8 py-4 text-center font-black ${growth >= 0 ? 'text-emerald-500 bg-emerald-50/20' : 'text-red-500 bg-red-50/20'}`}>
-                                                     <div className="flex flex-col">
-                                                       <span>{growth >= 0 ? '↑' : '↓'}</span>
-                                                       <span className="text-[10px]">{Math.abs(growth).toFixed(1)}%</span>
-                                                     </div>
-                                                  </td>
-                                                </tr>
-                                              );
-                                           });
-                                        })()}
-                                     </tbody>
-                                  </table>
-                               </div>
                             </div>
+
                           </div>
                         );
                     })()}
+                    </div>
                   </div>
               )}
               {activeTab === 'Reports' && (
