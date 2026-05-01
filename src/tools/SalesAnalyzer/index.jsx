@@ -2,7 +2,8 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   BarChart3, DollarSign, Package, RotateCcw, 
   Grid, Upload, RefreshCw, ChevronLeft, ChevronRight, 
-  ChevronDown, Filter, Users, Search, X
+  ChevronDown, Filter, Users, Search, X, 
+  Trash2, Save, Edit2, Plus, CheckCircle2, History, Clock
 } from 'lucide-react';
 
 import * as XLSX from 'xlsx';
@@ -14,9 +15,9 @@ import {
 import ReportsTab from '../reports/ReportsTab';
 
 const APP_VERSION = {
-  version: '1.0.447',
-  releaseDate: 'Jun 2025',
-  label: 'Multi-File Upload Fixed'
+  version: '1.0.461',
+  releaseDate: 'May 2026',
+  label: 'Multi-Period Comparison & Filter Profile Hub'
 };
 
 const CACHE_KEY = 'atr_sales_v1';
@@ -414,9 +415,319 @@ const ActiveFiltersBar = ({ filters, setFilters }) => {
   );
 };
 
-const SideFiltersPanel = ({ filters, setFilters, filterOptions, activeFilterCount }) => {
+const PRESET_COLORS = [
+  { id: 'blue',    bg: 'bg-blue-100',   text: 'text-blue-700',   border: 'border-blue-200',   dot: 'bg-blue-500' },
+  { id: 'emerald', bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500' },
+  { id: 'amber',   bg: 'bg-amber-100',   text: 'text-amber-700',   border: 'border-amber-200',   dot: 'bg-amber-500' },
+  { id: 'rose',    bg: 'bg-rose-100',    text: 'text-rose-700',    border: 'border-rose-200',    dot: 'bg-rose-500' },
+  { id: 'indigo',  bg: 'bg-indigo-100',  text: 'text-indigo-700',  border: 'border-indigo-200',  dot: 'bg-indigo-500' },
+  { id: 'violet',  bg: 'bg-violet-100',  text: 'text-violet-700',  border: 'border-violet-200',  dot: 'bg-violet-500' }
+];
+
+const FilterProfilesManager = ({ 
+  isOpen, 
+  onClose, 
+  profiles, 
+  onSave, 
+  onDelete, 
+  onLoad, 
+  currentFilters,
+  editingProfile 
+}) => {
+  const [name, setName] = useState('');
+  const [desc, setDesc] = useState('');
+  const [selectedColor, setSelectedColor] = useState('blue');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [localEditing, setLocalEditing] = useState(null);
+  const [expandedProfiles, setExpandedProfiles] = useState({});
+
+  useEffect(() => {
+    if (editingProfile) {
+      setName(editingProfile.name);
+      setDesc(editingProfile.description || '');
+      setSelectedColor(editingProfile.color || 'blue');
+      setLocalEditing(editingProfile);
+    } else {
+      setName('');
+      setDesc('');
+      setSelectedColor('blue');
+      setLocalEditing(null);
+    }
+  }, [editingProfile, isOpen]);
+
+  const activeFiltersOnly = useMemo(() => {
+    return Object.entries(currentFilters).filter(([k, v]) => 
+      Array.isArray(v) ? v.length > 0 : v !== ''
+    );
+  }, [currentFilters]);
+
+  const filteredProfiles = profiles.filter(p => 
+    p.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const toggleExpand = (id) => {
+    setExpandedProfiles(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+  };
+
+  const handleSave = () => {
+    if (!name.trim()) return;
+    onSave({
+      id: localEditing?.id || Date.now().toString(),
+      name: name.trim(),
+      description: desc.trim(),
+      filters: localEditing ? localEditing.filters : { ...currentFilters },
+      color: selectedColor,
+      savedAt: new Date().toISOString()
+    });
+    setName('');
+    setDesc('');
+    setLocalEditing(null);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[110] bg-gray-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white rounded-[32px] overflow-hidden shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col md:flex-row border border-white/20">
+        
+        {/* LEFT: LIST */}
+        <div className="flex-1 flex flex-col border-r border-gray-100 bg-gray-50/50">
+          <div className="p-6 border-b border-gray-100">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight flex items-center gap-2">
+                  <History className="text-blue-600" size={24} />
+                  Saved Filter Profiles
+                </h3>
+                <p className="text-xs text-gray-400 font-medium mt-1">Manage your analysis shortcuts ({profiles.length}/20)</p>
+              </div>
+              <button 
+                onClick={onClose}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors block md:hidden">
+                <X size={20}/>
+              </button>
+            </div>
+            
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+              <input 
+                type="text" 
+                placeholder="Search profiles..." 
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="w-full bg-white border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:border-blue-500 outline-none transition-all shadow-sm"
+              />
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-6 space-y-3">
+            {filteredProfiles.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center opacity-40 py-12">
+                <div className="w-16 h-16 bg-gray-200 rounded-full mb-4 flex items-center justify-center">
+                  <Filter size={32} />
+                </div>
+                <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">No profiles found</p>
+                <p className="text-[10px] text-gray-400 mt-1">Start by saving your current filters</p>
+              </div>
+            ) : (
+              filteredProfiles.map(profile => {
+                const colorObj = PRESET_COLORS.find(c => c.id === profile.color) || PRESET_COLORS[0];
+                const isExpanded = expandedProfiles[profile.id];
+                
+                const allFilterTags = [];
+                Object.entries(profile.filters).forEach(([k, v]) => {
+                  if (Array.isArray(v) && v.length > 0) {
+                    v.forEach(val => allFilterTags.push({ key: k, value: val }));
+                  } else if (typeof v === 'string' && v !== '' && k !== 'fromDate' && k !== 'toDate') {
+                    allFilterTags.push({ key: k, value: v });
+                  }
+                });
+
+                // Date ranges as special tags
+                if (profile.filters.fromDate || profile.filters.toDate) {
+                  allFilterTags.unshift({ key: 'date', value: `${profile.filters.fromDate || '...'} → ${profile.filters.toDate || '...'}` });
+                }
+
+                const visibleTags = isExpanded ? allFilterTags : allFilterTags.slice(0, 3);
+
+                return (
+                  <div key={profile.id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all group">
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-3 h-3 rounded-full ${colorObj.dot}`} />
+                        <h4 className="font-black text-gray-800 uppercase tracking-tight">{profile.name}</h4>
+                        {JSON.stringify(profile.filters) === JSON.stringify(currentFilters) && (
+                          <span className="text-[8px] bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded-full font-black uppercase tracking-tighter">Active</span>
+                        )}
+                      </div>
+                      <div className="flex gap-1">
+                        <button 
+                          onClick={() => onLoad(profile)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Load Profile">
+                          <CheckCircle2 size={16} />
+                        </button>
+                        <button 
+                          onClick={() => setLocalEditing(profile)}
+                          className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                          title="Edit Info">
+                          <Edit2 size={16} />
+                        </button>
+                        <button 
+                          onClick={() => {
+                            if(window.confirm(`Delete profile "${profile.name}"?`)) onDelete(profile.id);
+                          }}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete Profile">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {profile.description && (
+                      <p className="text-[10px] text-gray-500 mb-3 line-clamp-2 leading-relaxed italic">
+                        "{profile.description}"
+                      </p>
+                    )}
+
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {visibleTags.map((tag, idx) => (
+                        <span key={idx} className="text-[9px] font-bold bg-gray-50 text-gray-500 border border-gray-100 px-2 py-0.5 rounded-md uppercase flex items-center gap-1 shrink-0">
+                          <span className="text-gray-300 font-black">{tag.key}:</span> {tag.value}
+                        </span>
+                      ))}
+                      {allFilterTags.length > 3 && (
+                        <button 
+                          onClick={() => toggleExpand(profile.id)}
+                          className="text-[9px] font-black text-blue-600 hover:underline uppercase px-1">
+                          {isExpanded ? 'Show Less' : `+ ${allFilterTags.length - 3} more`}
+                        </button>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-50">
+                      <div className="text-[9px] font-bold text-gray-300 uppercase flex items-center gap-1">
+                        <Clock size={10} />
+                        {new Date(profile.savedAt).toLocaleDateString()}
+                      </div>
+                      <button 
+                        onClick={() => onLoad(profile)}
+                        className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${JSON.stringify(profile.filters) === JSON.stringify(currentFilters) ? 'bg-gray-100 text-gray-400 cursor-default' : 'bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white'}`}>
+                        Load Profile
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* RIGHT: SAVE FORM */}
+        <div className="w-full md:w-[380px] flex flex-col bg-white">
+          <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+            <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">
+              {localEditing ? 'Update Profile' : 'Save As Profile'}
+            </h3>
+            <button 
+              onClick={onClose}
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors hidden md:block">
+              <X size={20}/>
+            </button>
+          </div>
+
+          <div className="flex-1 p-6 space-y-6 overflow-y-auto">
+            {/* Filter Preview */}
+            <div className="bg-blue-50/50 rounded-2xl p-4 border border-blue-100/50">
+              <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-3 block">
+                Current Filter Preview
+              </span>
+              {activeFiltersOnly.length === 0 ? (
+                <p className="text-xs text-blue-300 font-medium italic">No active filters to save</p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {activeFiltersOnly.map(([k, v]) => (
+                    <div key={k} className="bg-white border border-blue-100 px-2 py-1 rounded-lg shadow-sm">
+                      <span className="text-[10px] font-bold text-blue-700 capitalize">{k}: </span>
+                      <span className="text-[10px] text-gray-500 font-medium">
+                        {Array.isArray(v) ? v.join(', ') : v}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">Profile Name</label>
+                <input 
+                  type="text" 
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder="e.g. Sales Q3 - Pharma"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">Description (Optional)</label>
+                <textarea 
+                  value={desc}
+                  onChange={e => setDesc(e.target.value)}
+                  placeholder="Notes about these filters..."
+                  rows={3}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 transition-all resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Choose Profile Color</label>
+                <div className="flex flex-wrap gap-3">
+                  {PRESET_COLORS.map(c => (
+                    <button
+                      key={c.id}
+                      onClick={() => setSelectedColor(c.id)}
+                      className={`w-8 h-8 rounded-full transition-all flex items-center justify-center ${c.bg} ${c.border} border-2 ${selectedColor === c.id ? 'scale-125 shadow-lg border-gray-900' : 'hover:scale-110'}`}
+                    >
+                      {selectedColor === c.id && <div className={`w-2 h-2 rounded-full bg-gray-900`} />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-6 bg-gray-50 border-t border-gray-100">
+            <button 
+              disabled={!name.trim() || (activeFiltersOnly.length === 0 && !localEditing)}
+              onClick={handleSave}
+              className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-blue-600 disabled:opacity-30 disabled:hover:bg-gray-900 transition-all shadow-xl flex items-center justify-center gap-2">
+              <Save size={18} />
+              {localEditing ? 'Update Selected Profile' : 'Save As Profile'}
+            </button>
+            {profiles.length >= 20 && !localEditing && (
+              <p className="text-center text-[10px] text-red-500 font-bold uppercase mt-3">
+                Profile limit reached (Max 20)
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const SideFiltersPanel = ({ filters, setFilters, filterOptions, activeFilterCount, onManageProfiles, profiles }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [search, setSearch] = useState('');
+
+  const activeProfile = useMemo(() => {
+    return profiles.find(p => JSON.stringify(p.filters) === JSON.stringify(filters));
+  }, [filters, profiles]);
 
   if (collapsed) {
     return (
@@ -437,40 +748,76 @@ const SideFiltersPanel = ({ filters, setFilters, filterOptions, activeFilterCoun
 
   return (
     <div className="flex flex-col w-64 bg-white border-r border-gray-200 overflow-y-auto shrink-0 pb-[200px]">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 sticky top-0 bg-white z-10">
-        <div className="flex items-center gap-2">
-          <Filter size={14} className="text-gray-500"/>
-          <span className="text-sm font-bold text-gray-700 uppercase tracking-wider">Filters</span>
-          {activeFilterCount > 0 && (
-            <span className="bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{activeFilterCount}</span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {activeFilterCount > 0 && (
-            <button
-              onClick={() => setFilters({
-                branch:       [],
-                supervisor:   [],
-                mrName:       [],
-                line:         [],
-                customerType: [],
-                product:      [],
-                customer:     [],
-                fromDate:     '',
-                toDate:       ''
-              })}
-              className="text-[10px] text-red-500 font-bold hover:text-red-700 uppercase tracking-wide">
-              Clear
+      <div className="flex flex-col border-b border-gray-100 bg-white z-10">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-2">
+            <Filter size={14} className="text-gray-500"/>
+            <span className="text-sm font-bold text-gray-700 uppercase tracking-wider">Filters</span>
+            {activeFilterCount > 0 && (
+              <span className="bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{activeFilterCount}</span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={onManageProfiles}
+              className="text-gray-400 hover:text-blue-600 transition-colors"
+              title="Saved Filters">
+              <History size={16} />
             </button>
-          )}
-          <button onClick={() => setCollapsed(true)} className="text-gray-400 hover:text-gray-600">
-            <ChevronLeft size={16}/>
-          </button>
+            {activeFilterCount > 0 && (
+              <button
+                onClick={() => setFilters({
+                  branch:       [],
+                  supervisor:   [],
+                  mrName:       [],
+                  line:         [],
+                  customerType: [],
+                  product:      [],
+                  customer:     [],
+                  fromDate:     '',
+                  toDate:       ''
+                })}
+                className="text-[10px] text-red-500 font-bold hover:text-red-700 uppercase tracking-wide">
+                Clear
+              </button>
+            )}
+            <button onClick={() => setCollapsed(true)} className="text-gray-400 hover:text-gray-600">
+              <ChevronLeft size={16}/>
+            </button>
+          </div>
         </div>
+
+        {/* Quick Load Profiles Chips */}
+        {profiles.length > 0 && (
+          <div className="px-4 pb-3 flex overflow-x-auto gap-2 no-scrollbar scroll-smooth">
+            {profiles.map(p => {
+              const colorObj = PRESET_COLORS.find(c => c.id === p.color) || PRESET_COLORS[0];
+              const isActive = JSON.stringify(p.filters) === JSON.stringify(filters);
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => setFilters(p.filters)}
+                  className={`shrink-0 text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border transition-all flex items-center gap-1.5 ${isActive ? 'bg-gray-900 border-gray-900 text-white shadow-md scale-105' : `${colorObj.bg} ${colorObj.text} ${colorObj.border} hover:scale-105 shadow-sm`}`}>
+                  {!isActive && <div className={`w-1.5 h-1.5 rounded-full ${colorObj.dot}`} />}
+                  {isActive && <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />}
+                  {p.name}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div className="px-4 py-3 border-b border-gray-100">
-        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Date Range</p>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Date Range</p>
+          {activeProfile && (
+            <span className="text-[9px] font-black text-emerald-600 uppercase tracking-tighter flex items-center gap-1">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              Saved
+            </span>
+          )}
+        </div>
         <div className="flex flex-col gap-2">
           <div>
             <label className="text-[10px] text-gray-400 mb-1 block">From</label>
@@ -486,114 +833,6 @@ const SideFiltersPanel = ({ filters, setFilters, filterOptions, activeFilterCoun
       {[ { label: 'Branch', key: 'branch', options: filterOptions.branches }, { label: 'Supervisor', key: 'supervisor', options: filterOptions.supervisors }, { label: 'MR', key: 'mrName', options: filterOptions.mrNames }, { label: 'Line', key: 'line', options: filterOptions.lines }, { label: 'Customer Type', key: 'customerType', options: filterOptions.customerTypes }, { label: 'Customer', key: 'customer', options: filterOptions.customers }, { label: 'Product', key: 'product', options: filterOptions.products } ].map(({ label, key, options }) => (
         <SideFilterSection key={key} label={label} options={options} selected={filters[key]} onChange={v => setFilters(f => ({...f, [key]: v}))} />
       ))}
-    </div>
-  );
-};
-
-const MRCompareTable = ({ 
-  periodAData, periodBData, labelA, labelB 
-}) => {
-
-  const buildMRMap = (rows) => {
-    const map = {};
-    rows.forEach(r => {
-      if (!map[r.mrName]) map[r.mrName] = {
-        netQty: 0, netValue: 0, 
-        customers: new Set()
-      };
-      map[r.mrName].netQty    += r.netQty;
-      map[r.mrName].netValue  += r.netValue;
-      map[r.mrName].customers.add(r.customerName);
-    });
-    return map;
-  };
-
-  const mapA = buildMRMap(periodAData);
-  const mapB = buildMRMap(periodBData);
-
-  const allMRs = [...new Set([
-    ...Object.keys(mapA), 
-    ...Object.keys(mapB)
-  ])].sort();
-
-  const rows = allMRs.map(mr => {
-    const a = mapA[mr] || 
-      { netQty: 0, netValue: 0, customers: new Set() };
-    const b = mapB[mr] || 
-      { netQty: 0, netValue: 0, customers: new Set() };
-    const pct = a.netQty === 0 ? null
-      : (((b.netQty - a.netQty) / 
-          Math.abs(a.netQty)) * 100).toFixed(1);
-    return {
-      mr,
-      aQty:   a.netQty,
-      bQty:   b.netQty,
-      aValue: a.netValue,
-      bValue: b.netValue,
-      aCust:  a.customers.size,
-      bCust:  b.customers.size,
-      pct:    pct,
-    };
-  }).sort((a,b) => b.bQty - a.bQty);
-
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-      <div className="px-5 py-4 border-b border-gray-100">
-        <h3 className="font-bold text-gray-800">
-          MR Performance Comparison
-        </h3>
-        <p className="text-xs text-gray-400 mt-0.5">
-          {allMRs.length} MRs · 
-          sorted by {labelB} Net Qty
-        </p>
-      </div>
-      <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
-        <table className="w-full text-xs border-collapse">
-          <thead className="sticky top-0 bg-gray-50">
-            <tr>
-              <th className="px-3 py-2.5 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider">MR Name</th>
-              <th className="px-3 py-2.5 text-right text-[10px] font-bold text-blue-500 uppercase tracking-wider">{labelA} Qty</th>
-              <th className="px-3 py-2.5 text-right text-[10px] font-bold text-purple-500 uppercase tracking-wider">{labelB} Qty</th>
-              <th className="px-3 py-2.5 text-right text-[10px] font-bold text-gray-500 uppercase tracking-wider">Change</th>
-              <th className="px-3 py-2.5 text-right text-[10px] font-bold text-gray-500 uppercase tracking-wider">{labelA} Val</th>
-              <th className="px-3 py-2.5 text-right text-[10px] font-bold text-gray-500 uppercase tracking-wider">{labelB} Val</th>
-              <th className="px-3 py-2.5 text-right text-[10px] font-bold text-gray-500 uppercase tracking-wider">{labelA} Cust</th>
-              <th className="px-3 py-2.5 text-right text-[10px] font-bold text-gray-500 uppercase tracking-wider">{labelB} Cust</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, i) => {
-              const change = parseFloat(row.pct);
-              const isNew  = row.aQty === 0 && row.bQty > 0;
-              const isGone = row.bQty === 0 && row.aQty > 0;
-              return (
-                <tr key={row.mr} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                  <td className="px-3 py-2 font-semibold text-gray-800">
-                    {row.mr}
-                    {isNew && <span className="ml-2 text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-bold">NEW</span>}
-                    {isGone && <span className="ml-2 text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-bold">GONE</span>}
-                  </td>
-                  <td className="px-3 py-2 text-right text-blue-700 font-mono"><FormatNum val={row.aQty} defaultClass="text-blue-700" /></td>
-                  <td className="px-3 py-2 text-right text-purple-700 font-mono"><FormatNum val={row.bQty} defaultClass="text-purple-700" /></td>
-                  <td className="px-3 py-2 text-right">
-                    {row.pct === null ? (
-                      <span className="text-gray-300">—</span>
-                    ) : (
-                      <span className={`font-bold text-xs px-2 py-0.5 rounded-full ${change >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
-                        {change >= 0 ? '▲' : '▼'}{Math.abs(change)}%
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2 text-right font-mono text-gray-600"><FormatNum val={row.aValue} defaultClass="text-gray-600" /></td>
-                  <td className="px-3 py-2 text-right font-mono text-gray-600"><FormatNum val={row.bValue} defaultClass="text-gray-600" /></td>
-                  <td className="px-3 py-2 text-right text-gray-500">{row.aCust}</td>
-                  <td className="px-3 py-2 text-right text-gray-500">{row.bCust}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
     </div>
   );
 };
@@ -664,11 +903,143 @@ const SalesAnalyzer = () => {
   const [dataSources, setDataSources] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const uploadModeRef = useRef('replace');
+  const [filterProfiles, setFilterProfiles] = useState([]);
+  const [showProfileManager, setShowProfileManager] = useState(false);
+  const [smartLoadAlert, setSmartLoadAlert] = useState(null);
+  const PROFILES_KEY = 'salesAnalyzer_filterProfiles';
+
+  // Load profiles from local storage
+  useEffect(() => {
+    const saved = localStorage.getItem(PROFILES_KEY);
+    if (saved) {
+      try {
+        setFilterProfiles(JSON.parse(saved));
+      } catch (e) {
+        console.error("Failed to parse filter profiles", e);
+      }
+    }
+  }, []);
+
+  const saveProfile = (profile) => {
+    setFilterProfiles(prev => {
+      const existsIdx = prev.findIndex(p => p.id === profile.id);
+      let updated;
+      if (existsIdx >= 0) {
+        updated = [...prev];
+        updated[existsIdx] = profile;
+      } else {
+        if (prev.length >= 20) return prev;
+        updated = [profile, ...prev];
+      }
+      localStorage.setItem(PROFILES_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const deleteProfile = (id) => {
+    setFilterProfiles(prev => {
+      const updated = prev.filter(p => p.id !== id);
+      localStorage.setItem(PROFILES_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const loadProfile = (profile) => {
+    const newFilters = { ...profile.filters };
+    const missing = [];
+    const applied = [];
+
+    // Keys that map from filters state to filterOptions keys
+    const mapping = [
+      { key: 'branch', options: 'branches', label: 'Branch' },
+      { key: 'supervisor', options: 'supervisors', label: 'Supervisor' },
+      { key: 'mrName', options: 'mrNames', label: 'MR' },
+      { key: 'line', options: 'lines', label: 'Line' },
+      { key: 'customerType', options: 'customerTypes', label: 'Type' },
+      { key: 'product', options: 'products', label: 'Product' },
+      { key: 'customer', options: 'customers', label: 'Customer' },
+    ];
+
+    mapping.forEach(({ key, options, label }) => {
+      if (Array.isArray(newFilters[key]) && newFilters[key].length > 0) {
+        const validValues = newFilters[key].filter(val => 
+          filterOptions[options].includes(val)
+        );
+        const invalidValues = newFilters[key].filter(val => 
+          !filterOptions[options].includes(val)
+        );
+        
+        if (invalidValues.length > 0) {
+          invalidValues.forEach(v => missing.push(`${label}: "${v}"`));
+        }
+        
+        if (validValues.length > 0) {
+          newFilters[key] = validValues;
+          applied.push(key);
+        } else {
+          newFilters[key] = [];
+        }
+      }
+    });
+
+    // Date filters always applied
+    if (newFilters.fromDate || newFilters.toDate) applied.push('date');
+
+    if (missing.length > 0) {
+      if (applied.length === 0) {
+        setSmartLoadAlert({
+          type: 'error',
+          title: 'Profile Load Failed',
+          message: 'All saved filter values in this profile are missing from the current dataset.',
+          missing
+        });
+        return;
+      } else {
+        setSmartLoadAlert({
+          type: 'warning',
+          title: 'Partial Load Successful',
+          message: `${missing.length} filter values were not found in the current data and were skipped.`,
+          missing
+        });
+      }
+    } else {
+      setSmartLoadAlert({
+        type: 'success',
+        title: 'Profile Loaded',
+        message: 'All filters from this profile were applied successfully.'
+      });
+    }
+
+    setFilters(newFilters);
+  };
+
+  useEffect(() => {
+    if (!smartLoadAlert) return;
+    const t = setTimeout(() => setSmartLoadAlert(null), 8000);
+    return () => clearTimeout(t);
+  }, [smartLoadAlert]);
 
 
   // Period Compare states
-  const [periodA, setPeriodA] = useState({from: '', to: '', label: 'Period A'});
-  const [periodB, setPeriodB] = useState({from: '', to: '', label: 'Period B'});
+  const [periods, setPeriods] = useState([
+    { id: '1', label: 'Period A', from: '', to: '', color: '#3B82F6' },
+    { id: '2', label: 'Period B', from: '', to: '', color: '#10B981' }
+  ]);
+  const COMPARE_PRESETS_KEY = 'salesAnalyzer_comparePresets';
+
+  useEffect(() => {
+    const saved = localStorage.getItem(COMPARE_PRESETS_KEY);
+    if (saved) {
+      try {
+        setPeriods(JSON.parse(saved));
+      } catch(e) {}
+    }
+  }, []);
+
+  const saveComparePreset = (updatedPeriods) => {
+    localStorage.setItem(COMPARE_PRESETS_KEY, JSON.stringify(updatedPeriods));
+    setPeriods(updatedPeriods);
+  };
 
   const closeDrill = () => setDrillModal({
     open: false, type: null, data: null
@@ -1758,50 +2129,6 @@ const SalesAnalyzer = () => {
 
   const { sorted: sortedBranch, sortKey: branchSortKey, sortDir: branchSortDir, toggle: branchToggle } = useSortableTable(byBranch, 'netQty', 'desc');
 
-  // Comparison Logic
-  const periodAData = useMemo(() => {
-    if (!periodA.from || !periodA.to) return [];
-    const from = new Date(periodA.from);
-    const to   = new Date(periodA.to);
-    to.setHours(23,59,59);
-    return filteredData.filter(r => r.invoiceDate >= from && r.invoiceDate <= to);
-  }, [filteredData, periodA]);
-
-  const periodBData = useMemo(() => {
-    if (!periodB.from || !periodB.to) return [];
-    const from = new Date(periodB.from);
-    const to   = new Date(periodB.to);
-    to.setHours(23,59,59);
-    return filteredData.filter(r => r.invoiceDate >= from && r.invoiceDate <= to);
-  }, [filteredData, periodB]);
-
-  const compareMetrics = useMemo(() => {
-    if (!periodAData.length && !periodBData.length) return null;
-
-    const calc = (rows) => ({
-      invoices: new Set(rows.map(r => r.invoiceNo)).size,
-      netQty:    rows.reduce((s,r) => s + r.netQty, 0),
-      netValue:  rows.reduce((s,r) => s + r.netValue, 0),
-      returnQty: rows.reduce((s,r) => s + Math.abs(r.returnQty), 0),
-      customers: new Set(rows.map(r => r.customerName)).size,
-      mrs:       new Set(rows.map(r => r.mrName)).size,
-      products:  new Set(rows.map(r => r.productName)).size,
-    });
-
-    const a = calc(periodAData);
-    const b = calc(periodBData);
-    const pct = (a, b) => { if (a === 0) return b > 0 ? 100 : 0; return (((b - a) / Math.abs(a)) * 100).toFixed(1); };
-
-    return { a, b, changes: {
-      invoices:  pct(a.invoices,  b.invoices),
-      netQty:    pct(a.netQty,    b.netQty),
-      netValue:  pct(a.netValue,  b.netValue),
-      returnQty: pct(a.returnQty, b.returnQty),
-      customers: pct(a.customers, b.customers),
-      mrs:       pct(a.mrs,       b.mrs),
-    }};
-  }, [periodAData, periodBData]);
-
   const trendData = useMemo(() => {
     if (!filteredData || filteredData.length === 0) return [];
       const map = {};
@@ -1882,6 +2209,56 @@ const SalesAnalyzer = () => {
           onChoose={handleUploadChoice}
           onCancel={() => setShowUploadChoice(false)}
         />
+      )}
+
+      {/* Smart Load Alert Toast */}
+      {smartLoadAlert && (
+        <div className="fixed bottom-6 right-6 z-[120] animate-in slide-in-from-bottom-5">
+          <div className={`bg-white border-l-4 rounded-2xl shadow-2xl overflow-hidden w-[360px] ${smartLoadAlert.type === 'error' ? 'border-red-500' : smartLoadAlert.type === 'warning' ? 'border-amber-500' : 'border-emerald-500'}`}>
+            <div className={`p-4 ${smartLoadAlert.type === 'error' ? 'bg-red-50' : smartLoadAlert.type === 'warning' ? 'bg-amber-50' : 'bg-emerald-50'}`}>
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-2">
+                  {smartLoadAlert.type === 'error' && <X size={18} className="text-red-600" />}
+                  {smartLoadAlert.type === 'warning' && <Filter size={18} className="text-amber-600" />}
+                  {smartLoadAlert.type === 'success' && <CheckCircle2 size={18} className="text-emerald-600" />}
+                  <h4 className={`text-sm font-black uppercase tracking-tight ${smartLoadAlert.type === 'error' ? 'text-red-700' : smartLoadAlert.type === 'warning' ? 'text-amber-700' : 'text-emerald-700'}`}>
+                    {smartLoadAlert.title}
+                  </h4>
+                </div>
+                <button onClick={() => setSmartLoadAlert(null)} className="text-gray-400 hover:text-gray-600">
+                  <X size={14} />
+                </button>
+              </div>
+              <p className="text-xs text-gray-600 font-medium mt-1 leading-relaxed">
+                {smartLoadAlert.message}
+              </p>
+            </div>
+            
+            {smartLoadAlert.missing && smartLoadAlert.missing.length > 0 && (
+              <div className="p-4 bg-white max-h-[200px] overflow-y-auto">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                  Missing Filter Values:
+                </p>
+                <div className="space-y-1.5">
+                  {smartLoadAlert.missing.map((m, i) => (
+                    <div key={i} className="flex items-start gap-2 text-[10px] text-gray-500 font-medium">
+                      <span className="text-red-400 mt-1 shrink-0">•</span>
+                      <span>{m}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            <div className="px-4 py-2 bg-gray-50 flex justify-end">
+              <button 
+                onClick={() => setSmartLoadAlert(null)}
+                className="text-[9px] font-black text-gray-400 uppercase tracking-widest hover:text-gray-900 transition-colors">
+                Dismiss (Auto-close in 8s)
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {drillModal.open && (
@@ -1985,9 +2362,26 @@ const SalesAnalyzer = () => {
 
 
       <div className="flex flex-1 overflow-hidden h-[calc(100vh-theme(spacing.24))]">
-        <SideFiltersPanel filters={filters} setFilters={setFilters} filterOptions={filterOptions} activeFilterCount={activeFilterCount} />
+        <SideFiltersPanel 
+          filters={filters} 
+          setFilters={setFilters} 
+          filterOptions={filterOptions} 
+          activeFilterCount={activeFilterCount}
+          onManageProfiles={() => setShowProfileManager(true)}
+          profiles={filterProfiles}
+        />
         <div className="flex flex-col flex-1 overflow-hidden">
           <ActiveFiltersBar filters={filters} setFilters={setFilters} />
+          
+          <FilterProfilesManager 
+            isOpen={showProfileManager}
+            onClose={() => setShowProfileManager(false)}
+            profiles={filterProfiles}
+            onSave={saveProfile}
+            onDelete={deleteProfile}
+            onLoad={loadProfile}
+            currentFilters={filters}
+          />
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 px-4 pt-3 pb-2 shrink-0">
             {[
               { label: 'Net Quantity', value: kpis.netQty.toLocaleString(), suffix: 'units', icon: Package, color: 'text-emerald-600', bg: 'bg-emerald-50', negative: kpis.netQty < 0 },
@@ -2169,40 +2563,434 @@ const SalesAnalyzer = () => {
               )}
               {activeTab === 'Compare' && (
                   <div className="space-y-6">
-                    <div className="bg-white rounded-2xl p-6 border border-gray-100">
-                        <h3 className="font-bold text-gray-800 mb-4">Set Comparison Periods</h3>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="text-xs text-gray-400 mb-1 block">Period A</label>
-                                <div className="flex gap-2">
-                                    <input type="date" value={periodA.from} onChange={e=>setPeriodA(p=>({...p, from:e.target.value}))} className="w-full border rounded-lg p-2 text-xs" />
-                                    <input type="date" value={periodA.to} onChange={e=>setPeriodA(p=>({...p, to:e.target.value}))} className="w-full border rounded-lg p-2 text-xs" />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="text-xs text-gray-400 mb-1 block">Period B</label>
-                                <div className="flex gap-2">
-                                    <input type="date" value={periodB.from} onChange={e=>setPeriodB(p=>({...p, from:e.target.value}))} className="w-full border rounded-lg p-2 text-xs" />
-                                    <input type="date" value={periodB.to} onChange={e=>setPeriodB(p=>({...p, to:e.target.value}))} className="w-full border rounded-lg p-2 text-xs" />
-                                </div>
-                            </div>
+                    {/* Period Management Card */}
+                    <div className="bg-white rounded-[32px] p-8 border border-gray-100 shadow-sm">
+                      <div className="flex items-center justify-between mb-8">
+                        <div>
+                          <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">Multi-Period Comparison</h3>
+                          <p className="text-sm text-gray-400 font-medium mt-1">Add up to 6 date ranges to analyze trends and performance shift</p>
                         </div>
+                        <div className="flex gap-2">
+                          <button 
+                             onClick={() => {
+                               if (periods.length < 6) {
+                                  const colors = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444', '#EC4899'];
+                                  const nextColor = colors[periods.length] || colors[0];
+                                  const newPeriods = [...periods, { 
+                                    id: Date.now().toString(), 
+                                    label: `Period ${String.fromCharCode(65 + periods.length)}`, 
+                                    from: '', to: '', 
+                                    color: nextColor 
+                                  }];
+                                  saveComparePreset(newPeriods);
+                               }
+                             }}
+                             disabled={periods.length >= 6}
+                             className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-blue-600 transition-all shadow-lg disabled:opacity-30">
+                            <Plus size={16} />
+                            Add Period
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
+                        {periods.map((p, idx) => (
+                          <div key={p.id} className="min-w-[280px] bg-gray-50/50 rounded-3xl p-5 border border-gray-100 relative group animate-in zoom-in-95 duration-200">
+                             <div className="flex items-center justify-between mb-4">
+                               <div className="flex items-center gap-2">
+                                 <div className="w-8 h-8 rounded-xl flex items-center justify-center font-black text-white text-xs shadow-md" style={{ backgroundColor: p.color }}>
+                                   {String.fromCharCode(65 + idx)}
+                                 </div>
+                                 <input 
+                                   type="text" 
+                                   value={p.label}
+                                   onChange={e => {
+                                      const up = [...periods];
+                                      up[idx].label = e.target.value;
+                                      saveComparePreset(up);
+                                   }}
+                                   className="bg-transparent border-none font-black text-gray-900 uppercase tracking-tight text-sm focus:outline-none w-32"
+                                 />
+                               </div>
+                               {periods.length > 2 && (
+                                 <button 
+                                   onClick={() => {
+                                      const up = periods.filter(item => item.id !== p.id);
+                                      saveComparePreset(up);
+                                   }}
+                                   className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-50 text-red-400 hover:text-red-600 rounded-lg transition-all">
+                                   <Trash2 size={14} />
+                                 </button>
+                               )}
+                             </div>
+
+                             <div className="space-y-3">
+                               <div>
+                                 <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">Start Date</label>
+                                 <input 
+                                   type="date" 
+                                   value={p.from}
+                                   onChange={e => {
+                                      const up = [...periods];
+                                      up[idx].from = e.target.value;
+                                      saveComparePreset(up);
+                                   }}
+                                   className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold focus:border-blue-500 outline-none"
+                                 />
+                               </div>
+                               <div>
+                                 <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">End Date</label>
+                                 <input 
+                                   type="date" 
+                                   value={p.to}
+                                   onChange={e => {
+                                      const up = [...periods];
+                                      up[idx].to = e.target.value;
+                                      saveComparePreset(up);
+                                   }}
+                                   className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold focus:border-blue-500 outline-none"
+                                 />
+                               </div>
+                               <div className="flex gap-2 pt-2">
+                                 {['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444', '#EC4899'].map(c => (
+                                   <button 
+                                     key={c}
+                                     onClick={() => {
+                                       const up = [...periods];
+                                       up[idx].color = c;
+                                       saveComparePreset(up);
+                                     }}
+                                     className={`w-4 h-4 rounded-full transition-transform hover:scale-125 ${p.color === c ? 'ring-2 ring-gray-900 ring-offset-2' : ''}`}
+                                     style={{ backgroundColor: c }}
+                                   />
+                                 ))}
+                               </div>
+                             </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    {compareMetrics && (
-                        <div className="grid grid-cols-6 gap-3">
-                            {[ {l:'Invoices',v:compareMetrics.changes.invoices, unit:'%'}, {l:'Net Qty',v:compareMetrics.changes.netQty, unit:'%'}, {l:'Net Value',v:compareMetrics.changes.netValue, unit:'%'}, {l:'Returns',v:compareMetrics.changes.returnQty, unit:'%'}, {l:'Customers',v:compareMetrics.changes.customers, unit:'%'}, {l:'MRs',v:compareMetrics.changes.mrs, unit:'%'} ].map((m,i) => (
-                                <div key={i} className="bg-white p-4 rounded-2xl border shadow-sm text-center">
-                                    <p className="text-[10px] text-gray-400 font-bold uppercase">{m.l}</p>
-                                    <p className={`text-lg font-black ${parseFloat(m.v) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                                        {parseFloat(m.v) >= 0 ? '+' : ''}{m.v}{m.unit}
-                                    </p>
+
+                    {/* Multi-Period Metrics Logic Implementation */}
+                    {(() => {
+                        const periodCalculations = periods.map(p => {
+                          if (!p.from || !p.to) return null;
+                          const from = new Date(p.from);
+                          const to   = new Date(p.to);
+                          to.setHours(23,59,59);
+                          
+                          const pData = filteredData.filter(r => r.invoiceDate >= from && r.invoiceDate <= to);
+                          
+                          if (pData.length === 0) return { ...p, metrics: null };
+                          
+                          const invoices = new Set(pData.map(r => r.invoiceNo)).size;
+                          return {
+                            ...p,
+                            data: pData,
+                            metrics: {
+                              netQty:      pData.reduce((s,r) => s + r.netQty, 0),
+                              netValue:    pData.reduce((s,r) => s + r.netValue, 0),
+                              invoices:    invoices,
+                              customers:   new Set(pData.map(r => r.customerName)).size,
+                              mrs:         new Set(pData.map(r => r.mrName)).size,
+                              returnQty:   pData.reduce((s,r) => s + Math.abs(r.returnQty), 0),
+                              returnValue: pData.reduce((s,r) => s + Math.abs(r.returnValue), 0),
+                              avgInvoice:  invoices > 0 ? pData.reduce((s,r) => s + r.netValue, 0) / invoices : 0
+                            }
+                          };
+                        }).filter(Boolean);
+
+                        if (periodCalculations.length < 2) {
+                          return (
+                            <div className="py-20 text-center bg-white border border-gray-100 rounded-[32px] opacity-40">
+                               <RefreshCw size={48} className="mx-auto mb-4 text-gray-300" />
+                               <p className="font-black text-gray-900 uppercase tracking-widest">Select dates for at least 2 periods</p>
+                               <p className="text-xs text-gray-400 mt-1">Comparison data will appear once dates are set</p>
+                            </div>
+                          );
+                        }
+
+                        const metricsList = [
+                          { key: 'netQty', label: 'Net Quantity', format: 'num' },
+                          { key: 'netValue', label: 'Net Value (EGP)', format: 'val' },
+                          { key: 'invoices', label: 'Total Invoices', format: 'num' },
+                          { key: 'customers', label: 'Active Customers', format: 'num' },
+                          { key: 'mrs', label: 'Active MRs', format: 'num' },
+                          { key: 'avgInvoice', label: 'Avg Invoice Value', format: 'val' },
+                          { key: 'returnQty', label: 'Return Quantity', format: 'num' },
+                          { key: 'returnValue', label: 'Return Value (EGP)', format: 'val' }
+                        ];
+
+                        return (
+                          <div className="space-y-6">
+                            {/* Comparison Matrix */}
+                            <div className="bg-white rounded-[32px] border border-gray-100 overflow-hidden shadow-sm">
+                               <div className="px-8 py-6 border-b border-gray-100 bg-gray-50/30 flex items-center justify-between">
+                                 <h4 className="text-lg font-black text-gray-900 uppercase tracking-tight">Metrics Comparison</h4>
+                                 <div className="flex items-center gap-4">
+                                   <div className="flex items-center gap-1.5">
+                                      <div className="w-2 h-2 bg-emerald-500 rounded-full" />
+                                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Highest</span>
+                                   </div>
+                                   <div className="flex items-center gap-1.5">
+                                      <div className="w-2 h-2 bg-red-400 rounded-full" />
+                                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Lowest</span>
+                                   </div>
+                                 </div>
+                               </div>
+
+                               <div className="overflow-x-auto">
+                                 <table className="w-full text-sm">
+                                   <thead>
+                                     <tr className="bg-gray-50">
+                                       <th className="px-8 py-4 text-left text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] sticky left-0 bg-gray-50 z-20">Metric</th>
+                                       {periodCalculations.map(p => (
+                                         <th key={p.id} className="px-6 py-4 text-center">
+                                           <div className="flex flex-col items-center">
+                                             <span className="text-[10px] font-black text-gray-900 uppercase tracking-tighter" style={{ color: p.color }}>{p.label}</span>
+                                             <span className="text-[10px] text-gray-400 font-medium">{new Date(p.from).toLocaleDateString('en-GB', { month:'short', year:'2-digit' })} → {new Date(p.to).toLocaleDateString('en-GB', { month:'short', year:'2-digit' })}</span>
+                                           </div>
+                                         </th>
+                                       ))}
+                                       <th className="px-6 py-4 text-center text-[11px] font-black text-gray-900 uppercase tracking-widest">Best Period</th>
+                                       <th className="px-6 py-4 text-center text-[11px] font-black text-gray-900 uppercase tracking-widest">Trend</th>
+                                     </tr>
+                                   </thead>
+                                   <tbody>
+                                     {metricsList.map(m => {
+                                        const values = periodCalculations.map(pc => pc.metrics ? pc.metrics[m.key] : 0);
+                                        const maxVal = Math.max(...values);
+                                        const minVal = Math.min(...values);
+                                        const bestIdx = values.indexOf(maxVal);
+                                        const trend = values[0] < values[values.length - 1] ? 'up' : values[0] > values[values.length - 1] ? 'down' : 'stable';
+                                        const pctTotalChange = values[0] === 0 ? 0 : ((values[values.length-1] - values[0]) / values[0]) * 100;
+
+                                        return (
+                                          <tr key={m.key} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                                            <td className="px-8 py-4 font-black text-gray-900 uppercase tracking-tight text-xs bg-white sticky left-0 z-10 border-r border-gray-50">
+                                              {m.label}
+                                            </td>
+                                            {values.map((v, i) => {
+                                              const isBest = v === maxVal && values.some(val => val !== maxVal);
+                                              const isWorst = v === minVal && values.some(val => val !== minVal);
+                                              return (
+                                                <td key={i} className={`px-6 py-4 text-center font-bold font-mono transition-all duration-300 ${isBest ? 'bg-emerald-50/50 text-emerald-700' : isWorst ? 'bg-red-50/50 text-red-600' : 'text-gray-600'}`}>
+                                                  {v ? (m.format === 'val' ? v.toLocaleString() : v.toLocaleString()) : '—'}
+                                                </td>
+                                              );
+                                            })}
+                                            <td className="px-6 py-4 text-center">
+                                              <span className="inline-block bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                                                {periodCalculations[bestIdx].label}
+                                              </span>
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                              <div className="flex flex-col items-center">
+                                                <span className={`text-base font-bold ${trend === 'up' ? 'text-emerald-500' : trend === 'down' ? 'text-red-500' : 'text-gray-400'}`}>
+                                                  {trend === 'up' ? '↗' : trend === 'down' ? '↘' : '→'}
+                                                </span>
+                                                <span className={`text-[9px] font-black ${trend === 'up' ? 'text-emerald-500' : trend === 'down' ? 'text-red-500' : 'text-gray-400'}`}>
+                                                  {pctTotalChange > 0 ? '+' : ''}{pctTotalChange.toFixed(1)}%
+                                                </span>
+                                              </div>
+                                            </td>
+                                          </tr>
+                                        );
+                                     })}
+                                   </tbody>
+                                 </table>
+                               </div>
+                            </div>
+
+                            {/* PoP Change Grid */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <div className="bg-white rounded-[32px] p-8 border border-gray-100 shadow-sm">
+                                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-6">Period-over-Period Performance Shift (%)</h4>
+                                <div className="space-y-4">
+                                  {metricsList.slice(0, 4).map(m => (
+                                    <div key={m.key} className="bg-gray-50/50 rounded-2xl p-4">
+                                       <p className="text-[10px] font-black text-gray-900 uppercase tracking-tight mb-3">{m.label}</p>
+                                       <div className="flex gap-4">
+                                          {periodCalculations.slice(0, -1).map((p, i) => {
+                                             const v1 = p.metrics?.[m.key] || 0;
+                                             const v2 = periodCalculations[i+1].metrics?.[m.key] || 0;
+                                             const chg = v1 === 0 ? 0 : ((v2 - v1) / v1) * 100;
+                                             return (
+                                               <div key={i} className="flex-1 flex flex-col items-center justify-center p-3 rounded-xl bg-white border border-gray-100">
+                                                  <span className="text-[8px] font-black text-gray-300 uppercase tracking-widest mb-1">{p.label} → {periodCalculations[i+1].label}</span>
+                                                  <span className={`text-sm font-black font-mono ${chg >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                                    {chg >= 0 ? '+' : ''}{chg.toFixed(1)}%
+                                                  </span>
+                                               </div>
+                                             );
+                                          })}
+                                       </div>
+                                    </div>
+                                  ))}
                                 </div>
-                            ))}
-                        </div>
-                    )}
-                    {periodAData.length > 0 && periodBData.length > 0 && (
-                        <MRCompareTable periodAData={periodAData} periodBData={periodBData} labelA="Period A" labelB="Period B" />
-                    )}
+                              </div>
+
+                              <div className="bg-white rounded-[32px] p-8 border border-gray-100 shadow-sm flex flex-col">
+                                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-6">Multi-Period Insights</h4>
+                                <div className="flex-1 space-y-3">
+                                   {(() => {
+                                      const insights = [];
+                                      const netValM = metricsList.find(m => m.key === 'netValue');
+                                      const netQtyM = metricsList.find(m => m.key === 'netQty');
+                                      const values = periodCalculations.map(pc => pc.metrics.netValue);
+                                      const qtyValues = periodCalculations.map(pc => pc.metrics.netQty);
+                                      
+                                      const totalGrowth = ((values[values.length-1] - values[0]) / values[0]) * 100;
+                                      if (values.every((v, i) => i === 0 || v >= values[i-1])) {
+                                        insights.push({ icon: '📈', text: `Net Value grew consistently across all periods (+${totalGrowth.toFixed(1)}% total)`, type: 'success' });
+                                      } else if (values.every((v, i) => i === 0 || v <= values[i-1])) {
+                                        insights.push({ icon: '📉', text: `Net Value declined steadily across all periods (${totalGrowth.toFixed(1)}% total drop)`, type: 'danger' });
+                                      } else {
+                                        insights.push({ icon: '📊', text: `Overall value trend is ${totalGrowth >= 0 ? 'Positive' : 'Negative'} with a ${totalGrowth.toFixed(1)}% shift from start to end.`, type: 'info' });
+                                      }
+
+                                      const maxV = Math.max(...values);
+                                      const maxP = periodCalculations[values.indexOf(maxV)];
+                                      insights.push({ icon: '🏆', text: `Highest performing period is ${maxP.label} with ${maxV.toLocaleString()} EGP in Net Value.`, type: 'success' });
+
+                                      const retValues = periodCalculations.map(pc => pc.metrics.returnQty);
+                                      const maxRet = Math.max(...retValues);
+                                      if (maxRet > 0) {
+                                         const maxRetP = periodCalculations[retValues.indexOf(maxRet)];
+                                         insights.push({ icon: '⚠️', text: `Return volume peaked in ${maxRetP.label} (${maxRet.toLocaleString()} units).`, type: 'warning' });
+                                      }
+
+                                      const custValues = periodCalculations.map(pc => pc.metrics.customers);
+                                      const custGrowth = ((custValues[custValues.length-1] - custValues[0]) / custValues[0]) * 100;
+                                      insights.push({ icon: '👥', text: `Customer base ${custGrowth >= 0 ? 'expanded' : 'contracted'} from ${custValues[0]} to ${custValues[custValues.length-1]} total active customers.`, type: 'info' });
+
+                                      return insights.map((ins, i) => (
+                                        <div key={i} className="flex gap-4 p-4 rounded-2xl bg-gray-50 border border-gray-100 hover:scale-[1.02] transition-all group">
+                                           <span className="text-xl group-hover:scale-125 transition-transform">{ins.icon}</span>
+                                           <p className="text-xs font-bold text-gray-700 leading-relaxed self-center">{ins.text}</p>
+                                        </div>
+                                      ));
+                                   })()}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Charts Wrapper */}
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                              <div className="bg-white rounded-[32px] p-8 border border-gray-100 shadow-sm">
+                                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-6">Metric Volume Comparison</h4>
+                                <div className="h-[350px]">
+                                  <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={[
+                                      { metric: 'Net Qty', ...periodCalculations.reduce((acc, p) => ({ ...acc, [p.label]: p.metrics.netQty }), {}) },
+                                      { metric: 'Returns', ...periodCalculations.reduce((acc, p) => ({ ...acc, [p.label]: p.metrics.returnQty }), {}) }
+                                    ]}>
+                                      <XAxis dataKey="metric" fontSize={10} axisLine={false} tickLine={false} />
+                                      <YAxis fontSize={10} axisLine={false} tickLine={false} />
+                                      <Tooltip 
+                                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} 
+                                        itemStyle={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase' }}
+                                      />
+                                      <Legend iconType="circle" />
+                                      {periodCalculations.map(p => (
+                                        <Bar key={p.id} dataKey={p.label} fill={p.color} radius={[6, 6, 0, 0]} barSize={40} />
+                                      ))}
+                                    </BarChart>
+                                  </ResponsiveContainer>
+                                </div>
+                              </div>
+
+                              <div className="bg-white rounded-[32px] p-8 border border-gray-100 shadow-sm">
+                                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-6">Value Trend Across Periods</h4>
+                                <div className="h-[350px]">
+                                  <ResponsiveContainer width="100%" height="100%">
+                                    <LineChart data={periodCalculations.map(p => ({ period: p.label, value: p.metrics.netValue }))}>
+                                      <XAxis dataKey="period" fontSize={10} axisLine={false} tickLine={false} />
+                                      <YAxis fontSize={10} axisLine={false} tickLine={false} />
+                                      <Tooltip 
+                                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} 
+                                        itemStyle={{ fontSize: '11px', fontWeight: 'bold' }}
+                                      />
+                                      <Line type="monotone" dataKey="value" stroke="#3B82F6" strokeWidth={4} dot={{ r: 6, fill: '#3B82F6', strokeWidth: 2, stroke: '#fff' }} />
+                                    </LineChart>
+                                  </ResponsiveContainer>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* MR Performance Grid */}
+                            <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden">
+                               <div className="px-8 py-6 border-b border-gray-100 flex items-center justify-between">
+                                  <div>
+                                    <h4 className="text-lg font-black text-gray-900 uppercase tracking-tight">MR Performance Across Periods</h4>
+                                    <p className="text-[10px] text-gray-400 font-bold uppercase mt-1">Track indivdual growth and consistency</p>
+                                  </div>
+                               </div>
+                               <div className="overflow-x-auto max-h-[500px]">
+                                  <table className="w-full text-xs">
+                                     <thead className="bg-gray-50 border-b border-gray-100 italic">
+                                        <tr>
+                                          <th className="px-8 py-4 text-left font-black uppercase text-gray-400 sticky left-0 bg-gray-50 z-10 border-r border-gray-100">MR Name</th>
+                                          {periodCalculations.map(p => (
+                                            <th key={p.id} className="px-6 py-4 text-right font-black uppercase text-gray-600">{p.label} (Qty)</th>
+                                          ))}
+                                          <th className="px-8 py-4 text-center font-black uppercase text-gray-900 bg-gray-100">Total Shift</th>
+                                        </tr>
+                                     </thead>
+                                     <tbody>
+                                        {(() => {
+                                           const mrNames = [...new Set(periodCalculations.flatMap(pc => pc.data.map(d => d.mrName)))].sort();
+                                           
+                                           // Best performers per period logic
+                                           const topPerformersPerPeriod = periodCalculations.map(pc => {
+                                              const mrMap = {};
+                                              pc.data.forEach(d => {
+                                                mrMap[d.mrName] = (mrMap[d.mrName] || 0) + d.netQty;
+                                              });
+                                              return Object.entries(mrMap).sort((a,b) => b[1] - a[1]).slice(0, 3).map(e => e[0]);
+                                           });
+
+                                           return mrNames.map(mr => {
+                                              const mrValues = periodCalculations.map(pc => {
+                                                return pc.data.filter(d => d.mrName === mr).reduce((s,r) => s + r.netQty, 0);
+                                              });
+                                              const growth = mrValues[0] === 0 ? 0 : ((mrValues[mrValues.length-1] - mrValues[0]) / mrValues[0]) * 100;
+                                              
+                                              return (
+                                                <tr key={mr} className="border-b border-gray-50 hover:bg-gray-50 group">
+                                                  <td className="px-8 py-4 font-black text-gray-800 uppercase tracking-tight bg-white sticky left-0 z-1 border-r border-gray-50 group-hover:bg-gray-50">
+                                                     {mr}
+                                                  </td>
+                                                  {mrValues.map((v, i) => {
+                                                    const rank = topPerformersPerPeriod[i].indexOf(mr);
+                                                    return (
+                                                      <td key={i} className={`px-6 py-4 text-right font-bold transition-all ${v > 0 ? '' : 'text-gray-200'}`}>
+                                                        <div className="flex items-center justify-end gap-2">
+                                                          {v.toLocaleString()}
+                                                          {rank === 0 && <span title="Period Rank: #1" className="bg-yellow-400 text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center text-white">1</span>}
+                                                          {rank === 1 && <span title="Period Rank: #2" className="bg-gray-300 text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center text-white">2</span>}
+                                                          {rank === 2 && <span title="Period Rank: #3" className="bg-orange-300 text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center text-white">3</span>}
+                                                        </div>
+                                                      </td>
+                                                    );
+                                                  })}
+                                                  <td className={`px-8 py-4 text-center font-black ${growth >= 0 ? 'text-emerald-500 bg-emerald-50/20' : 'text-red-500 bg-red-50/20'}`}>
+                                                     <div className="flex flex-col">
+                                                       <span>{growth >= 0 ? '↑' : '↓'}</span>
+                                                       <span className="text-[10px]">{Math.abs(growth).toFixed(1)}%</span>
+                                                     </div>
+                                                  </td>
+                                                </tr>
+                                              );
+                                           });
+                                        })()}
+                                     </tbody>
+                                  </table>
+                               </div>
+                            </div>
+                          </div>
+                        );
+                    })()}
                   </div>
               )}
               {activeTab === 'Reports' && (
