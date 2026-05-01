@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from '../context/AuthContext';
 
 const APP_VERSION_DATA = {
-  version: '1.0.467',
+  version: '1.0.468',
   releaseDate: 'May 2026',
   label: 'Dynamic Matrix & Multi-Period Perf Hub'
 };

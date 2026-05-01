@@ -1043,6 +1043,24 @@ const SalesAnalyzer = () => {
   const [compareFullscreen, setCompareFullscreen] = useState(false);
   const [perfSortKey, setPerfSortKey] = useState('total');
   const [perfSortDir, setPerfSortDir] = useState('desc');
+  
+  const [compareCollapsed, setCompareCollapsed] = useState({
+    metrics: false,
+    popShift: false,
+    insights: false,
+    volumeChart: false,
+    trendChart: false,
+    perfAnalysis: false
+  });
+  const toggleCompareCollapse = (key) => setCompareCollapsed(prev => ({ ...prev, [key]: !prev[key] }));
+
+  const [compareFontSize, setCompareFontSize] = useState('text-[10px]');
+  const FONT_OPTIONS = [
+    { label: 'Small', value: 'text-[9px]' },
+    { label: 'Medium', value: 'text-[10px]' },
+    { label: 'Large', value: 'text-[11px]' },
+    { label: 'X-Large', value: 'text-[12px]' }
+  ];
 
   useEffect(() => {
     if (compareFullscreen) {
@@ -2782,7 +2800,17 @@ const SalesAnalyzer = () => {
                           <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">Period Management</h3>
                           <p className="text-[10px] text-gray-400 font-medium mt-1">Manage up to 12 date ranges for deep comparative analysis</p>
                         </div>
-                        <div className="flex gap-2 relative">
+                        <div className="flex gap-2 relative items-center">
+                          <select 
+                            value={compareFontSize} 
+                            onChange={(e) => setCompareFontSize(e.target.value)}
+                            className="bg-gray-50 border border-gray-200 text-gray-700 text-[10px] font-bold uppercase rounded-xl px-2 py-2 outline-none focus:border-gray-400 cursor-pointer"
+                          >
+                            {FONT_OPTIONS.map(opt => (
+                              <option key={opt.value} value={opt.value}>{opt.label} Font</option>
+                            ))}
+                          </select>
+                          <div className="w-[1px] h-6 bg-gray-200 mx-1"></div>
                           <button
                             onClick={() => setShowLoadModal(!showLoadModal)}
                             className="flex items-center gap-2 bg-white text-gray-700 border border-gray-200 px-3 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-gray-50 transition-colors shadow-sm"
@@ -2835,6 +2863,16 @@ const SalesAnalyzer = () => {
                           )}
                           <button 
                              onClick={() => {
+                               if (window.confirm("Are you sure you want to clear all periods?")) {
+                                 saveComparePreset([]);
+                               }
+                             }}
+                             disabled={periods.length === 0}
+                             className="flex items-center gap-2 bg-red-50 text-red-600 px-3 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-red-100 transition-colors shadow-sm disabled:opacity-30">
+                            <Trash2 size={14} /> Clear All
+                          </button>
+                          <button 
+                             onClick={() => {
                                if (periods.length < 12) {
                                   const colors = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444', '#EC4899', '#06B6D4', '#F43F5E', '#84CC16', '#A855F7', '#EAB308', '#6366F1'];
                                   const nextColor = colors[periods.length % colors.length];
@@ -2850,7 +2888,7 @@ const SalesAnalyzer = () => {
                                }
                              }}
                              disabled={periods.length >= 12}
-                             className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-all shadow-md disabled:opacity-30">
+                             className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-all shadow-md disabled:opacity-30">
                             <Plus size={16} />
                             Add Period
                           </button>
@@ -3001,6 +3039,30 @@ const SalesAnalyzer = () => {
 
                     {/* Multi-Period Metrics Logic Implementation */}
                     {(() => {
+                        const periodsWithDates = periods.filter(p => p.from && p.to);
+                        
+                        if (periods.length === 0 || periodsWithDates.length === 0) {
+                          return (
+                            <div className="py-20 text-center bg-white border border-gray-100 rounded-[32px]">
+                               <Calendar size={48} className="mx-auto mb-4 text-gray-300" />
+                               <p className="font-black text-gray-900 uppercase text-lg tracking-widest">No periods selected yet</p>
+                               <p className="text-sm text-gray-400 mt-2 font-medium">Use the Quick Month Picker or "+ Add Period" to get started</p>
+                               <p className="text-[11px] font-black text-gray-500 bg-gray-100 inline-block px-4 py-1.5 rounded-full mt-4 uppercase tracking-widest">You need at least 2 periods to begin comparison</p>
+                            </div>
+                          );
+                        }
+                        
+                        if (periodsWithDates.length === 1) {
+                          return (
+                            <div className="py-4 px-6 text-center bg-amber-50 border border-amber-200 rounded-[24px]">
+                               <p className="font-black text-amber-800 text-xs uppercase tracking-widest flex items-center justify-center gap-2">
+                                 <AlertCircle size={16} /> 
+                                 ⚠️ Add at least 1 more period with data to start comparison
+                               </p>
+                            </div>
+                          );
+                        }
+
                         const rawCalculations = periods.map(p => {
                           if (!p.from || !p.to) return { ...p, metrics: null, empty: true };
                           const from = new Date(p.from);
@@ -3036,9 +3098,8 @@ const SalesAnalyzer = () => {
                           return (
                             <div className="py-20 text-center bg-white border border-gray-100 rounded-[32px]">
                                <Calendar size={48} className="mx-auto mb-4 text-gray-300" />
-                               <p className="font-black text-gray-900 uppercase text-lg tracking-widest">No periods selected yet</p>
-                               <p className="text-sm text-gray-400 mt-2 font-medium">Use the Quick Month Picker or "+ Add Period" to get started</p>
-                               <p className="text-[11px] font-black text-gray-500 bg-gray-100 inline-block px-4 py-1.5 rounded-full mt-4 uppercase tracking-widest">You need at least 2 periods to begin comparison</p>
+                               <p className="font-black text-gray-900 uppercase text-lg tracking-widest">No periods found with data</p>
+                               <p className="text-sm text-gray-400 mt-2 font-medium">The selected periods yielded no results</p>
                             </div>
                           );
                         }
@@ -3048,7 +3109,7 @@ const SalesAnalyzer = () => {
                             <div className="py-4 px-6 text-center bg-amber-50 border border-amber-200 rounded-[24px]">
                                <p className="font-black text-amber-800 text-xs uppercase tracking-widest flex items-center justify-center gap-2">
                                  <AlertCircle size={16} /> 
-                                 ⚠️ Add at least 1 more period with data to start comparison
+                                 ⚠️ Add at least 1 more period with data to start comparison (only 1 valid period found)
                                </p>
                             </div>
                           );
@@ -3079,35 +3140,53 @@ const SalesAnalyzer = () => {
 
                             {/* Comparison Matrix */}
                             <div className="bg-white rounded-[32px] border border-gray-100 overflow-hidden shadow-sm">
-                               <div className="px-8 py-6 border-b border-gray-100 bg-gray-50/30 flex items-center justify-between">
-                                 <h4 className="text-lg font-black text-gray-900 uppercase tracking-tight">Metrics Comparison</h4>
-                                 <div className="flex items-center gap-4">
-                                   <div className="flex items-center gap-1.5">
-                                      <div className="w-2 h-2 bg-emerald-500 rounded-full" />
-                                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Highest</span>
+                               <div 
+                                 className="px-8 py-5 border-b border-gray-100 bg-gray-50/30 flex items-center justify-between cursor-pointer hover:bg-gray-50/80 transition-colors"
+                                 onClick={() => toggleCompareCollapse('metrics')}
+                               >
+                                 <div className="flex items-center justify-between w-full">
+                                   <div className="flex flex-col">
+                                     <h4 className="text-lg font-black text-gray-900 uppercase tracking-tight">Metrics Comparison</h4>
+                                     {compareCollapsed.metrics && (
+                                       <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight mt-1">Summary view across {periodCalculations.length} periods</p>
+                                     )}
                                    </div>
-                                   <div className="flex items-center gap-1.5">
-                                      <div className="w-2 h-2 bg-red-400 rounded-full" />
-                                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Lowest</span>
+                                   <div className="flex items-center gap-4">
+                                     {!compareCollapsed.metrics && (
+                                       <>
+                                         <div className="flex items-center gap-1.5 hidden md:flex">
+                                            <div className="w-2 h-2 bg-emerald-500 rounded-full" />
+                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Highest</span>
+                                         </div>
+                                         <div className="flex items-center gap-1.5 hidden md:flex">
+                                            <div className="w-2 h-2 bg-red-400 rounded-full" />
+                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Lowest</span>
+                                         </div>
+                                       </>
+                                     )}
+                                     <button className="flex items-center justify-center p-1.5 rounded-full hover:bg-gray-200 text-gray-500 transition-colors">
+                                        <ChevronDown size={18} className={`transition-transform duration-300 ${compareCollapsed.metrics ? '-rotate-90' : 'rotate-0'}`} />
+                                     </button>
                                    </div>
                                  </div>
                                </div>
 
+                               {!compareCollapsed.metrics && (
                                <div className="overflow-x-auto">
-                                 <table className="w-full text-[10px] border-collapse min-w-[800px]">
+                                 <table className={`w-full ${compareFontSize} border-collapse min-w-[800px]`}>
                                    <thead>
                                      <tr className="bg-gray-50">
-                                       <th className="px-8 py-4 text-left text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] sticky left-0 bg-gray-50 z-20 shadow-[2px_0_5px_rgba(0,0,0,0.05)] border-r border-gray-100">Metric</th>
+                                       <th className="px-6 py-3 text-left font-black text-gray-400 uppercase tracking-[0.2em] sticky left-0 bg-gray-50 z-20 shadow-[2px_0_5px_rgba(0,0,0,0.05)] border-r border-gray-100">Metric</th>
                                        {periodCalculations.map(p => (
-                                         <th key={p.id} className="px-6 py-4 text-center border-r border-gray-50 last:border-0 min-w-[140px]">
+                                         <th key={p.id} className="px-4 py-3 text-center border-r border-gray-50 last:border-0 min-w-[140px]">
                                            <div className="flex flex-col items-center">
-                                             <span className="text-[10px] font-black text-gray-900 uppercase tracking-tighter" style={{ color: p.color }}>{p.label}</span>
-                                             <span className="text-[10px] text-gray-400 font-medium whitespace-nowrap">{new Date(p.from).toLocaleDateString('en-GB', { month:'short', year:'2-digit' })} → {new Date(p.to).toLocaleDateString('en-GB', { month:'short', year:'2-digit' })}</span>
+                                             <span className="font-black text-gray-900 uppercase tracking-tighter" style={{ color: p.color }}>{p.label}</span>
+                                             <span className="text-[9px] text-gray-400 font-medium whitespace-nowrap">{new Date(p.from).toLocaleDateString('en-GB', { month:'short', year:'2-digit' })} → {new Date(p.to).toLocaleDateString('en-GB', { month:'short', year:'2-digit' })}</span>
                                            </div>
                                          </th>
                                        ))}
-                                       <th className="px-6 py-4 text-center text-[11px] font-black text-gray-900 uppercase tracking-widest border-l border-gray-100">Best</th>
-                                       <th className="px-6 py-4 text-center text-[11px] font-black text-gray-900 uppercase tracking-widest">Trend</th>
+                                       <th className="px-4 py-3 text-center font-black text-gray-900 uppercase tracking-widest border-l border-gray-100">Best</th>
+                                       <th className="px-4 py-3 text-center font-black text-gray-900 uppercase tracking-widest">Trend</th>
                                      </tr>
                                    </thead>
                                    <tbody>
@@ -3120,27 +3199,27 @@ const SalesAnalyzer = () => {
                                         const pctTotalChange = values[0] === 0 ? 0 : ((values[values.length-1] - values[0]) / values[0]) * 100;
 
                                         return (
-                                          <tr key={m.key} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                                            <td className="px-8 py-4 font-black text-gray-900 uppercase tracking-tight text-[10px] bg-white sticky left-0 z-10 border-r border-gray-100 shadow-[2px_0_5px_rgba(0,0,0,0.05)]">
+                                          <tr key={m.key} className="border-b border-gray-50 hover:bg-gray-50/80 transition-colors">
+                                            <td className={`px-6 py-2.5 font-black text-gray-900 uppercase tracking-tight bg-white sticky left-0 z-10 border-r border-gray-100 shadow-[2px_0_5px_rgba(0,0,0,0.05)]`}>
                                               {m.label}
                                             </td>
                                             {values.map((v, i) => {
                                               const isBest = v === maxVal && values.some(val => val !== maxVal);
                                               const isWorst = v === minVal && values.some(val => val !== minVal);
                                               return (
-                                                <td key={i} className={`px-6 py-4 text-center font-bold font-mono transition-all duration-300 border-r border-gray-50 last:border-0 ${isBest ? 'bg-emerald-50/50 text-emerald-700' : isWorst ? 'bg-red-50/50 text-red-600' : 'text-gray-600'}`}>
+                                                <td key={i} className={`px-4 py-2.5 text-center font-bold font-mono transition-all duration-300 border-r border-gray-50 last:border-0 ${isBest ? 'bg-emerald-50/50 text-emerald-700' : isWorst ? 'bg-red-50/50 text-red-600' : 'text-gray-600'}`}>
                                                   {v ? (m.format === 'val' ? Math.round(v).toLocaleString() : v.toLocaleString()) : '0'}
                                                 </td>
                                               );
                                             })}
-                                            <td className="px-6 py-4 text-center border-l border-gray-100">
-                                              <span className="inline-block bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter whitespace-nowrap">
+                                            <td className="px-4 py-2.5 text-center border-l border-gray-100">
+                                              <span className="inline-block bg-emerald-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter whitespace-nowrap">
                                                 {periodCalculations[bestIdx].label}
                                               </span>
                                             </td>
-                                            <td className="px-6 py-4 text-center min-w-[100px]">
+                                            <td className="px-4 py-2.5 text-center min-w-[100px]">
                                               <div className="flex flex-col items-center">
-                                                <span className={`text-base font-bold ${trend === 'up' ? 'text-emerald-500' : trend === 'down' ? 'text-red-500' : 'text-gray-400'}`}>
+                                                <span className={`text-[12px] font-bold leading-none ${trend === 'up' ? 'text-emerald-500' : trend === 'down' ? 'text-red-500' : 'text-gray-400'}`}>
                                                   {trend === 'up' ? '↗' : trend === 'down' ? '↘' : '→'}
                                                 </span>
                                                 <span className={`text-[9px] font-black ${trend === 'up' ? 'text-emerald-500' : trend === 'down' ? 'text-red-500' : 'text-gray-400'}`}>
@@ -3154,25 +3233,40 @@ const SalesAnalyzer = () => {
                                    </tbody>
                                  </table>
                                </div>
+                               )}
                             </div>
 
                             {/* PoP Change Grid */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                              <div className="bg-white rounded-[24px] p-3 border border-gray-100 shadow-sm">
-                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-6">Period-over-Period Performance Shift (%)</h4>
-                                <div className="space-y-2">
+                              <div className="bg-white rounded-[24px] border border-gray-100 shadow-sm overflow-hidden flex flex-col">
+                                <div 
+                                  className="px-6 py-4 border-b border-gray-100 bg-gray-50/20 flex items-center justify-between cursor-pointer hover:bg-gray-50/80 transition-colors"
+                                  onClick={() => toggleCompareCollapse('popShift')}
+                                >
+                                  <div>
+                                    <h4 className="text-[10px] font-black text-gray-900 uppercase tracking-widest">Period-over-Period Shift</h4>
+                                    {compareCollapsed.popShift && (
+                                      <p className="text-[9px] text-gray-500 font-bold uppercase tracking-tight mt-1">Growth rates between adjacent periods</p>
+                                    )}
+                                  </div>
+                                  <button className="flex items-center justify-center p-1.5 rounded-full hover:bg-gray-200 text-gray-500 transition-colors">
+                                     <ChevronDown size={16} className={`transition-transform duration-300 ${compareCollapsed.popShift ? '-rotate-90' : 'rotate-0'}`} />
+                                  </button>
+                                </div>
+                                {!compareCollapsed.popShift && (
+                                <div className="p-4 space-y-2">
                                   {metricsList.slice(0, 4).map(m => (
-                                    <div key={m.key} className="bg-gray-50/50 rounded-2xl p-4">
-                                       <p className="text-[10px] font-black text-gray-900 uppercase tracking-tight mb-3">{m.label}</p>
+                                    <div key={m.key} className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100/50 hover:bg-gray-50 transition-colors">
+                                       <p className={`font-black text-gray-900 uppercase tracking-tight mb-3 ${compareFontSize}`}>{m.label}</p>
                                        <div className="flex gap-4">
                                           {periodCalculations.slice(0, -1).map((p, i) => {
                                              const v1 = p.metrics?.[m.key] || 0;
                                              const v2 = periodCalculations[i+1].metrics?.[m.key] || 0;
                                              const chg = v1 === 0 ? 0 : ((v2 - v1) / v1) * 100;
                                              return (
-                                               <div key={i} className="flex-1 flex flex-col items-center justify-center p-3 rounded-xl bg-white border border-gray-100">
-                                                  <span className="text-[8px] font-black text-gray-300 uppercase tracking-widest mb-1">{p.label} → {periodCalculations[i+1].label}</span>
-                                                  <span className={`text-[10px] font-black font-mono ${chg >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                               <div key={i} className="flex-1 flex flex-col items-center justify-center p-3 rounded-xl bg-white border border-gray-200 hover:border-gray-300 shadow-sm transition-colors">
+                                                  <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1 truncate max-w-[80px] text-center">{p.label} → {periodCalculations[i+1].label}</span>
+                                                  <span className={`font-black font-mono tracking-tight ${compareFontSize} ${chg >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
                                                     {chg >= 0 ? '+' : ''}{chg.toFixed(1)}%
                                                   </span>
                                                </div>
@@ -3182,11 +3276,27 @@ const SalesAnalyzer = () => {
                                     </div>
                                   ))}
                                 </div>
+                                )}
                               </div>
 
-                              <div className="bg-white rounded-[24px] p-3 border border-gray-100 shadow-sm flex flex-col">
-                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-6">Multi-Period Insights</h4>
-                                <div className="flex-1 space-y-3">
+                              <div className="bg-white rounded-[24px] border border-gray-100 shadow-sm overflow-hidden flex flex-col">
+                                <div 
+                                  className="px-6 py-4 border-b border-gray-100 bg-gray-50/20 flex items-center justify-between cursor-pointer hover:bg-gray-50/80 transition-colors"
+                                  onClick={() => toggleCompareCollapse('insights')}
+                                >
+                                  <div>
+                                    <h4 className="text-[10px] font-black text-gray-900 uppercase tracking-widest">Multi-Period Insights</h4>
+                                    {compareCollapsed.insights && (
+                                      <p className="text-[9px] text-gray-500 font-bold uppercase tracking-tight mt-1">Auto-generated performance analysis</p>
+                                    )}
+                                  </div>
+                                  <button className="flex items-center justify-center p-1.5 rounded-full hover:bg-gray-200 text-gray-500 transition-colors">
+                                     <ChevronDown size={16} className={`transition-transform duration-300 ${compareCollapsed.insights ? '-rotate-90' : 'rotate-0'}`} />
+                                  </button>
+                                </div>
+                                
+                                {!compareCollapsed.insights && (
+                                <div className="p-4 flex-1 space-y-3 bg-white">
                                    {(() => {
                                       const insights = [];
                                       const netValM = metricsList.find(m => m.key === 'netValue');
@@ -3226,14 +3336,29 @@ const SalesAnalyzer = () => {
                                       ));
                                    })()}
                                 </div>
+                                )}
                               </div>
                             </div>
 
                             {/* Charts Wrapper */}
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                              <div className="bg-white rounded-[24px] p-3 border border-gray-100 shadow-sm">
-                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-6">Metric Volume Comparison</h4>
-                                <div className="h-[350px]">
+                              <div className="bg-white rounded-[24px] border border-gray-100 shadow-sm overflow-hidden flex flex-col">
+                                <div 
+                                  className="px-6 py-4 border-b border-gray-100 bg-gray-50/20 flex items-center justify-between cursor-pointer hover:bg-gray-50/80 transition-colors"
+                                  onClick={() => toggleCompareCollapse('volumeChart')}
+                                >
+                                  <div>
+                                    <h4 className="text-[10px] font-black text-gray-900 uppercase tracking-widest">Metric Volume Comparison</h4>
+                                    {compareCollapsed.volumeChart && (
+                                      <p className="text-[9px] text-gray-500 font-bold uppercase tracking-tight mt-1">Bar chart view of key metrics</p>
+                                    )}
+                                  </div>
+                                  <button className="flex items-center justify-center p-1.5 rounded-full hover:bg-gray-200 text-gray-500 transition-colors">
+                                     <ChevronDown size={16} className={`transition-transform duration-300 ${compareCollapsed.volumeChart ? '-rotate-90' : 'rotate-0'}`} />
+                                  </button>
+                                </div>
+                                {!compareCollapsed.volumeChart && (
+                                <div className="h-[350px] p-4">
                                   <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={[
                                       { metric: 'Net Qty', ...periodCalculations.reduce((acc, p) => ({ ...acc, [p.label]: p.metrics.netQty }), {}) },
@@ -3252,11 +3377,26 @@ const SalesAnalyzer = () => {
                                     </BarChart>
                                   </ResponsiveContainer>
                                 </div>
+                                )}
                               </div>
 
-                              <div className="bg-white rounded-[24px] p-3 border border-gray-100 shadow-sm">
-                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-6">Value Trend Across Periods</h4>
-                                <div className="h-[350px]">
+                              <div className="bg-white rounded-[24px] border border-gray-100 shadow-sm overflow-hidden flex flex-col">
+                                <div 
+                                  className="px-6 py-4 border-b border-gray-100 bg-gray-50/20 flex items-center justify-between cursor-pointer hover:bg-gray-50/80 transition-colors"
+                                  onClick={() => toggleCompareCollapse('trendChart')}
+                                >
+                                  <div>
+                                    <h4 className="text-[10px] font-black text-gray-900 uppercase tracking-widest">Value Trend Across Periods</h4>
+                                    {compareCollapsed.trendChart && (
+                                      <p className="text-[9px] text-gray-500 font-bold uppercase tracking-tight mt-1">Line chart of net value progression</p>
+                                    )}
+                                  </div>
+                                  <button className="flex items-center justify-center p-1.5 rounded-full hover:bg-gray-200 text-gray-500 transition-colors">
+                                     <ChevronDown size={16} className={`transition-transform duration-300 ${compareCollapsed.trendChart ? '-rotate-90' : 'rotate-0'}`} />
+                                  </button>
+                                </div>
+                                {!compareCollapsed.trendChart && (
+                                <div className="h-[350px] p-4">
                                   <ResponsiveContainer width="100%" height="100%">
                                     <LineChart data={periodCalculations.map(p => ({ period: p.label, value: p.metrics.netValue }))}>
                                       <XAxis dataKey="period" fontSize={10} axisLine={false} tickLine={false} />
@@ -3269,19 +3409,33 @@ const SalesAnalyzer = () => {
                                     </LineChart>
                                   </ResponsiveContainer>
                                 </div>
+                                )}
                               </div>
                             </div>
 
                             {/* Performance Analysis Section */}
                             <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden flex flex-col">
-                               <div className="px-8 py-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/20">
-                                  <div>
-                                    <h4 className="text-xl font-black text-gray-900 uppercase tracking-tighter">Performance Analysis</h4>
-                                    <p className="text-[10px] text-gray-400 font-bold uppercase mt-1">Cross-period breakdown by {perfDimension}</p>
+                               <div 
+                                 className="px-8 py-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/20 cursor-pointer hover:bg-gray-50/60 transition-colors"
+                                 onClick={() => toggleCompareCollapse('perfAnalysis')}
+                               >
+                                  <div className="flex items-center justify-between w-full">
+                                    <div>
+                                      <h4 className="text-xl font-black text-gray-900 uppercase tracking-tighter">Performance Analysis</h4>
+                                      {compareCollapsed.perfAnalysis && (
+                                        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight mt-1">Cross-period breakdown table by {perfDimension}</p>
+                                      )}
+                                      {!compareCollapsed.perfAnalysis && (
+                                        <p className="text-[10px] text-gray-400 font-bold uppercase mt-1">Cross-period breakdown by {perfDimension}</p>
+                                      )}
+                                    </div>
+                                    <button className="flex items-center justify-center p-1.5 rounded-full hover:bg-gray-200 text-gray-500 transition-colors">
+                                       <ChevronDown size={18} className={`transition-transform duration-300 ${compareCollapsed.perfAnalysis ? '-rotate-90' : 'rotate-0'}`} />
+                                    </button>
                                   </div>
-                                  
                                </div>
 
+                               {!compareCollapsed.perfAnalysis && (
                                <div className="p-8 space-y-2.5">
                                   {/* Selectors Row */}
                                   <div className="flex flex-wrap items-center justify-between gap-6">
@@ -3463,7 +3617,7 @@ const SalesAnalyzer = () => {
 
                                                       return (
                                                         <tr key={row.name} className="border-b border-gray-50 hover:bg-yellow-50/40 transition-colors group">
-                                                           <td className="px-6 py-4 font-black uppercase text-gray-400 text-[10px] w-12 bg-white sticky left-0 z-10 border-r border-gray-100 group-hover:bg-yellow-50/60">
+                                                           <td className="px-6 py-2.5 font-black uppercase text-gray-400 text-[10px] w-12 bg-white sticky left-0 z-10 border-r border-gray-100 group-hover:bg-yellow-50/60">
                                                               <div className="flex items-center gap-2">
                                                                 {rank}
                                                                 {rank === 1 && '🥇'}
@@ -3471,32 +3625,32 @@ const SalesAnalyzer = () => {
                                                                 {rank === 3 && '🥉'}
                                                               </div>
                                                            </td>
-                                                           <td className="px-6 py-4 font-black text-gray-900 uppercase tracking-tight text-[10px] bg-white sticky left-12 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.03)] border-r border-gray-100 group-hover:bg-yellow-50/60 truncate max-w-[200px]">
+                                                           <td className={`px-6 py-2.5 font-black text-gray-900 uppercase tracking-tight ${compareFontSize} bg-white sticky left-12 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.03)] border-r border-gray-100 group-hover:bg-yellow-50/60 truncate max-w-[200px]`}>
                                                               {row.name}
                                                            </td>
                                                            {row.pValues.map((pv, i) => {
                                                               const isBest = pv.val === maxInRow && maxInRow > 0;
                                                               const isWorst = pv.val === minInRow && minInRow > 0 && maxInRow !== minInRow;
                                                               return (
-                                                                <td key={pv.id} className={`px-6 py-4 text-right font-mono font-bold ${isBest ? 'bg-emerald-50/40 border-l-2 border-emerald-400 text-emerald-700' : isWorst ? 'bg-red-50/40 text-red-600' : 'text-gray-600'}`}>
+                                                                <td key={pv.id} className={`px-6 py-2.5 text-right font-mono font-bold ${compareFontSize} ${isBest ? 'bg-emerald-50/40 border-l-2 border-emerald-400 text-emerald-700' : isWorst ? 'bg-red-50/40 text-red-600' : 'text-gray-600'}`}>
                                                                   {pv.val > 0 ? (perfMetric === 'netValue' ? Math.round(pv.val).toLocaleString() : pv.val.toLocaleString()) : '—'}
                                                                 </td>
                                                               );
                                                            })}
-                                                           <td className="px-6 py-4 text-right bg-blue-50/30 font-black text-blue-800 font-mono">
+                                                           <td className={`px-6 py-2.5 text-right bg-blue-50/30 font-black text-blue-800 font-mono ${compareFontSize}`}>
                                                               {Math.round(row.total).toLocaleString()}
                                                            </td>
-                                                           <td className="px-6 py-4 text-right bg-gray-50/30 font-bold text-gray-600 font-mono">
+                                                           <td className={`px-6 py-2.5 text-right bg-gray-50/30 font-bold text-gray-600 font-mono ${compareFontSize}`}>
                                                               {Math.round(row.avg).toLocaleString()}
                                                            </td>
-                                                           <td className="px-6 py-4 text-center">
+                                                           <td className="px-6 py-2.5 text-center">
                                                               {row.bestPeriod ? (
                                                                 <span className="inline-block px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tighter" style={{ backgroundColor: row.bestPeriod.color + '20', color: row.bestPeriod.color }}>
                                                                   {row.bestPeriod.label}
                                                                 </span>
                                                               ) : '—'}
                                                            </td>
-                                                           <td className="px-6 py-4 text-center">
+                                                           <td className="px-6 py-2.5 text-center">
                                                               <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black ${row.trendPct > 0 ? 'bg-emerald-100 text-emerald-700' : row.trendPct < 0 ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
                                                                 {row.trendPct > 0 ? '▲' : row.trendPct < 0 ? '▼' : '—'}
                                                                 {Math.abs(row.trendPct).toFixed(0)}%
@@ -3517,6 +3671,7 @@ const SalesAnalyzer = () => {
                                      <p className="text-[10px] font-bold text-gray-400 tracking-widest uppercase">Scroll horizontally to view all periods</p>
                                   </div>
                                </div>
+                               )}
                             </div>
 
                           </div>

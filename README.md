@@ -42,6 +42,7 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 
 ## Version History
 
+- **v1.0.468:** Added Clear All button for periods, and improved conditional rendering to prevent heavy calculations when less than 2 periods exist.
 - **v1.0.467:** Enhanced Compare tool: Quick Month picker is now single row, added inactive dates note, fixed period creation absolute dates, added Save/Load period preset manager handling data availability validation, and added period description editing field within the card.
 - **v1.0.466:** Overhauled the Compare Tool tab in SalesAnalyzer: removed default periods, added empty and single-period states, implemented compact month cards in the Quick Month Picker, hid already added months, and ensured instant calculation.
 - **v1.0.451:** Fixed missing Search icon import in ReportsTab.jsx.
@@ -86,6 +87,7 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 - **v1.0.033:** Data Lens v3.4: Fixed "Full Period" button logic with all-rows derivation, implemented compact responsive KPI cards with individual accent borders, and updated MR Cards with clickable header expand/collapse and real-time date filtering.
 - **v1.0.032:** Resolved "Maximum update depth exceeded" infinite loop bug by stabilizing `onDataLoaded` dependencies via `useCallback` and hardening the `IntersectionObserver` scroll-tab synchronization with state update guards and fixed-height layout.
 - **v1.0.031:** Fixed `Uncaught RangeError: Invalid time value` by adding safety guards to date parsing utilities in `periodRules.js`, `forecastEngine.js`, and components.
+- **v1.0.469:** Enhanced Compare Tool within SalesAnalyzer. Implemented collapsible sections across all results cards (Metrics Comparison, PoP Shift, Insights, Charts, Performance Analysis). Adjusted table row heights dynamically to match content and implemented global font size controls. Refined empty-state logic to prevent calculations unless exactly two or more periods are selected, and added a specific "Clear All" configuration option for custom periods alongside period quick selection.
 - **v1.0.030:** Fixed over-expanded UI scaling, implemented sticky navigation tabs below navbar, corrected 'Full Period' date range logic, and rebuilt forecast engine for total period accuracy.
 - **v1.0.029:** Fixed ReferenceError for working day utility functions in `csvAnalyzer.js` and `TeamOverviewTable.jsx`.
 - **v1.0.028:** Data Lens v3.2 Updates Phase 2: Added Collapsible MR Cards, updated the Forecast Calculator formula logic and styling, and implemented a newly rebuilt Full Calendar View for MR activities with inline detailing details.
@@ -105,4 +107,4 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 - **v1.0.001:** Initial release. Authentication, CSV parsing, Analysis tools, and Admin panel implemented.
 
 ---
-© 2026 Data Lens Analytics | version 1.0.466
+© 2026 Data Lens Analytics | version 1.0.469
