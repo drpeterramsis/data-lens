@@ -87,6 +87,8 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 - **v1.0.033:** Data Lens v3.4: Fixed "Full Period" button logic with all-rows derivation, implemented compact responsive KPI cards with individual accent borders, and updated MR Cards with clickable header expand/collapse and real-time date filtering.
 - **v1.0.032:** Resolved "Maximum update depth exceeded" infinite loop bug by stabilizing `onDataLoaded` dependencies via `useCallback` and hardening the `IntersectionObserver` scroll-tab synchronization with state update guards and fixed-height layout.
 - **v1.0.031:** Fixed `Uncaught RangeError: Invalid time value` by adding safety guards to date parsing utilities in `periodRules.js`, `forecastEngine.js`, and components.
+- **v1.0.478:** Expanded Compare Tool fullscreen header to display all active filters (periods, products, lines, customers, supervisors, and dates) for better analytical context during deep dives.
+- **v1.0.477:** Enhanced Compare Tool fullscreen mode. The header now dynamically displays the currently compared periods with their respective color markers for immediate analytical context.
 - **v1.0.476:** Set 'X-Large' as the default font size for the Compare Tool results.
 - **v1.0.475:** Set 'Product' as the default dimension for Performance Analysis in Compare Tool.
 - **v1.0.474:** Added interactive row selection to Performance Analysis in Compare Tool. Users can now click table rows to dynamically filter the chart, with dedicated controls for Select All, Clear Selection, and a "Reset to Top 10" shortcut.
@@ -114,4 +116,4 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 - **v1.0.001:** Initial release. Authentication, CSV parsing, Analysis tools, and Admin panel implemented.
 
 ---
-© 2026 Data Lens Analytics | version 1.0.476
+© 2026 Data Lens Analytics | version 1.0.478

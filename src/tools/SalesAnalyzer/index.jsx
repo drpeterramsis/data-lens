@@ -17,7 +17,7 @@ import {
 import ReportsTab from '../reports/ReportsTab';
 
 const APP_VERSION = {
-  version: '1.0.476',
+  version: '1.0.478',
   releaseDate: 'May 2026',
   label: 'Dynamic Matrix & Multi-Period Perf Hub'
 };
@@ -2684,9 +2684,56 @@ const SalesAnalyzer = () => {
               {activeTab === 'Compare' && (
                   <div className={compareFullscreen ? "fixed inset-0 z-50 bg-gray-50 overflow-y-auto" : "space-y-2.5"}>
                     {compareFullscreen && (
-                      <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-2.5 bg-white border-b border-gray-100 shadow-sm mb-3">
-                        <span className="text-[10px] font-black text-gray-900">⚖️ Compare Tool</span>
-                        <button onClick={() => setCompareFullscreen(false)} className="px-3 py-1.5 text-[10px] font-bold bg-gray-100 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors">✕ Exit</button>
+                      <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-2 bg-white border-b border-gray-100 shadow-sm mb-3">
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          <span className="text-[10px] font-black text-gray-900 border-r border-gray-200 pr-3 mr-1 uppercase shrink-0">⚖️ Compare Tool</span>
+                          <div className="flex gap-1 overflow-x-auto no-scrollbar scroll-smooth active:cursor-grabbing">
+                             {/* Periods */}
+                             {periods.map(p => (
+                               <div key={p.id} className="flex items-center gap-1.5 px-2 py-1 rounded-full border border-gray-100 bg-gray-50/50 shadow-sm whitespace-nowrap">
+                                  <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: p.color || '#CBD5E1' }}></div>
+                                  <span className="text-[9px] font-black text-gray-600 uppercase">{p.label}</span>
+                               </div>
+                             ))}
+
+                             {/* Filters Divider */}
+                             {(filters.branch?.length > 0 || filters.supervisor?.length > 0 || filters.mrName?.length > 0 || filters.line?.length > 0 || filters.customer?.length > 0 || filters.product?.length > 0 || filters.customerType?.length > 0) && (
+                               <div className="w-px h-4 bg-gray-200 mx-1 self-center shrink-0" />
+                             )}
+
+                             {/* Active Filters */}
+                             {[
+                               { key: 'branch', label: 'Branches', icon: '🏢' },
+                               { key: 'supervisor', label: 'Supervisors', icon: '👮' },
+                               { key: 'mrName', label: 'MRs', icon: '👨‍💼' },
+                               { key: 'line', label: 'Lines', icon: '🛣️' },
+                               { key: 'customer', label: 'Customers', icon: '👤' },
+                               { key: 'product', label: 'Products', icon: '📦' },
+                               { key: 'customerType', label: 'Types', icon: '🏷️' }
+                             ].map(f => {
+                               if (!filters[f.key] || filters[f.key].length === 0) return null;
+                               return (
+                                 <div key={f.key} className="flex items-center gap-1.5 px-2 py-1 rounded-full border border-blue-50 bg-blue-50/30 whitespace-nowrap">
+                                    <span className="text-[10px]">{f.icon}</span>
+                                    <span className="text-[9px] font-black text-blue-600 uppercase">
+                                      {filters[f.key].length === 1 ? filters[f.key][0] : `${filters[f.key].length} ${f.label}`}
+                                    </span>
+                                 </div>
+                               );
+                             })}
+
+                             {/* Date Range if set */}
+                             {(filters.fromDate || filters.toDate) && (
+                               <div className="flex items-center gap-1.5 px-2 py-1 rounded-full border border-emerald-50 bg-emerald-50/30 whitespace-nowrap">
+                                  <Calendar size={10} className="text-emerald-600" />
+                                  <span className="text-[9px] font-black text-emerald-600 uppercase">
+                                    {filters.fromDate ? new Date(filters.fromDate).toLocaleDateString('en-GB', {day:'2-digit', month:'short'}) : '...'} - {filters.toDate ? new Date(filters.toDate).toLocaleDateString('en-GB', {day:'2-digit', month:'short'}) : '...'}
+                                  </span>
+                               </div>
+                             )}
+                          </div>
+                        </div>
+                        <button onClick={() => setCompareFullscreen(false)} className="px-3 py-1.5 text-[10px] font-black bg-gray-900 text-white hover:bg-red-600 rounded-xl transition-all shadow-md active:scale-95 uppercase shrink-0">✕ Exit Fullscreen</button>
                       </div>
                     )}
                     
