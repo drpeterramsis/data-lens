@@ -17,7 +17,7 @@ import {
 import ReportsTab from '../reports/ReportsTab';
 
 const APP_VERSION = {
-  version: '1.0.478',
+  version: '1.0.479',
   releaseDate: 'May 2026',
   label: 'Dynamic Matrix & Multi-Period Perf Hub'
 };
@@ -1317,7 +1317,24 @@ const SalesAnalyzer = () => {
     filteredData.forEach(row => {
         const key = row.customerId || row.customerName;
         if (!map[key]) {
-            map[key] = { customerName: row.customerName, customerType: row.customerType, mrName: row.mrName, branch: row.branch, netQty: 0, netValue: 0, returnQty: 0, returnValue: 0, products: new Set(), invoices: new Set(), dates: [] };
+            map[key] = { 
+              customerName: row.customerName, 
+              customerType: row.customerType, 
+              mrName: row.mrName, 
+              branch: row.branch, 
+              supervisor: row.supervisor,
+              line: row.lineName,
+              netQty: 0, 
+              netValue: 0, 
+              returnQty: 0, 
+              returnValue: 0, 
+              products: new Set(), 
+              lines: new Set(),
+              supervisors: new Set(),
+              mrs: new Set(),
+              invoices: new Set(), 
+              dates: [] 
+            };
         }
         const c = map[key];
         c.netQty += row.netQty;
@@ -1325,10 +1342,19 @@ const SalesAnalyzer = () => {
         c.returnQty += Math.abs(row.returnQty);
         c.returnValue += Math.abs(row.returnValue);
         c.products.add(row.productName);
+        c.lines.add(row.lineName);
+        c.supervisors.add(row.supervisor);
+        c.mrs.add(row.mrName);
         c.invoices.add(row.invoiceNo);
         if (row.invoiceDate instanceof Date && !isNaN(row.invoiceDate)) c.dates.push(row.invoiceDate.getTime());
     });
-    return Object.values(map).map(r => ({ ...r, productCount: r.products.size, invoiceCount: r.invoices.size, firstDate: r.dates.length > 0 ? new Date(Math.min(...r.dates)) : null, lastDate: r.dates.length > 0 ? new Date(Math.max(...r.dates)) : null }));
+    return Object.values(map).map(r => ({ 
+      ...r, 
+      productCount: r.products.size, 
+      invoiceCount: r.invoices.size, 
+      firstDate: r.dates.length > 0 ? new Date(Math.min(...r.dates)) : null, 
+      lastDate: r.dates.length > 0 ? new Date(Math.max(...r.dates)) : null 
+    }));
   }, [filteredData]);
 
   const { sorted: sortedCustomers, sortKey: custSortKey, sortDir: custSortDir, toggle: custToggle } = useSortableTable(byCustomer, 'netQty', 'desc');
@@ -2623,7 +2649,22 @@ const SalesAnalyzer = () => {
                                 <SortableTH label="Ret.Val" sortKey="returnValue" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} className="text-right" />
                               </tr>
                             </thead>
-                            <tbody>{(sortedCustomers || []).filter(c=>c.customerName?.toLowerCase().includes(customerSearch.toLowerCase())).slice(0, 50).map((c, i) => (
+                            <tbody>{(sortedCustomers || []).filter(c => {
+                              const s = customerSearch.toLowerCase();
+                              if (!s) return true;
+                              return (
+                                (c.customerName || '').toLowerCase().includes(s) ||
+                                (c.customerType || '').toLowerCase().includes(s) ||
+                                (c.mrName || '').toLowerCase().includes(s) ||
+                                (c.branch || '').toLowerCase().includes(s) ||
+                                (c.line || '').toLowerCase().includes(s) ||
+                                (c.supervisor || '').toLowerCase().includes(s) ||
+                                Array.from(c.products || []).some(p => (p || '').toLowerCase().includes(s)) ||
+                                Array.from(c.lines || []).some(l => (l || '').toLowerCase().includes(s)) ||
+                                Array.from(c.supervisors || []).some(sup => (sup || '').toLowerCase().includes(s)) ||
+                                Array.from(c.mrs || []).some(mr => (mr || '').toLowerCase().includes(s))
+                              );
+                            }).slice(0, 50).map((c, i) => (
                               <tr key={i}
                                 onClick={() => setDrillModal({ open: true, type: 'customer', data: c })}
                                 className="border-b hover:bg-blue-50 cursor-pointer">
@@ -2678,7 +2719,48 @@ const SalesAnalyzer = () => {
                             <tbody>{trendData.map(t => <tr key={t.period} className="border-b hover:bg-blue-50"><td className="p-2 font-semibold">{t.period}</td><td className="p-2 text-right">{t.invoiceCount.toLocaleString()}</td><td className="p-2 text-right"><FormatNum val={t.netQty} /></td><td className="p-2 text-right"><FormatNum val={t.netValue} /></td></tr>)}</tbody>
                         </table></div>
                     </div>
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Trend Chart</h4><ResponsiveContainer height={300}><LineChart data={trendData}><XAxis dataKey="period" fontSize={10} /><YAxis fontSize={10} /><Tooltip /><Line type="monotone" dataKey="netQty" stroke="#10B981" /><Line type="monotone" dataKey="netValue" stroke="#3B82F6" /></LineChart></ResponsiveContainer></div>
+                    <div className="bg-white rounded-[32px] shadow-sm border border-gray-100 p-8"><h4 className="text-sm font-black uppercase text-gray-900 tracking-widest mb-6 flex items-center gap-2"><TrendingUp className="text-blue-600" size={18} /> Sales Trend Analysis</h4><ResponsiveContainer height={350}>
+                        <LineChart data={trendData}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F3F5" />
+                          <XAxis 
+                            dataKey="period" 
+                            fontSize={10} 
+                            axisLine={false} 
+                            tickLine={false}
+                            tick={{ fill: '#9CA3AF', fontWeight: 'bold' }}
+                          />
+                          <YAxis 
+                            fontSize={10} 
+                            axisLine={false} 
+                            tickLine={false}
+                            tick={{ fill: '#9CA3AF', fontWeight: 'bold' }}
+                          />
+                          <Tooltip 
+                            contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', padding: '16px' }} 
+                            itemStyle={{ fontSize: '11px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.05em' }}
+                            cursor={{ stroke: '#E5E7EB', strokeWidth: 2 }}
+                          />
+                          <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', paddingTop: '20px' }} />
+                          <Line 
+                            type="monotone" 
+                            dataKey="netQty" 
+                            name="Quantity"
+                            stroke="#10B981" 
+                            strokeWidth={4} 
+                            dot={{ r: 4, fill: '#10B981', strokeWidth: 2, stroke: '#fff' }}
+                            activeDot={{ r: 8, strokeWidth: 0 }}
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="netValue" 
+                            name="Value"
+                            stroke="#3B82F6" 
+                            strokeWidth={4} 
+                            dot={{ r: 4, fill: '#3B82F6', strokeWidth: 2, stroke: '#fff' }}
+                            activeDot={{ r: 8, strokeWidth: 0 }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer></div>
                   </div>
               )}
               {activeTab === 'Compare' && (
