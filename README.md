@@ -87,6 +87,8 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 - **v1.0.033:** Data Lens v3.4: Fixed "Full Period" button logic with all-rows derivation, implemented compact responsive KPI cards with individual accent borders, and updated MR Cards with clickable header expand/collapse and real-time date filtering.
 - **v1.0.032:** Resolved "Maximum update depth exceeded" infinite loop bug by stabilizing `onDataLoaded` dependencies via `useCallback` and hardening the `IntersectionObserver` scroll-tab synchronization with state update guards and fixed-height layout.
 - **v1.0.031:** Fixed `Uncaught RangeError: Invalid time value` by adding safety guards to date parsing utilities in `periodRules.js`, `forecastEngine.js`, and components.
+- **v1.0.476:** Set 'X-Large' as the default font size for the Compare Tool results.
+- **v1.0.475:** Set 'Product' as the default dimension for Performance Analysis in Compare Tool.
 - **v1.0.474:** Added interactive row selection to Performance Analysis in Compare Tool. Users can now click table rows to dynamically filter the chart, with dedicated controls for Select All, Clear Selection, and a "Reset to Top 10" shortcut.
 - **v1.0.473:** Enhanced Compare Tool visuals. In Metrics Comparison, the 'Best' column tag now dynamically matches the period's specific accent color. Restructured Performance Analysis Line Chart to plot top dimensions as individual lines over the period timeline for clearer trend visualization.
 - **v1.0.472:** Optimized Compare Tool UI. Replaced Expand/Collapse buttons with a single smart toggle icon, added font control icons, and fixed "Clear All" logic to reset month selections. Added Bar/Line chart toggle for Performance Analysis top-10 visualization.
@@ -112,4 +114,4 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 - **v1.0.001:** Initial release. Authentication, CSV parsing, Analysis tools, and Admin panel implemented.
 
 ---
-© 2026 Data Lens Analytics | version 1.0.474
+© 2026 Data Lens Analytics | version 1.0.476

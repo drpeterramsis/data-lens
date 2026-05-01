@@ -17,7 +17,7 @@ import {
 import ReportsTab from '../reports/ReportsTab';
 
 const APP_VERSION = {
-  version: '1.0.474',
+  version: '1.0.476',
   releaseDate: 'May 2026',
   label: 'Dynamic Matrix & Multi-Period Perf Hub'
 };
@@ -1038,7 +1038,7 @@ const SalesAnalyzer = () => {
   const [colorPopoverIdx, setColorPopoverIdx] = useState(null);
   
   // Performance Analysis States
-  const [perfDimension, setPerfDimension] = useState('MR');
+  const [perfDimension, setPerfDimension] = useState('Product');
   const [perfMetric, setPerfMetric] = useState('netQty');
   const [perfSearch, setPerfSearch] = useState('');
   const [compareFullscreen, setCompareFullscreen] = useState(false);
@@ -1057,7 +1057,7 @@ const SalesAnalyzer = () => {
   });
   const toggleCompareCollapse = (key) => setCompareCollapsed(prev => ({ ...prev, [key]: !prev[key] }));
 
-  const [compareFontSize, setCompareFontSize] = useState('text-[10px]');
+  const [compareFontSize, setCompareFontSize] = useState('text-[12px]');
   const FONT_OPTIONS = [
     { label: 'Small', value: 'text-[9px]' },
     { label: 'Medium', value: 'text-[10px]' },
