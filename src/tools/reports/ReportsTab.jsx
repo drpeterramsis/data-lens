@@ -670,12 +670,36 @@ const Report1 = ({ data, filterOptions }) => {
       <div className="flex flex-wrap items-center gap-2 px-1">
         <span className="text-[10px] font-black text-gray-400 tracking-wider uppercase">Active Filters:</span>
         <div className="flex flex-wrap gap-2 text-xs">
-          <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-md font-bold border border-blue-100">
-            Row: {dimOptions.find(o => o.value === rowDim)?.label} ({selProducts.length === 0 ? 'All' : selProducts.length})
-          </span>
-          <span className="px-2 py-1 bg-purple-50 text-purple-700 rounded-md font-bold border border-purple-100">
-            Col: {dimOptions.find(o => o.value === colDim)?.label} ({selColumns.length === 0 ? 'All' : selColumns.length})
-          </span>
+          {selProducts.length === 0 ? (
+            <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-md font-bold border border-blue-100">
+              Row: {dimOptions.find(o => o.value === rowDim)?.label} (All)
+            </span>
+          ) : (
+            selProducts.map(p => (
+              <span key={`row_${p}`} className="group flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 rounded-md font-bold border border-blue-100 pr-1">
+                Row: {p}
+                <button onClick={() => setSelProducts(selProducts.filter(x => x !== p))} className="hover:bg-blue-200 p-0.5 rounded text-blue-500 transition-colors">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            ))
+          )}
+
+          {selColumns.length === 0 ? (
+            <span className="px-2 py-1 bg-purple-50 text-purple-700 rounded-md font-bold border border-purple-100">
+              Col: {dimOptions.find(o => o.value === colDim)?.label} (All)
+            </span>
+          ) : (
+            selColumns.map(c => (
+              <span key={`col_${c}`} className="group flex items-center gap-1 px-2 py-1 bg-purple-50 text-purple-700 rounded-md font-bold border border-purple-100 pr-1">
+                Col: {c}
+                <button onClick={() => setSelColumns(selColumns.filter(x => x !== c))} className="hover:bg-purple-200 p-0.5 rounded text-purple-500 transition-colors">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            ))
+          )}
+
           <span className="px-2 py-1 bg-amber-50 text-amber-700 rounded-md font-bold border border-amber-100">
             Metric: {metric.toUpperCase()}
           </span>
