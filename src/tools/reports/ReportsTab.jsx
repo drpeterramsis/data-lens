@@ -50,6 +50,18 @@ const MultiSelect = ({ label, options, selected, onChange, placeholder }) => {
   const [search, setSearch] = useState('');
   const ref = useRef(null);
 
+  React.useEffect(() => {
+    function handleClickOutside(event) {
+      if (ref.current && !ref.current.contains(event.target)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [ref]);
+
   const filtered = options.filter(o =>
     o.toLowerCase().includes(search.toLowerCase())
   );
@@ -244,16 +256,27 @@ const Report1 = ({ data, filterOptions }) => {
   const [groupBy,      setGroupBy]      = useState('month');         // month | quarter
   const [showChart,    setShowChart]    = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+  const [showConfig,   setShowConfig]   = useState(true);
   const [activeView,   setActiveView]   = useState('table');         // table | chart
 
-  const [chartSettings, setChartSettings] = useState({
-    chartType:   'bar',
-    colors:      [...DEFAULT_COLORS],
-    fontSize:    11,
-    showValues:  true,
-    showLegend:  true,
-    chartHeight: 320,
+  const [chartSettings, setChartSettings] = useState(() => {
+    try {
+      const saved = localStorage.getItem('reports_chart_settings');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {
+      chartType:   'bar',
+      colors:      [...DEFAULT_COLORS],
+      fontSize:    11,
+      showValues:  true,
+      showLegend:  true,
+      chartHeight: 320,
+    };
   });
+
+  React.useEffect(() => {
+    localStorage.setItem('reports_chart_settings', JSON.stringify(chartSettings));
+  }, [chartSettings]);
 
   // ── Dimension options ──
   const dimOptions = [
@@ -316,7 +339,7 @@ const Report1 = ({ data, filterOptions }) => {
   }, [baseData, groupBy]);
 
   // ── Matrix data ──
-  // structure: { [rowVal]: { [period]: { [colVal]: { qty, value } } } }
+  // structure: { [rowVal]: { [period]: { [colVal]: { qty, value, returnQty, returnValue } } } }
   const matrix = useMemo(() => {
     const m = {};
     baseData.forEach(r => {
@@ -333,10 +356,12 @@ const Report1 = ({ data, filterOptions }) => {
       if (!m[rowVal])             m[rowVal] = {};
       if (!m[rowVal][period])     m[rowVal][period] = {};
       if (!m[rowVal][period][colVal])
-        m[rowVal][period][colVal] = { qty: 0, value: 0 };
+        m[rowVal][period][colVal] = { qty: 0, value: 0, returnQty: 0, returnValue: 0 };
 
       m[rowVal][period][colVal].qty   += r.netQty;
       m[rowVal][period][colVal].value += r.netValue;
+      m[rowVal][period][colVal].returnQty   += r.returnQty || 0;
+      m[rowVal][period][colVal].returnValue += r.returnValue || 0;
     });
     return m;
   }, [baseData, rowDim, colDim, activeRows, activeCols, groupBy]);
@@ -344,7 +369,7 @@ const Report1 = ({ data, filterOptions }) => {
   // ── Cell value getter ──
   const getCell = (rowVal, period, colVal) => {
     const cell = matrix[rowVal]?.[period]?.[colVal];
-    if (!cell) return { qty: 0, value: 0 };
+    if (!cell) return { qty: 0, value: 0, returnQty: 0, returnValue: 0 };
     return cell;
   };
 
@@ -352,9 +377,34 @@ const Report1 = ({ data, filterOptions }) => {
   const getRowPeriodTotal = (rowVal, period) => {
     return activeCols.reduce((acc, col) => {
       const c = getCell(rowVal, period, col);
-      return { qty: acc.qty + c.qty, value: acc.value + c.value };
-    }, { qty: 0, value: 0 });
+      return { 
+        qty: acc.qty + c.qty, 
+        value: acc.value + c.value,
+        returnQty: acc.returnQty + c.returnQty,
+        returnValue: acc.returnValue + c.returnValue
+      };
+    }, { qty: 0, value: 0, returnQty: 0, returnValue: 0 });
   };
+
+  const periodHasReturns = useMemo(() => {
+    const map = {};
+    periodKeys.forEach(p => {
+      map[p] = false;
+      for (const r of activeRows) {
+        for (const c of activeCols) {
+          const cell = getCell(r, p, c);
+          if (cell.returnQty !== 0 || cell.returnValue !== 0) {
+            map[p] = true;
+            break;
+          }
+        }
+        if (map[p]) break;
+      }
+    });
+    return map;
+  }, [matrix, periodKeys, activeRows, activeCols]);
+
+  const isSingleColMonthly = activeCols.length === 1 && groupBy === 'month';
 
   // ── Grand row total (all periods) ──
   const getRowGrandTotal = (rowVal) => {
@@ -374,17 +424,34 @@ const Report1 = ({ data, filterOptions }) => {
   // ── Format number ──
   const fmtN = (n) => Math.round(n).toLocaleString();
 
+  // Negative styles
+  const negStyle = "text-[#8b0000] bg-[#ffe6e6] px-1 rounded inline-block";
+
   // ── Cell renderer ──
   const renderCell = (qty, value) => {
-    if (metric === 'qty')   return <span className="font-bold">{fmtN(qty)}</span>;
-    if (metric === 'value') return <span className="font-bold">{fmtN(value)}</span>;
+    if (metric === 'qty')   return <span className={`font-bold ${qty < 0 ? negStyle : ''}`}>{fmtN(qty)}</span>;
+    if (metric === 'value') return <span className={`font-bold ${value < 0 ? negStyle.replace('inline-block','inline') : ''}`}>{fmtN(value)}</span>;
     return (
       <div className="text-center leading-tight">
-        <div className="font-black text-gray-800">{fmtN(qty)}</div>
-        <div className="text-[9px] text-blue-600 font-bold">{fmtN(value)}</div>
+        <div className={`font-black ${qty < 0 ? negStyle : 'text-gray-800'}`}>{fmtN(qty)}</div>
+        <div className={`text-[9px] font-bold mt-0.5 ${value < 0 ? negStyle : 'text-blue-600'}`}>{fmtN(value)}</div>
       </div>
     );
   };
+
+  // ── Pagination ──
+  const [page, setPage] = useState(1);
+  const rowsPerPage = 50;
+  
+  React.useEffect(() => {
+    setPage(1);
+  }, [activeRows, activeCols, periodKeys, metric, groupBy]);
+  
+  const paginatedRows = useMemo(() => {
+    return activeRows.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+  }, [activeRows, page, rowsPerPage]);
+  
+  const totalPages = Math.ceil(activeRows.length / rowsPerPage);
 
   // ── Chart data ──
   // For chart: x = period, series = columns (chains)
@@ -452,6 +519,8 @@ const Report1 = ({ data, filterOptions }) => {
     saveAs(blob, `Report1_${groupBy}_${metric}.csv`);
   };
 
+  const isDataExcessive = activeRows.length > 20 || activeCols.length > 20;
+
   // ────────────────────────────────────────────
   // RENDER
   // ────────────────────────────────────────────
@@ -459,15 +528,28 @@ const Report1 = ({ data, filterOptions }) => {
     <div className="space-y-4">
 
       {/* ── Config Panel ── */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-        <h3 className="text-[11px] font-black text-gray-700 uppercase tracking-widest mb-4 flex items-center gap-2">
-          <Settings2 className="w-3.5 h-3.5 text-blue-500" />
-          Report Configuration
-        </h3>
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <button 
+          onClick={() => setShowConfig(!showConfig)}
+          className="w-full flex items-center justify-between p-4 bg-gray-50/50 hover:bg-gray-50 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <Settings2 className="w-4 h-4 text-blue-500" />
+            <h3 className="text-xs font-black text-gray-700 uppercase tracking-widest">Report Configuration</h3>
+            {!showConfig && (
+              <span className="ml-3 text-[10px] font-medium text-gray-500 normal-case tracking-normal">
+                {dimOptions.find(o => o.value === rowDim)?.label} ({activeRows.length}) × {dimOptions.find(o => o.value === colDim)?.label} ({activeCols.length}) • {metric.toUpperCase()} • {groupBy}
+              </span>
+            )}
+          </div>
+          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showConfig ? 'rotate-180' : ''}`} />
+        </button>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        {showConfig && (
+          <div className="p-4 border-t border-gray-100">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
 
-          {/* Row Dimension */}
+              {/* Row Dimension */}
           <div>
             <label className="text-[10px] font-black text-gray-500 uppercase tracking-wider block mb-1.5">Rows (Y-axis)</label>
             <select
@@ -580,9 +662,47 @@ const Report1 = ({ data, filterOptions }) => {
             />
           </div>
         </div>
+        </div>
+        )}
       </div>
 
+      {/* ── Active Filters Summary Label ── */}
+      <div className="flex flex-wrap items-center gap-2 px-1">
+        <span className="text-[10px] font-black text-gray-400 tracking-wider uppercase">Active Filters:</span>
+        <div className="flex flex-wrap gap-2 text-xs">
+          <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-md font-bold border border-blue-100">
+            Row: {dimOptions.find(o => o.value === rowDim)?.label} ({selProducts.length === 0 ? 'All' : selProducts.length})
+          </span>
+          <span className="px-2 py-1 bg-purple-50 text-purple-700 rounded-md font-bold border border-purple-100">
+            Col: {dimOptions.find(o => o.value === colDim)?.label} ({selColumns.length === 0 ? 'All' : selColumns.length})
+          </span>
+          <span className="px-2 py-1 bg-amber-50 text-amber-700 rounded-md font-bold border border-amber-100">
+            Metric: {metric.toUpperCase()}
+          </span>
+          <span className="px-2 py-1 bg-emerald-50 text-emerald-700 rounded-md font-bold border border-emerald-100">
+            Group: {groupBy.toUpperCase()}
+          </span>
+        </div>
+      </div>
+
+      {isDataExcessive && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex flex-col items-center justify-center text-center space-y-2 mt-4 max-w-2xl mx-auto">
+          <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+            <span className="text-xl">⚠️</span>
+          </div>
+          <h4 className="text-red-800 font-bold text-lg">Too Much Data to Render</h4>
+          <p className="text-red-600 text-sm max-w-md">
+            You currently have <strong>{activeRows.length}</strong> {dimOptions.find(o => o.value === rowDim)?.label}s and <strong>{activeCols.length}</strong> {dimOptions.find(o => o.value === colDim)?.label}s selected. 
+            Generating a matrix with all this data will freeze your browser.
+          </p>
+          <p className="text-red-700 text-sm font-semibold pt-2">
+            Please use the configuration above to select a maximum of 20 items per dimension.
+          </p>
+        </div>
+      )}
+
       {/* ── View Toggle + Export ── */}
+      {!isDataExcessive && (
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">View:</span>
@@ -619,14 +739,15 @@ const Report1 = ({ data, filterOptions }) => {
           </button>
         </div>
       </div>
+      )}
 
       {/* ── Chart Settings Panel ── */}
-      {showSettings && (activeView === 'chart' || activeView === 'both') && (
+      {!isDataExcessive && showSettings && (activeView === 'chart' || activeView === 'both') && (
         <ChartSettings settings={chartSettings} onChange={setChartSettings} />
       )}
 
       {/* ── CHART ── */}
-      {(activeView === 'chart' || activeView === 'both') && (
+      {!isDataExcessive && (activeView === 'chart' || activeView === 'both') && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
           <h4 className="text-[11px] font-black text-gray-700 uppercase tracking-widest mb-4">
             {groupBy === 'quarter' ? 'Quarterly' : 'Monthly'} Trend —{' '}
@@ -700,7 +821,7 @@ const Report1 = ({ data, filterOptions }) => {
       )}
 
       {/* ── TABLE ── */}
-      {(activeView === 'table' || activeView === 'both') && (
+      {!isDataExcessive && (activeView === 'table' || activeView === 'both') && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-xs border-collapse" style={{ minWidth: `${400 + periodKeys.length * activeCols.length * 80}px` }}>
@@ -717,15 +838,23 @@ const Report1 = ({ data, filterOptions }) => {
                     {dimOptions.find(o => o.value === colDim)?.label}
                   </th>
 
-                  {periodKeys.map(period => (
-                    <th
-                      key={period}
-                      colSpan={activeCols.length + (groupBy === 'month' ? 1 : 2)} // cols + Total + (Avg if not month)
-                      className="bg-amber-300 text-black px-3 py-2 text-center text-xs font-black border border-amber-200 uppercase tracking-wide"
-                    >
-                      {groupBy === 'month' ? getMonthLabel(period) : getQuarterLabel(period)}
-                    </th>
-                  ))}
+                  {periodKeys.map(period => {
+                    const hideTotal = isSingleColMonthly && !periodHasReturns[period];
+                    let colSpan = activeCols.length;
+                    if (!hideTotal) colSpan++; // Total column
+                    if (groupBy !== 'month') colSpan++; // Avg column
+                    if (isSingleColMonthly && periodHasReturns[period]) colSpan++; // Returns column
+
+                    return (
+                      <th
+                        key={period}
+                        colSpan={colSpan}
+                        className="bg-amber-300 text-black px-3 py-2 text-center text-xs font-black border border-amber-200 uppercase tracking-wide"
+                      >
+                        {groupBy === 'month' ? getMonthLabel(period) : getQuarterLabel(period)}
+                      </th>
+                    );
+                  })}
 
                   {/* Grand Total */}
                   <th
@@ -738,23 +867,33 @@ const Report1 = ({ data, filterOptions }) => {
 
                 {/* ── Row 2: Column names ── */}
                 <tr>
-                  {periodKeys.map(period =>
-                    [...activeCols, '__total', ...(groupBy === 'month' ? [] : ['__avg'])].map((col, ci) => {
+                  {periodKeys.map(period => {
+                    const hideTotal = isSingleColMonthly && !periodHasReturns[period];
+                    const hasReturnsCol = isSingleColMonthly && periodHasReturns[period];
+                    
+                    let colsToRender = [...activeCols];
+                    if (hasReturnsCol) colsToRender.push('__returns');
+                    if (!hideTotal) colsToRender.push('__total');
+                    if (groupBy !== 'month') colsToRender.push('__avg');
+
+                    return colsToRender.map((col, ci) => {
                       const isTotal = col === '__total';
                       const isAvg   = col === '__avg';
+                      const isReturns = col === '__returns';
                       return (
                         <th
                           key={`${period}_${col}`}
                           className={`px-2 py-2 text-center text-[10px] font-black border whitespace-nowrap
                             ${isTotal ? 'bg-amber-500 text-black border-amber-400' :
                               isAvg   ? 'bg-blue-400 text-white border-blue-300' :
+                              isReturns ? 'bg-red-400 text-white border-red-300' :
                                         'bg-amber-100 text-amber-900 border-amber-200'}`}
                         >
-                          {isTotal ? 'Total' : isAvg ? 'Avg/Mo' : col}
+                          {isTotal ? 'Net Total' : isAvg ? 'Avg/Mo' : isReturns ? 'Returns' : col}
                         </th>
                       );
-                    })
-                  )}
+                    });
+                  })}
                   {/* Grand total sub-headers */}
                   <th className="bg-blue-500 text-white px-2 py-2 text-center text-[10px] font-black border border-blue-400">Total</th>
                   <th className="bg-blue-400 text-white px-2 py-2 text-center text-[10px] font-black border border-blue-300">Avg/Mo</th>
@@ -762,7 +901,7 @@ const Report1 = ({ data, filterOptions }) => {
               </thead>
 
               <tbody>
-                {activeRows.map((rowVal, ri) => {
+                {paginatedRows.map((rowVal, ri) => {
                   const grand = getRowGrandTotal(rowVal);
                   const avg   = getRowAvg(rowVal);
                   return (
@@ -777,44 +916,60 @@ const Report1 = ({ data, filterOptions }) => {
 
                       {/* Period cells */}
                       {periodKeys.map(period => {
+                        const hideTotal = isSingleColMonthly && !periodHasReturns[period];
+                        const hasReturnsCol = isSingleColMonthly && periodHasReturns[period];
                         const periodTotal = getRowPeriodTotal(rowVal, period);
                         const periodAvg   = {
                           qty:   periodTotal.qty   / (periodKeys.length || 1),
                           value: periodTotal.value / (periodKeys.length || 1),
                         };
 
-                        return [
-                          ...activeCols.map(col => {
-                            const c = getCell(rowVal, period, col);
+                        let colsToRender = [...activeCols];
+                        if (hasReturnsCol) colsToRender.push('__returns');
+                        if (!hideTotal) colsToRender.push('__total');
+                        if (groupBy !== 'month') colsToRender.push('__avg');
+
+                        return colsToRender.map(col => {
+                          if (col === '__total') {
                             return (
                               <td
-                                key={`${period}_${col}`}
-                                className="px-2 py-2 text-center border-b border-gray-100 border-r border-gray-50 text-xs"
+                                key={`${period}__total`}
+                                className="px-2 py-2 text-center border-b border-gray-100 border-r border-amber-100 bg-amber-50 text-xs font-black text-amber-800"
                               >
-                                {renderCell(c.qty, c.value)}
+                                {renderCell(periodTotal.qty, periodTotal.value)}
                               </td>
                             );
-                          }),
-                          // Total cell
-                          <td
-                            key={`${period}__total`}
-                            className="px-2 py-2 text-center border-b border-gray-100 border-r border-amber-100 bg-amber-50 text-xs font-black text-amber-800"
-                          >
-                            {renderCell(periodTotal.qty, periodTotal.value)}
-                          </td>,
-                          // Avg cell
-                          ...(groupBy === 'month' ? [] : [
+                          }
+                          if (col === '__avg') {
+                            return (
+                              <td
+                                key={`${period}__avg`}
+                                className="px-2 py-2 text-center border-b border-gray-100 border-r border-blue-100 bg-blue-50 text-xs font-black text-blue-700"
+                              >
+                                {renderCell(periodAvg.qty, periodAvg.value)}
+                              </td>
+                            );
+                          }
+                          if (col === '__returns') {
+                            return (
+                              <td
+                                key={`${period}__returns`}
+                                className="px-2 py-2 text-center border-b border-gray-100 border-r border-red-100 bg-red-50 text-xs font-black text-red-800"
+                              >
+                                {renderCell(periodTotal.returnQty, periodTotal.returnValue)}
+                              </td>
+                            );
+                          }
+                          const c = getCell(rowVal, period, col);
+                          return (
                             <td
-                              key={`${period}__avg`}
-                              className="px-2 py-2 text-center border-b border-gray-100 border-r border-blue-100 bg-blue-50 text-xs font-black text-blue-700"
+                              key={`${period}_${col}`}
+                              className="px-2 py-2 text-center border-b border-gray-100 border-r border-gray-50 text-xs"
                             >
-                              {renderCell(
-                                periodAvg.qty,
-                                periodAvg.value
-                              )}
+                              {renderCell(c.qty, c.value)}
                             </td>
-                          ]),
-                        ];
+                          );
+                        });
                       })}
 
                       {/* Grand Total */}
@@ -835,35 +990,57 @@ const Report1 = ({ data, filterOptions }) => {
                     TOTAL
                   </td>
                   {periodKeys.map(period => {
+                    const hideTotal = isSingleColMonthly && !periodHasReturns[period];
+                    const hasReturnsCol = isSingleColMonthly && periodHasReturns[period];
+
                     const colTotals = activeCols.map(col => {
                       return activeRows.reduce((acc, rowVal) => {
                         const c = getCell(rowVal, period, col);
-                        return { qty: acc.qty + c.qty, value: acc.value + c.value };
-                      }, { qty: 0, value: 0 });
+                        return { qty: acc.qty + c.qty, value: acc.value + c.value, returnQty: acc.returnQty + c.returnQty, returnValue: acc.returnValue + c.returnValue };
+                      }, { qty: 0, value: 0, returnQty: 0, returnValue: 0 });
                     });
+                    
                     const periodGrand = colTotals.reduce(
-                      (acc, c) => ({ qty: acc.qty + c.qty, value: acc.value + c.value }),
-                      { qty: 0, value: 0 }
+                      (acc, c) => ({ qty: acc.qty + c.qty, value: acc.value + c.value, returnQty: acc.returnQty + c.returnQty, returnValue: acc.returnValue + c.returnValue }),
+                      { qty: 0, value: 0, returnQty: 0, returnValue: 0 }
                     );
 
-                    return [
-                      ...activeCols.map((col, ci) => (
+                    let colsToRender = [...activeCols];
+                    if (hasReturnsCol) colsToRender.push('__returns');
+                    if (!hideTotal) colsToRender.push('__total');
+                    if (groupBy !== 'month') colsToRender.push('__avg');
+
+                    return colsToRender.map((col, ci) => {
+                      if (col === '__total') {
+                        return (
+                          <td key={`tot_${period}__total`} className="px-2 py-2.5 text-center text-xs font-black border-t border-gray-700 border-r border-gray-700 bg-amber-500 text-black">
+                            {fmtN(metric === 'value' ? periodGrand.value : periodGrand.qty)}
+                          </td>
+                        );
+                      }
+                      if (col === '__avg') {
+                        return (
+                          <td key={`tot_${period}__avg`} className="px-2 py-2.5 text-center text-xs font-black border-t border-gray-700 border-r border-gray-700 bg-blue-500 text-white">
+                            {fmtN(metric === 'value'
+                              ? periodGrand.value / (periodKeys.length || 1)
+                              : periodGrand.qty   / (periodKeys.length || 1)
+                            )}
+                          </td>
+                        );
+                      }
+                      if (col === '__returns') {
+                        return (
+                          <td key={`tot_${period}__returns`} className="px-2 py-2.5 text-center text-xs font-black border-t border-gray-700 border-r border-gray-700 bg-red-500 text-white">
+                            {fmtN(metric === 'value' ? periodGrand.returnValue : periodGrand.returnQty)}
+                          </td>
+                        );
+                      }
+                      return (
                         <td key={`tot_${period}_${col}`} className="px-2 py-2.5 text-center text-xs font-bold border-t border-gray-700 border-r border-gray-700">
                           {fmtN(metric === 'value' ? colTotals[ci].value : colTotals[ci].qty)}
                         </td>
-                      )),
-                      <td key={`tot_${period}__total`} className="px-2 py-2.5 text-center text-xs font-black border-t border-gray-700 border-r border-gray-700 bg-amber-500 text-black">
-                        {fmtN(metric === 'value' ? periodGrand.value : periodGrand.qty)}
-                      </td>,
-                      ...(groupBy === 'month' ? [] : [
-                        <td key={`tot_${period}__avg`} className="px-2 py-2.5 text-center text-xs font-black border-t border-gray-700 border-r border-gray-700 bg-blue-500 text-white">
-                          {fmtN(metric === 'value'
-                            ? periodGrand.value / (periodKeys.length || 1)
-                            : periodGrand.qty   / (periodKeys.length || 1)
-                          )}
-                        </td>
-                      ]),
-                    ];
+                      );
+                    });
                   })}
                   {/* Grand totals */}
                   {(() => {
@@ -886,6 +1063,30 @@ const Report1 = ({ data, filterOptions }) => {
               </tbody>
             </table>
           </div>
+          
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 bg-gray-50">
+              <span className="text-xs text-gray-500 font-medium tracking-wide">
+                Showing {((page - 1) * rowsPerPage) + 1} - {Math.min(page * rowsPerPage, activeRows.length)} of {activeRows.length} rows
+              </span>
+              <div className="flex gap-1.5">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-bold text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
+                >
+                  Prev
+                </button>
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-bold text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

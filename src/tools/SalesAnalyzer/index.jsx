@@ -93,9 +93,9 @@ const DrilldownPanel = ({ invoices, type }) => {
     <div className="px-6 py-4 border-t-2 border-blue-200">
       <div className="flex gap-6 mb-3 flex-wrap">
         <div className="text-xs"><span className="text-gray-400">Invoices: </span><span className="font-bold text-gray-800 ml-1">{(invoices || []).length}</span></div>
-        <div className="text-xs"><span className="text-gray-400">Net Qty: </span><span className="font-bold text-emerald-700 ml-1">{total.netQty.toLocaleString()}</span></div>
-        <div className="text-xs"><span className="text-gray-400">Net Value: </span><span className="font-bold text-gray-800 ml-1">{total.netValue.toLocaleString()} EGP</span></div>
-        <div className="text-xs"><span className="text-gray-400">Returns: </span><span className="font-bold text-red-500 ml-1">{total.returnQty.toLocaleString()} units</span></div>
+        <div className="text-xs"><span className="text-gray-400">Net Qty: </span><span className="font-bold text-emerald-700 ml-1"><FormatNum val={total.netQty} defaultClass="text-emerald-700" /></span></div>
+        <div className="text-xs"><span className="text-gray-400">Net Value: </span><span className="font-bold text-gray-800 ml-1"><FormatNum val={total.netValue} suffix="EGP" defaultClass="text-gray-800" /></span></div>
+        <div className="text-xs"><span className="text-gray-400">Returns: </span><span className="font-bold text-red-500 ml-1"><FormatNum val={total.returnQty} suffix="units" defaultClass="text-red-500" /></span></div>
       </div>
       <div className="overflow-x-auto max-h-[280px] overflow-y-auto rounded-lg border border-blue-100">
         <table className="w-full text-xs border-collapse">
@@ -119,9 +119,9 @@ const DrilldownPanel = ({ invoices, type }) => {
                 {type === 'mr' && (<td className="px-3 py-1.5 text-gray-700 max-w-[180px] truncate">{inv.customerName}</td>)}
                 {type === 'customer' && (<td className="px-3 py-1.5 text-gray-700">{inv.lineName}</td>)}
                 <td className="px-3 py-1.5 text-right text-gray-500">{inv.productCount}</td>
-                <td className="px-3 py-1.5 text-right font-semibold text-emerald-700">{inv.netQty.toLocaleString()}</td>
-                <td className="px-3 py-1.5 text-right text-gray-700">{inv.netValue.toLocaleString()}</td>
-                <td className="px-3 py-1.5 text-right text-red-500">{inv.returnQty > 0 ? inv.returnQty.toLocaleString() : '—'}</td>
+                <td className="px-3 py-1.5 text-right font-semibold text-emerald-700"><FormatNum val={inv.netQty} defaultClass="text-emerald-700 font-semibold" /></td>
+                <td className="px-3 py-1.5 text-right text-gray-700"><FormatNum val={inv.netValue} defaultClass="text-gray-700" /></td>
+                <td className="px-3 py-1.5 text-right text-red-500">{inv.returnQty > 0 ? <FormatNum val={inv.returnQty} defaultClass="text-red-500" /> : '—'}</td>
               </tr>
             ))}
           </tbody>
@@ -132,6 +132,18 @@ const DrilldownPanel = ({ invoices, type }) => {
 };
 
 const formatDate = (d) => d.toLocaleDateString('en-EG', {day:'numeric', month:'short', year:'numeric'});
+
+const FormatNum = ({ val, defaultClass = "", prefix = "", suffix = "" }) => {
+  if (val == null) return "—";
+  const num = parseFloat(val);
+  const isNeg = num < 0;
+  const cls = isNeg ? `text-[#8b0000] bg-[#ffe6e6] px-1 rounded font-bold inline-block` : defaultClass;
+  return (
+    <span className={cls}>
+      {prefix}{num.toLocaleString()}{suffix && ` ${suffix}`}
+    </span>
+  );
+};
 
 const DB_NAME = 'DataLensDB';
 const STORE_NAME = 'sales_data';
@@ -561,8 +573,8 @@ const MRCompareTable = ({
                     {isNew && <span className="ml-2 text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-bold">NEW</span>}
                     {isGone && <span className="ml-2 text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-bold">GONE</span>}
                   </td>
-                  <td className="px-3 py-2 text-right text-blue-700 font-mono">{row.aQty.toLocaleString()}</td>
-                  <td className="px-3 py-2 text-right text-purple-700 font-mono">{row.bQty.toLocaleString()}</td>
+                  <td className="px-3 py-2 text-right text-blue-700 font-mono"><FormatNum val={row.aQty} defaultClass="text-blue-700" /></td>
+                  <td className="px-3 py-2 text-right text-purple-700 font-mono"><FormatNum val={row.bQty} defaultClass="text-purple-700" /></td>
                   <td className="px-3 py-2 text-right">
                     {row.pct === null ? (
                       <span className="text-gray-300">—</span>
@@ -572,8 +584,8 @@ const MRCompareTable = ({
                       </span>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-right font-mono text-gray-600">{row.aValue.toLocaleString()}</td>
-                  <td className="px-3 py-2 text-right font-mono text-gray-600">{row.bValue.toLocaleString()}</td>
+                  <td className="px-3 py-2 text-right font-mono text-gray-600"><FormatNum val={row.aValue} defaultClass="text-gray-600" /></td>
+                  <td className="px-3 py-2 text-right font-mono text-gray-600"><FormatNum val={row.bValue} defaultClass="text-gray-600" /></td>
                   <td className="px-3 py-2 text-right text-gray-500">{row.aCust}</td>
                   <td className="px-3 py-2 text-right text-gray-500">{row.bCust}</td>
                 </tr>
@@ -2031,7 +2043,7 @@ const SalesAnalyzer = () => {
                               </tr>
                             </thead>
                             <tbody>{sortedProducts.map((p, i) => <tr key={p.productName} className={`border-b ${i<3 ? (i===0?'border-l-4 border-l-yellow-400':i===1?'border-l-4 border-l-gray-400':'border-l-4 border-l-orange-400'):''} hover:bg-blue-50`}>
-                                <td className="p-2">{i+1}</td><td className="p-2 font-semibold">{p.productName}</td><td className="p-2 text-right">{p.netQty.toLocaleString()}</td><td className="p-2 text-right">{p.netValue.toLocaleString()}</td><td className="p-2 text-right">{p.pct}%</td></tr>)}</tbody>
+                                <td className="p-2">{i+1}</td><td className="p-2 font-semibold">{p.productName}</td><td className="p-2 text-right"><FormatNum val={p.netQty} /></td><td className="p-2 text-right"><FormatNum val={p.netValue} /></td><td className="p-2 text-right">{p.pct}%</td></tr>)}</tbody>
                         </table></div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
@@ -2065,8 +2077,8 @@ const SalesAnalyzer = () => {
                                   </div>
                                 </td>
                                 <td className="p-2 font-semibold">{m.mrName}</td>
-                                <td className="p-2 text-right">{m.netQty.toLocaleString()}</td>
-                                <td className="p-2 text-right">{m.netValue.toLocaleString()}</td>
+                                <td className="p-2 text-right"><FormatNum val={m.netQty} /></td>
+                                <td className="p-2 text-right"><FormatNum val={m.netValue} /></td>
                                 <td className="p-2 text-right">{m.pct}%</td>
                               </tr>
                             ))}</tbody>
@@ -2115,10 +2127,10 @@ const SalesAnalyzer = () => {
                                 <td className="p-2">{fmt(c.firstDate)}</td>
                                 <td className="p-2">{fmt(c.lastDate)}</td>
                                 <td className="p-2 text-right font-mono">{c.productCount}</td>
-                                <td className="p-2 text-right font-mono font-semibold text-emerald-700">{c.netQty.toLocaleString()}</td>
-                                <td className="p-2 text-right font-mono">{c.netValue.toLocaleString()}</td>
-                                <td className="p-2 text-right font-mono text-red-500">{c.returnQty.toLocaleString()}</td>
-                                <td className="p-2 text-right font-mono text-red-400">{c.returnValue.toLocaleString()}</td>
+                                <td className="p-2 text-right font-mono font-semibold"><FormatNum val={c.netQty} defaultClass="text-emerald-700" /></td>
+                                <td className="p-2 text-right font-mono"><FormatNum val={c.netValue} /></td>
+                                <td className="p-2 text-right font-mono text-red-500"><FormatNum val={c.returnQty} defaultClass="text-red-500" /></td>
+                                <td className="p-2 text-right font-mono text-red-400"><FormatNum val={c.returnValue} defaultClass="text-red-400" /></td>
                               </tr>
                             ))}</tbody>
                         </table></div>
@@ -2137,7 +2149,7 @@ const SalesAnalyzer = () => {
                                 <SortableTH label="%" sortKey="pct" currentKey={branchSortKey} dir={branchSortDir} onSort={branchToggle} className="text-right" />
                               </tr>
                             </thead>
-                            <tbody>{sortedBranch.map(b => <tr key={b.branch} className="border-b hover:bg-blue-50"><td className="p-2 font-semibold">{b.branch}</td><td className="p-2 text-right">{b.netQty.toLocaleString()}</td><td className="p-2 text-right">{b.pct}%</td></tr>)}</tbody>
+                            <tbody>{sortedBranch.map(b => <tr key={b.branch} className="border-b hover:bg-blue-50"><td className="p-2 font-semibold">{b.branch}</td><td className="p-2 text-right"><FormatNum val={b.netQty} /></td><td className="p-2 text-right">{b.pct}%</td></tr>)}</tbody>
                         </table></div>
                     </div>
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Branch vs Net Qty</h4><ResponsiveContainer height={260}><BarChart data={sortedBranch} layout="vertical" margin={{left: 60}}><XAxis type="number" fontSize={10} /><YAxis dataKey="branch" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netQty" fill="#F59E0B" /></BarChart></ResponsiveContainer></div>
@@ -2149,7 +2161,7 @@ const SalesAnalyzer = () => {
                         <div className="px-5 py-4 border-b border-gray-100"><h3 className="font-bold text-gray-800">Trend Data</h3><div className="flex gap-2 mt-2"><button onClick={()=>setTrendGroup('daily')} className={`px-3 py-1 rounded text-xs ${trendGroup==='daily'?'bg-blue-600 text-white':'bg-gray-200'}`}>Daily</button><button onClick={()=>setTrendGroup('monthly')} className={`px-3 py-1 rounded text-xs ${trendGroup==='monthly'?'bg-blue-600 text-white':'bg-gray-200'}`}>Monthly</button></div></div>
                         <div className="overflow-x-auto max-h-[420px] overflow-y-auto"><table className="w-full text-sm">
                             <thead className="sticky top-0 bg-gray-50 z-10"><tr className="text-xs text-gray-500 uppercase"><th className="p-2 text-left">Period</th><th className="p-2 text-right">Invoices</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">Value</th></tr></thead>
-                            <tbody>{trendData.map(t => <tr key={t.period} className="border-b hover:bg-blue-50"><td className="p-2 font-semibold">{t.period}</td><td className="p-2 text-right">{t.invoiceCount.toLocaleString()}</td><td className="p-2 text-right">{t.netQty.toLocaleString()}</td><td className="p-2 text-right">{t.netValue.toLocaleString()}</td></tr>)}</tbody>
+                            <tbody>{trendData.map(t => <tr key={t.period} className="border-b hover:bg-blue-50"><td className="p-2 font-semibold">{t.period}</td><td className="p-2 text-right">{t.invoiceCount.toLocaleString()}</td><td className="p-2 text-right"><FormatNum val={t.netQty} /></td><td className="p-2 text-right"><FormatNum val={t.netValue} /></td></tr>)}</tbody>
                         </table></div>
                     </div>
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Trend Chart</h4><ResponsiveContainer height={300}><LineChart data={trendData}><XAxis dataKey="period" fontSize={10} /><YAxis fontSize={10} /><Tooltip /><Line type="monotone" dataKey="netQty" stroke="#10B981" /><Line type="monotone" dataKey="netValue" stroke="#3B82F6" /></LineChart></ResponsiveContainer></div>
