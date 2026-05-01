@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useMemo } from 'react';
 import {
-  ChevronDown, X, BarChart3, Table2,
+  ChevronDown, X, BarChart3, Table2, Search,
   Palette, Settings2, Download, Maximize2, Minimize2
 } from 'lucide-react';
 import {
