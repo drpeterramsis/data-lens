@@ -4,19 +4,20 @@ import {
   Grid, Upload, RefreshCw, ChevronLeft, ChevronRight, 
   ChevronDown, Filter, Users, Search, X, 
   Trash2, Save, Edit2, Plus, CheckCircle2, History, Clock,
-  Calendar, AlertCircle, Expand, Download
+  Calendar, AlertCircle, Expand, Download,
+  Maximize2, Minimize2, Type, ChevronsUpDown, TrendingUp
 } from 'lucide-react';
 
 import * as XLSX from 'xlsx';
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, 
-  PieChart, Pie, Cell, Legend, LineChart, Line 
+  PieChart, Pie, Cell, Legend, LineChart, Line, CartesianGrid
 } from 'recharts';
 
 import ReportsTab from '../reports/ReportsTab';
 
 const APP_VERSION = {
-  version: '1.0.465',
+  version: '1.0.473',
   releaseDate: 'May 2026',
   label: 'Dynamic Matrix & Multi-Period Perf Hub'
 };
@@ -1043,6 +1044,7 @@ const SalesAnalyzer = () => {
   const [compareFullscreen, setCompareFullscreen] = useState(false);
   const [perfSortKey, setPerfSortKey] = useState('total');
   const [perfSortDir, setPerfSortDir] = useState('desc');
+  const [perfChartType, setPerfChartType] = useState('bar');
   
   const [compareCollapsed, setCompareCollapsed] = useState({
     metrics: false,
@@ -2801,27 +2803,38 @@ const SalesAnalyzer = () => {
                           <p className="text-[10px] text-gray-400 font-medium mt-1">Manage up to 12 date ranges for deep comparative analysis</p>
                         </div>
                         <div className="flex gap-2 relative items-center">
-                          <select 
-                            value={compareFontSize} 
-                            onChange={(e) => setCompareFontSize(e.target.value)}
-                            className="bg-gray-50 border border-gray-200 text-gray-700 text-[10px] font-bold uppercase rounded-xl px-2 py-2 outline-none focus:border-gray-400 cursor-pointer"
-                          >
-                            {FONT_OPTIONS.map(opt => (
-                              <option key={opt.value} value={opt.value}>{opt.label} Font</option>
-                            ))}
-                          </select>
+                          <div className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-xl px-2 py-1.5 shadow-sm">
+                            <Type size={14} className="text-gray-400 ml-1" />
+                            <select 
+                              value={compareFontSize} 
+                              onChange={(e) => setCompareFontSize(e.target.value)}
+                              className="bg-transparent text-gray-700 text-[10px] font-bold uppercase outline-none cursor-pointer"
+                            >
+                              {FONT_OPTIONS.map(opt => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                              ))}
+                            </select>
+                          </div>
+
                           <button
-                            onClick={() => setCompareCollapsed({ metrics: false, popShift: false, insights: false, volumeChart: false, trendChart: false, perfAnalysis: false })}
-                            className="bg-gray-50 border border-gray-200 text-gray-700 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase hover:bg-gray-100 transition-colors shadow-sm"
+                            onClick={() => {
+                              const isAnyOpen = Object.values(compareCollapsed).some(v => v === false);
+                              const newState = isAnyOpen; // If any open, collapse all. If all closed, expand all.
+                              setCompareCollapsed({
+                                metrics: newState,
+                                popShift: newState,
+                                insights: newState,
+                                volumeChart: newState,
+                                trendChart: newState,
+                                perfAnalysis: newState
+                              });
+                            }}
+                            title={Object.values(compareCollapsed).some(v => v === false) ? "Collapse All" : "Expand All"}
+                            className="bg-gray-50 border border-gray-200 text-gray-700 p-2 rounded-xl hover:bg-gray-100 transition-colors shadow-sm flex items-center justify-center"
                           >
-                            Expand All
+                            <ChevronsUpDown size={16} />
                           </button>
-                          <button
-                            onClick={() => setCompareCollapsed({ metrics: true, popShift: true, insights: true, volumeChart: true, trendChart: true, perfAnalysis: true })}
-                            className="bg-gray-50 border border-gray-200 text-gray-700 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase hover:bg-gray-100 transition-colors shadow-sm"
-                          >
-                            Collapse All
-                          </button>
+
                           <div className="w-[1px] h-6 bg-gray-200 mx-1"></div>
                           <button
                             onClick={() => setShowLoadModal(!showLoadModal)}
@@ -2875,9 +2888,8 @@ const SalesAnalyzer = () => {
                           )}
                           <button 
                              onClick={() => {
-                               if (window.confirm("Are you sure you want to clear all periods?")) {
-                                 saveComparePreset([]);
-                               }
+                               saveComparePreset([]);
+                               setSelectedMonths([]);
                              }}
                              disabled={periods.length === 0}
                              className="flex items-center gap-2 bg-red-50 text-red-600 px-3 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-red-100 transition-colors shadow-sm disabled:opacity-30">
@@ -3225,7 +3237,7 @@ const SalesAnalyzer = () => {
                                               );
                                             })}
                                             <td className="px-4 py-2.5 text-center border-l border-gray-100">
-                                              <span className="inline-block bg-emerald-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter whitespace-nowrap">
+                                              <span className="inline-block text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter whitespace-nowrap" style={{ backgroundColor: periodCalculations[bestIdx].color }}>
                                                 {periodCalculations[bestIdx].label}
                                               </span>
                                             </td>
@@ -3494,6 +3506,25 @@ const SalesAnalyzer = () => {
                                         </div>
                                      </div>
 
+                                     <div className="space-y-2">
+                                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">Chart Type</label>
+                                        <div className="flex p-1 bg-gray-100 rounded-2xl">
+                                           {[
+                                             { key: 'bar', icon: BarChart3, label: 'Bar' },
+                                             { key: 'line', icon: TrendingUp, label: 'Line' }
+                                           ].map(t => (
+                                             <button 
+                                               key={t.key}
+                                               onClick={() => setPerfChartType(t.key)}
+                                               className={`px-3 py-2 rounded-xl transition-all flex items-center gap-2 ${perfChartType === t.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                             >
+                                               <t.icon size={14} />
+                                               <span className="text-[10px] font-black uppercase">{t.label}</span>
+                                             </button>
+                                           ))}
+                                        </div>
+                                     </div>
+
                                      <div className="flex-1 min-w-[200px] h-full flex items-end">
                                         <div className="relative w-full">
                                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
@@ -3582,20 +3613,54 @@ const SalesAnalyzer = () => {
                                           <div className="h-[300px] mb-6 border border-gray-100 rounded-[24px] p-4 bg-gray-50/20 shadow-sm">
                                             <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Top 10 Performance Chart</h4>
                                             <ResponsiveContainer width="100%" height="100%">
-                                              <BarChart data={rows.slice(0, 10)}>
-                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                                                <XAxis dataKey="name" fontSize={10} axisLine={false} tickLine={false} tickFormatter={(val) => val.length > 15 ? val.substring(0, 15) + '...' : val} />
-                                                <YAxis fontSize={10} axisLine={false} tickLine={false} />
-                                                <Tooltip 
-                                                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} 
-                                                  itemStyle={{ fontSize: '11px', fontWeight: 'bold' }}
-                                                  cursor={{ fill: '#F3F4F6' }}
-                                                />
-                                                <Legend wrapperStyle={{ fontSize: '10px', fontWeight: 'bold' }} />
-                                                {periodCalculations.map(p => (
-                                                  <Bar key={p.id} dataKey={`p-${p.id}`} name={p.label} fill={p.color} radius={[4, 4, 0, 0]} />
-                                                ))}
-                                              </BarChart>
+                                              {perfChartType === 'bar' ? (
+                                                <BarChart data={rows.slice(0, 10)}>
+                                                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                                                  <XAxis dataKey="name" fontSize={10} axisLine={false} tickLine={false} tickFormatter={(val) => val.length > 15 ? val.substring(0, 15) + '...' : val} />
+                                                  <YAxis fontSize={10} axisLine={false} tickLine={false} />
+                                                  <Tooltip 
+                                                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} 
+                                                    itemStyle={{ fontSize: '11px', fontWeight: 'bold' }}
+                                                    cursor={{ fill: '#F3F4F6' }}
+                                                  />
+                                                  <Legend wrapperStyle={{ fontSize: '10px', fontWeight: 'bold' }} />
+                                                  {periodCalculations.map(p => (
+                                                    <Bar key={p.id} dataKey={`p-${p.id}`} name={p.label} fill={p.color} radius={[4, 4, 0, 0]} />
+                                                  ))}
+                                                </BarChart>
+                                              ) : (
+                                                <LineChart data={periodCalculations.map(pc => {
+                                                  const dataPoint = { name: pc.label };
+                                                  rows.slice(0, 5).forEach(r => {
+                                                    dataPoint[r.name] = r[`p-${pc.id}`];
+                                                  });
+                                                  return dataPoint;
+                                                })}>
+                                                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                                                  <XAxis dataKey="name" fontSize={10} axisLine={false} tickLine={false} />
+                                                  <YAxis fontSize={10} axisLine={false} tickLine={false} />
+                                                  <Tooltip 
+                                                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} 
+                                                    itemStyle={{ fontSize: '11px', fontWeight: 'bold' }}
+                                                  />
+                                                  <Legend wrapperStyle={{ fontSize: '10px', fontWeight: 'bold' }} />
+                                                  {rows.slice(0, 5).map((r, i) => {
+                                                    const colors = ['#6366F1', '#EC4899', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#F43F5E'];
+                                                    return (
+                                                      <Line 
+                                                        key={r.name} 
+                                                        type="monotone" 
+                                                        dataKey={r.name} 
+                                                        name={r.name.length > 20 ? r.name.substring(0, 20) + '...' : r.name} 
+                                                        stroke={colors[i % colors.length]} 
+                                                        strokeWidth={3} 
+                                                        dot={{ r: 4 }} 
+                                                        activeDot={{ r: 6 }} 
+                                                      />
+                                                    );
+                                                  })}
+                                                </LineChart>
+                                              )}
                                             </ResponsiveContainer>
                                           </div>
                                         )}
