@@ -87,6 +87,7 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 - **v1.0.033:** Data Lens v3.4: Fixed "Full Period" button logic with all-rows derivation, implemented compact responsive KPI cards with individual accent borders, and updated MR Cards with clickable header expand/collapse and real-time date filtering.
 - **v1.0.032:** Resolved "Maximum update depth exceeded" infinite loop bug by stabilizing `onDataLoaded` dependencies via `useCallback` and hardening the `IntersectionObserver` scroll-tab synchronization with state update guards and fixed-height layout.
 - **v1.0.031:** Fixed `Uncaught RangeError: Invalid time value` by adding safety guards to date parsing utilities in `periodRules.js`, `forecastEngine.js`, and components.
+- **v1.0.470:** Added 'Expand All' and 'Collapse All' buttons to Compare Tool Period Management for quick results toggling. Added a 'Top 10' Performance Chart visualization bridging the gap between Performance Analysis dimensions and periodic tracking metrics.
 - **v1.0.469:** Enhanced Compare Tool within SalesAnalyzer. Implemented collapsible sections across all results cards (Metrics Comparison, PoP Shift, Insights, Charts, Performance Analysis). Adjusted table row heights dynamically to match content and implemented global font size controls. Refined empty-state logic to prevent calculations unless exactly two or more periods are selected, and added a specific "Clear All" configuration option for custom periods alongside period quick selection.
 - **v1.0.030:** Fixed over-expanded UI scaling, implemented sticky navigation tabs below navbar, corrected 'Full Period' date range logic, and rebuilt forecast engine for total period accuracy.
 - **v1.0.029:** Fixed ReferenceError for working day utility functions in `csvAnalyzer.js` and `TeamOverviewTable.jsx`.
@@ -107,4 +108,4 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 - **v1.0.001:** Initial release. Authentication, CSV parsing, Analysis tools, and Admin panel implemented.
 
 ---
-© 2026 Data Lens Analytics | version 1.0.469
+© 2026 Data Lens Analytics | version 1.0.470

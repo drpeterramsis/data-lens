@@ -2810,6 +2810,18 @@ const SalesAnalyzer = () => {
                               <option key={opt.value} value={opt.value}>{opt.label} Font</option>
                             ))}
                           </select>
+                          <button
+                            onClick={() => setCompareCollapsed({ metrics: false, popShift: false, insights: false, volumeChart: false, trendChart: false, perfAnalysis: false })}
+                            className="bg-gray-50 border border-gray-200 text-gray-700 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase hover:bg-gray-100 transition-colors shadow-sm"
+                          >
+                            Expand All
+                          </button>
+                          <button
+                            onClick={() => setCompareCollapsed({ metrics: true, popShift: true, insights: true, volumeChart: true, trendChart: true, perfAnalysis: true })}
+                            className="bg-gray-50 border border-gray-200 text-gray-700 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase hover:bg-gray-100 transition-colors shadow-sm"
+                          >
+                            Collapse All
+                          </button>
                           <div className="w-[1px] h-6 bg-gray-200 mx-1"></div>
                           <button
                             onClick={() => setShowLoadModal(!showLoadModal)}
@@ -3496,180 +3508,201 @@ const SalesAnalyzer = () => {
                                      </div>
                                   </div>
 
-                                  <div className="overflow-x-auto rounded-3xl border border-gray-100">
-                                     <table className="w-full text-[10px] text-left border-collapse">
-                                        <thead className="bg-gray-50">
-                                           <tr>
-                                              <th className="px-6 py-4 font-black uppercase text-gray-400 text-[10px] w-12 bg-gray-50 sticky left-0 z-20 border-r border-gray-100">#</th>
-                                              <SortableTH 
-                                                label={perfDimension} 
-                                                sortKey="name" 
-                                                currentKey={perfSortKey} 
-                                                dir={perfSortDir} 
-                                                onSort={(k,d) => { setPerfSortKey(k); setPerfSortDir(d); }}
-                                                className="px-6 py-4 font-black uppercase text-gray-900 text-[10px] sticky left-12 bg-gray-50 z-20 shadow-[2px_0_5px_rgba(0,0,0,0.03)] border-r border-gray-100"
-                                              />
-                                              {periodCalculations.map(p => (
-                                                <SortableTH 
-                                                  key={p.id}
-                                                  label={p.label}
-                                                  sortKey={`p-${p.id}`}
-                                                  currentKey={perfSortKey} 
-                                                  dir={perfSortDir} 
-                                                  onSort={(k,d) => { setPerfSortKey(k); setPerfSortDir(d); }}
-                                                  className="px-6 py-4 text-right"
+                                  {(() => {
+                                    const dimKey = DIMENSIONS[perfDimension];
+                                    const agg = {};
+                                    
+                                    periodCalculations.forEach(pc => {
+                                      pc.data.forEach(row => {
+                                        const val = row[dimKey] || 'N/A';
+                                        if (!agg[val]) {
+                                          agg[val] = { name: val, periods: {}, total: 0 };
+                                        }
+                                        if (!agg[val].periods[pc.id]) {
+                                          agg[val].periods[pc.id] = { netQty: 0, netValue: 0, invoices: new Set() };
+                                        }
+                                        agg[val].periods[pc.id].netQty += row.netQty;
+                                        agg[val].periods[pc.id].netValue += row.netValue;
+                                        agg[val].periods[pc.id].invoices.add(row.invoiceNo);
+                                      });
+                                    });
+
+                                    let rows = Object.values(agg).map(item => {
+                                      const pValues = periodCalculations.map(pc => {
+                                        const pData = item.periods[pc.id];
+                                        if (!pData) return 0;
+                                        if (perfMetric === 'invoices') return pData.invoices.size;
+                                        if (perfMetric === 'returnQty') return 0;
+                                        return pData[perfMetric] || 0;
+                                      });
+
+                                      const total = pValues.reduce((s,v) => s + v, 0);
+                                      const avg = total / periodCalculations.length;
+                                      
+                                      const maxV = Math.max(...pValues);
+                                      const bestIdx = pValues.indexOf(maxV);
+                                      const bestPeriod = pValues.some(v => v > 0) ? periodCalculations[bestIdx] : null;
+
+                                      const vStart = pValues[0];
+                                      const vEnd = pValues[pValues.length-1];
+                                      const trendPct = vStart === 0 ? (vEnd > 0 ? 100 : 0) : ((vEnd - vStart)/vStart)*100;
+
+                                      const rowObj = {
+                                        name: item.name,
+                                        total,
+                                        avg,
+                                        bestPeriod,
+                                        trendPct,
+                                        pValues: periodCalculations.map((pc, i) => ({ id: pc.id, val: pValues[i] }))
+                                      };
+                                      
+                                      periodCalculations.forEach((pc, i) => {
+                                        rowObj[`p-${pc.id}`] = pValues[i];
+                                      });
+
+                                      return rowObj;
+                                    });
+
+                                    if (perfSearch) {
+                                      rows = rows.filter(r => r.name.toLowerCase().includes(perfSearch.toLowerCase()));
+                                    }
+
+                                    rows.sort((a,b) => {
+                                      let vA = a[perfSortKey];
+                                      let vB = b[perfSortKey];
+                                      if (typeof vA === 'string') {
+                                        return perfSortDir === 'asc' ? vA.localeCompare(vB) : vB.localeCompare(vA);
+                                      }
+                                      return perfSortDir === 'asc' ? vA - vB : vB - vA;
+                                    });
+
+                                    return (
+                                      <>
+                                        {rows.length > 0 && (
+                                          <div className="h-[300px] mb-6 border border-gray-100 rounded-[24px] p-4 bg-gray-50/20 shadow-sm">
+                                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Top 10 Performance Chart</h4>
+                                            <ResponsiveContainer width="100%" height="100%">
+                                              <BarChart data={rows.slice(0, 10)}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                                                <XAxis dataKey="name" fontSize={10} axisLine={false} tickLine={false} tickFormatter={(val) => val.length > 15 ? val.substring(0, 15) + '...' : val} />
+                                                <YAxis fontSize={10} axisLine={false} tickLine={false} />
+                                                <Tooltip 
+                                                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} 
+                                                  itemStyle={{ fontSize: '11px', fontWeight: 'bold' }}
+                                                  cursor={{ fill: '#F3F4F6' }}
                                                 />
-                                              ))}
-                                              <SortableTH 
-                                                label="Total" 
-                                                sortKey="total" 
-                                                currentKey={perfSortKey} 
-                                                dir={perfSortDir} 
-                                                onSort={(k,d) => { setPerfSortKey(k); setPerfSortDir(d); }}
-                                                className="px-6 py-4 text-right bg-blue-50/50"
-                                              />
-                                              <th className="px-6 py-4 text-right font-black uppercase text-gray-400 text-[10px]">Avg</th>
-                                              <th className="px-6 py-4 text-center font-black uppercase text-gray-400 text-[10px]">Best</th>
-                                              <th className="px-6 py-4 text-center font-black uppercase text-gray-400 text-[10px]">Trend</th>
-                                           </tr>
-                                        </thead>
-                                        <tbody>
-                                           {(() => {
-                                              const dimKey = DIMENSIONS[perfDimension];
-                                              const agg = {};
-                                              
-                                              periodCalculations.forEach(pc => {
-                                                pc.data.forEach(row => {
-                                                  const val = row[dimKey] || 'N/A';
-                                                  if (!agg[val]) {
-                                                    agg[val] = { name: val, periods: {}, total: 0 };
-                                                  }
-                                                  if (!agg[val].periods[pc.id]) {
-                                                    agg[val].periods[pc.id] = { netQty: 0, netValue: 0, invoices: new Set() };
-                                                  }
-                                                  agg[val].periods[pc.id].netQty += row.netQty;
-                                                  agg[val].periods[pc.id].netValue += row.netValue;
-                                                  agg[val].periods[pc.id].invoices.add(row.invoiceNo);
-                                                });
-                                              });
+                                                <Legend wrapperStyle={{ fontSize: '10px', fontWeight: 'bold' }} />
+                                                {periodCalculations.map(p => (
+                                                  <Bar key={p.id} dataKey={`p-${p.id}`} name={p.label} fill={p.color} radius={[4, 4, 0, 0]} />
+                                                ))}
+                                              </BarChart>
+                                            </ResponsiveContainer>
+                                          </div>
+                                        )}
+                                        
+                                        <div className="overflow-x-auto rounded-3xl border border-gray-100">
+                                           <table className="w-full text-[10px] text-left border-collapse">
+                                              <thead className="bg-gray-50">
+                                                 <tr>
+                                                    <th className="px-6 py-4 font-black uppercase text-gray-400 text-[10px] w-12 bg-gray-50 sticky left-0 z-20 border-r border-gray-100">#</th>
+                                                    <SortableTH 
+                                                      label={perfDimension} 
+                                                      sortKey="name" 
+                                                      currentKey={perfSortKey} 
+                                                      dir={perfSortDir} 
+                                                      onSort={(k,d) => { setPerfSortKey(k); setPerfSortDir(d); }}
+                                                      className="px-6 py-4 font-black uppercase text-gray-900 text-[10px] sticky left-12 bg-gray-50 z-20 shadow-[2px_0_5px_rgba(0,0,0,0.03)] border-r border-gray-100"
+                                                    />
+                                                    {periodCalculations.map(p => (
+                                                      <SortableTH 
+                                                        key={p.id}
+                                                        label={p.label}
+                                                        sortKey={`p-${p.id}`}
+                                                        currentKey={perfSortKey} 
+                                                        dir={perfSortDir} 
+                                                        onSort={(k,d) => { setPerfSortKey(k); setPerfSortDir(d); }}
+                                                        className="px-6 py-4 text-right"
+                                                      />
+                                                    ))}
+                                                    <SortableTH 
+                                                      label="Total" 
+                                                      sortKey="total" 
+                                                      currentKey={perfSortKey} 
+                                                      dir={perfSortDir} 
+                                                      onSort={(k,d) => { setPerfSortKey(k); setPerfSortDir(d); }}
+                                                      className="px-6 py-4 text-right bg-blue-50/50"
+                                                    />
+                                                    <th className="px-6 py-4 text-right font-black uppercase text-gray-400 text-[10px]">Avg</th>
+                                                    <th className="px-6 py-4 text-center font-black uppercase text-gray-400 text-[10px]">Best</th>
+                                                    <th className="px-6 py-4 text-center font-black uppercase text-gray-400 text-[10px]">Trend</th>
+                                                 </tr>
+                                              </thead>
+                                              <tbody>
+                                                {rows.length === 0 ? (
+                                                  <tr>
+                                                      <td colSpan={100} className="px-8 py-20 text-center text-gray-400 font-bold uppercase tracking-widest">No matching results found</td>
+                                                  </tr>
+                                                ) : (
+                                                  rows.map((row, idx) => {
+                                                    const rank = idx + 1;
+                                                    const maxInRow = Math.max(...row.pValues.map(p => p.val));
+                                                    const minInRow = Math.min(...row.pValues.filter(p => p.val > 0).map(p => p.val) || [0]);
 
-                                              let rows = Object.values(agg).map(item => {
-                                                const pValues = periodCalculations.map(pc => {
-                                                   const pData = item.periods[pc.id];
-                                                   if (!pData) return 0;
-                                                   if (perfMetric === 'invoices') return pData.invoices.size;
-                                                   if (perfMetric === 'returnQty') return 0; // Return logic missing in simple agg, but user asked for it
-                                                   return pData[perfMetric] || 0;
-                                                });
-
-                                                const total = pValues.reduce((s,v) => s + v, 0);
-                                                const avg = total / periodCalculations.length;
-                                                
-                                                const maxV = Math.max(...pValues);
-                                                const bestIdx = pValues.indexOf(maxV);
-                                                const bestPeriod = pValues.some(v => v > 0) ? periodCalculations[bestIdx] : null;
-
-                                                const vStart = pValues[0];
-                                                const vEnd = pValues[pValues.length-1];
-                                                const trendPct = vStart === 0 ? (vEnd > 0 ? 100 : 0) : ((vEnd - vStart)/vStart)*100;
-
-                                                const rowObj = {
-                                                  name: item.name,
-                                                  total,
-                                                  avg,
-                                                  bestPeriod,
-                                                  trendPct,
-                                                  pValues: periodCalculations.map((pc, i) => ({ id: pc.id, val: pValues[i] }))
-                                                };
-                                                
-                                                // Dynamic fields for sorting
-                                                periodCalculations.forEach((pc, i) => {
-                                                   rowObj[`p-${pc.id}`] = pValues[i];
-                                                });
-
-                                                return rowObj;
-                                              });
-
-                                              if (perfSearch) {
-                                                rows = rows.filter(r => r.name.toLowerCase().includes(perfSearch.toLowerCase()));
-                                              }
-
-                                              rows.sort((a,b) => {
-                                                let vA = a[perfSortKey];
-                                                let vB = b[perfSortKey];
-                                                if (typeof vA === 'string') {
-                                                  return perfSortDir === 'asc' ? vA.localeCompare(vB) : vB.localeCompare(vA);
-                                                }
-                                                return perfSortDir === 'asc' ? vA - vB : vB - vA;
-                                              });
-
-                                              return (
-                                                <>
-                                                  {rows.length === 0 ? (
-                                                    <tr>
-                                                       <td colSpan={100} className="px-8 py-20 text-center text-gray-400 font-bold uppercase tracking-widest">No matching results found</td>
-                                                    </tr>
-                                                  ) : (
-                                                    rows.map((row, idx) => {
-                                                      const rank = idx + 1;
-                                                      const maxInRow = Math.max(...row.pValues.map(p => p.val));
-                                                      const minInRow = Math.min(...row.pValues.filter(p => p.val > 0).map(p => p.val) || [0]);
-
-                                                      return (
-                                                        <tr key={row.name} className="border-b border-gray-50 hover:bg-yellow-50/40 transition-colors group">
-                                                           <td className="px-6 py-2.5 font-black uppercase text-gray-400 text-[10px] w-12 bg-white sticky left-0 z-10 border-r border-gray-100 group-hover:bg-yellow-50/60">
-                                                              <div className="flex items-center gap-2">
-                                                                {rank}
-                                                                {rank === 1 && '🥇'}
-                                                                {rank === 2 && '🥈'}
-                                                                {rank === 3 && '🥉'}
-                                                              </div>
-                                                           </td>
-                                                           <td className={`px-6 py-2.5 font-black text-gray-900 uppercase tracking-tight ${compareFontSize} bg-white sticky left-12 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.03)] border-r border-gray-100 group-hover:bg-yellow-50/60 truncate max-w-[200px]`}>
-                                                              {row.name}
-                                                           </td>
-                                                           {row.pValues.map((pv, i) => {
-                                                              const isBest = pv.val === maxInRow && maxInRow > 0;
-                                                              const isWorst = pv.val === minInRow && minInRow > 0 && maxInRow !== minInRow;
-                                                              return (
-                                                                <td key={pv.id} className={`px-6 py-2.5 text-right font-mono font-bold ${compareFontSize} ${isBest ? 'bg-emerald-50/40 border-l-2 border-emerald-400 text-emerald-700' : isWorst ? 'bg-red-50/40 text-red-600' : 'text-gray-600'}`}>
-                                                                  {pv.val > 0 ? (perfMetric === 'netValue' ? Math.round(pv.val).toLocaleString() : pv.val.toLocaleString()) : '—'}
-                                                                </td>
-                                                              );
-                                                           })}
-                                                           <td className={`px-6 py-2.5 text-right bg-blue-50/30 font-black text-blue-800 font-mono ${compareFontSize}`}>
-                                                              {Math.round(row.total).toLocaleString()}
-                                                           </td>
-                                                           <td className={`px-6 py-2.5 text-right bg-gray-50/30 font-bold text-gray-600 font-mono ${compareFontSize}`}>
-                                                              {Math.round(row.avg).toLocaleString()}
-                                                           </td>
-                                                           <td className="px-6 py-2.5 text-center">
-                                                              {row.bestPeriod ? (
-                                                                <span className="inline-block px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tighter" style={{ backgroundColor: row.bestPeriod.color + '20', color: row.bestPeriod.color }}>
-                                                                  {row.bestPeriod.label}
-                                                                </span>
-                                                              ) : '—'}
-                                                           </td>
-                                                           <td className="px-6 py-2.5 text-center">
-                                                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black ${row.trendPct > 0 ? 'bg-emerald-100 text-emerald-700' : row.trendPct < 0 ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
-                                                                {row.trendPct > 0 ? '▲' : row.trendPct < 0 ? '▼' : '—'}
-                                                                {Math.abs(row.trendPct).toFixed(0)}%
+                                                    return (
+                                                      <tr key={row.name} className="border-b border-gray-50 hover:bg-yellow-50/40 transition-colors group">
+                                                          <td className="px-6 py-2.5 font-black uppercase text-gray-400 text-[10px] w-12 bg-white sticky left-0 z-10 border-r border-gray-100 group-hover:bg-yellow-50/60">
+                                                            <div className="flex items-center gap-2">
+                                                              {rank}
+                                                              {rank === 1 && '🥇'}
+                                                              {rank === 2 && '🥈'}
+                                                              {rank === 3 && '🥉'}
+                                                            </div>
+                                                          </td>
+                                                          <td className={`px-6 py-2.5 font-black text-gray-900 uppercase tracking-tight ${compareFontSize} bg-white sticky left-12 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.03)] border-r border-gray-100 group-hover:bg-yellow-50/60 truncate max-w-[200px]`}>
+                                                            {row.name}
+                                                          </td>
+                                                          {row.pValues.map((pv, i) => {
+                                                            const isBest = pv.val === maxInRow && maxInRow > 0;
+                                                            const isWorst = pv.val === minInRow && minInRow > 0 && maxInRow !== minInRow;
+                                                            return (
+                                                              <td key={pv.id} className={`px-6 py-2.5 text-right font-mono font-bold ${compareFontSize} ${isBest ? 'bg-emerald-50/40 border-l-2 border-emerald-400 text-emerald-700' : isWorst ? 'bg-red-50/40 text-red-600' : 'text-gray-600'}`}>
+                                                                {pv.val > 0 ? (perfMetric === 'netValue' ? Math.round(pv.val).toLocaleString() : pv.val.toLocaleString()) : '—'}
+                                                              </td>
+                                                            );
+                                                          })}
+                                                          <td className={`px-6 py-2.5 text-right bg-blue-50/30 font-black text-blue-800 font-mono ${compareFontSize}`}>
+                                                            {Math.round(row.total).toLocaleString()}
+                                                          </td>
+                                                          <td className={`px-6 py-2.5 text-right bg-gray-50/30 font-bold text-gray-600 font-mono ${compareFontSize}`}>
+                                                            {Math.round(row.avg).toLocaleString()}
+                                                          </td>
+                                                          <td className="px-6 py-2.5 text-center">
+                                                            {row.bestPeriod ? (
+                                                              <span className="inline-block px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tighter" style={{ backgroundColor: row.bestPeriod.color + '20', color: row.bestPeriod.color }}>
+                                                                {row.bestPeriod.label}
                                                               </span>
-                                                           </td>
-                                                        </tr>
-                                                      );
-                                                    })
-                                                  )}
-                                                </>
-                                              );
-                                           })()}
-                                        </tbody>
-                                     </table>
-                                  </div>
-                                  <div className="flex justify-between items-center px-2">
-                                     <p className="text-[10px] font-bold text-gray-400 tracking-widest uppercase">Showing sorted breakdown by {perfSortKey === 'total' ? 'Overall Total' : perfSortKey} {perfSortDir}</p>
-                                     <p className="text-[10px] font-bold text-gray-400 tracking-widest uppercase">Scroll horizontally to view all periods</p>
-                                  </div>
+                                                            ) : '—'}
+                                                          </td>
+                                                          <td className="px-6 py-2.5 text-center">
+                                                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black ${row.trendPct > 0 ? 'bg-emerald-100 text-emerald-700' : row.trendPct < 0 ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
+                                                              {row.trendPct > 0 ? '▲' : row.trendPct < 0 ? '▼' : '—'}
+                                                              {Math.abs(row.trendPct).toFixed(0)}%
+                                                            </span>
+                                                          </td>
+                                                      </tr>
+                                                    );
+                                                  })
+                                                )}
+                                              </tbody>
+                                           </table>
+                                        </div>
+                                        <div className="flex justify-between items-center px-2">
+                                           <p className="text-[10px] font-bold text-gray-400 tracking-widest uppercase">Showing sorted breakdown by {perfSortKey === 'total' ? 'Overall Total' : perfSortKey} {perfSortDir}</p>
+                                           <p className="text-[10px] font-bold text-gray-400 tracking-widest uppercase">Scroll horizontally to view all periods</p>
+                                        </div>
+                                      </>
+                                    );
+                                  })()}
                                </div>
                                )}
                             </div>
