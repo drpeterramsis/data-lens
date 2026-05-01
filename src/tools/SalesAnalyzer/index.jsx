@@ -4,7 +4,7 @@ import {
   Grid, Upload, RefreshCw, ChevronLeft, ChevronRight, 
   ChevronDown, Filter, Users, Search, X, 
   Trash2, Save, Edit2, Plus, CheckCircle2, History, Clock,
-  Calendar, AlertCircle, Expand
+  Calendar, AlertCircle, Expand, Download
 } from 'lucide-react';
 
 import * as XLSX from 'xlsx';
@@ -1031,10 +1031,7 @@ const SalesAnalyzer = () => {
 
 
   // Period Compare states
-  const [periods, setPeriods] = useState([
-    { id: '1', label: 'Period A', from: '', to: '', color: '#3B82F6', type: 'custom' },
-    { id: '2', label: 'Period B', from: '', to: '', color: '#10B981', type: 'custom' }
-  ]);
+  const [periods, setPeriods] = useState([]);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonths, setSelectedMonths] = useState([]);
   const [colorPopoverIdx, setColorPopoverIdx] = useState(null);
@@ -1062,6 +1059,12 @@ const SalesAnalyzer = () => {
   }, [compareFullscreen]);
 
   const COMPARE_PRESETS_KEY = 'salesAnalyzer_comparePresets';
+  const SAVED_CONFIGS_KEY = 'salesAnalyzer_savedConfigs';
+  
+  const [savedConfigs, setSavedConfigs] = useState([]);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showLoadModal, setShowLoadModal] = useState(false);
+  const [newConfigName, setNewConfigName] = useState("");
 
   useEffect(() => {
     const saved = localStorage.getItem(COMPARE_PRESETS_KEY);
@@ -1070,11 +1073,58 @@ const SalesAnalyzer = () => {
         setPeriods(JSON.parse(saved));
       } catch(e) {}
     }
+    const savedConfigsList = localStorage.getItem(SAVED_CONFIGS_KEY);
+    if (savedConfigsList) {
+      try {
+        setSavedConfigs(JSON.parse(savedConfigsList));
+      } catch(e) {}
+    }
   }, []);
 
   const saveComparePreset = (updatedPeriods) => {
     localStorage.setItem(COMPARE_PRESETS_KEY, JSON.stringify(updatedPeriods));
     setPeriods(updatedPeriods);
+  };
+  
+  const handleSaveConfig = () => {
+    if (!newConfigName.trim()) return;
+    const newConfig = {
+      id: Date.now().toString(),
+      name: newConfigName,
+      periods: JSON.parse(JSON.stringify(periods)),
+      savedAt: new Date().toISOString()
+    };
+    const updated = [...savedConfigs, newConfig];
+    setSavedConfigs(updated);
+    localStorage.setItem(SAVED_CONFIGS_KEY, JSON.stringify(updated));
+    setNewConfigName("");
+    setShowSaveModal(false);
+    setSmartLoadAlert({ type: 'success', title: 'Config Saved', message: `Saved "${newConfigName}" successfully.` });
+  };
+  
+  const handleLoadConfig = (config) => {
+    let loadedCnt = 0;
+    let droppedCnt = 0;
+    const validPeriods = [];
+    config.periods.forEach(p => {
+       const fromD = new Date(p.from);
+       const toD = new Date(p.to);
+       toD.setHours(23, 59, 59);
+       const hasData = filteredData.some(r => r.invoiceDate >= fromD && r.invoiceDate <= toD);
+       if (hasData) {
+          validPeriods.push(p);
+          loadedCnt++;
+       } else {
+          droppedCnt++;
+       }
+    });
+    saveComparePreset(validPeriods);
+    setShowLoadModal(false);
+    setSmartLoadAlert({
+       type: droppedCnt === 0 ? 'success' : 'warning',
+       title: 'Config Loaded',
+       message: `Loaded ${loadedCnt} periods. ${droppedCnt > 0 ? `Dropped ${droppedCnt} period(s) that had NO data available currently.` : ''}`
+    });
   };
 
   const closeDrill = () => setDrillModal({
@@ -2655,106 +2705,73 @@ const SalesAnalyzer = () => {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-4 md:grid-cols-6 gap-1 mb-6">
-                        {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((name, idx) => {
-                          const monthNum = idx + 1;
-                          const key = `${selectedYear}-${String(monthNum).padStart(2, '0')}`;
-                          const isAvailable = availableMonths.has(key);
-                          const isSelected = selectedMonths.includes(monthNum);
-                          const alreadyExists = periods.some(p => {
-                            if (!p.from || !p.to) return false;
-                            const d = new Date(p.from);
-                            return d.getFullYear() === selectedYear && (d.getMonth() + 1) === monthNum;
+                      <div className="grid grid-cols-12 gap-1 mb-6">
+                        {(() => {
+                          const monthsArray = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                          const renderedCards = [];
+                          
+                          monthsArray.forEach((name, idx) => {
+                            const monthNum = idx + 1;
+                            const key = `${selectedYear}-${String(monthNum).padStart(2, '0')}`;
+                            const isAvailable = availableMonths.has(key);
+                            const alreadyExists = periods.some(p => {
+                              if (!p.from || !p.to) return false;
+                              const d = new Date(p.from);
+                              return d.getFullYear() === selectedYear && (d.getMonth() + 1) === monthNum;
+                            });
+
+                            if (alreadyExists) return;
+
+                            renderedCards.push(
+                              <button
+                                key={name}
+                                disabled={!isAvailable}
+                                title={!isAvailable ? "Inactive month (no data)" : ""}
+                                onClick={() => {
+                                  if (periods.length >= 12) return;
+                                  
+                                  const fromDateStr = `${selectedYear}-${String(monthNum).padStart(2, '0')}-01`;
+                                  const lastDayNum = new Date(selectedYear, monthNum, 0).getDate();
+                                  const toDateStr = `${selectedYear}-${String(monthNum).padStart(2, '0')}-${String(lastDayNum).padStart(2, '0')}`;
+                                  
+                                  const colors = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444', '#EC4899', '#06B6D4', '#F43F5E', '#84CC16', '#A855F7', '#EAB308', '#6366F1'];
+                                  const nextColor = colors[periods.length % colors.length];
+                                  const newPeriods = [...periods, {
+                                    id: `month-${selectedYear}-${monthNum}-${Date.now()}`,
+                                    label: `${name} ${selectedYear}`,
+                                    description: "",
+                                    from: fromDateStr,
+                                    to: toDateStr,
+                                    color: nextColor,
+                                    type: 'month'
+                                  }];
+                                  saveComparePreset(newPeriods);
+                                }}
+                                className={`
+                                  w-full h-10 rounded uppercase text-[10px] font-black border transition-all flex items-center justify-center
+                                  ${!isAvailable 
+                                    ? 'bg-gray-100 border-gray-100 text-gray-300 cursor-not-allowed' 
+                                    : 'bg-white border-gray-200 text-gray-500 hover:border-blue-500 hover:text-blue-600 cursor-pointer'}
+                                `}
+                              >
+                                {name}
+                              </button>
+                            );
                           });
 
-                          return (
-                            <button
-                              key={name}
-                              disabled={!isAvailable}
-                              onClick={() => {
-                                setSelectedMonths(prev => 
-                                  prev.includes(monthNum) ? prev.filter(m => m !== monthNum) : [...prev, monthNum]
-                                );
-                              }}
-                              className={`
-                                relative p-4 rounded-2xl border transition-all flex flex-col items-center gap-1 group
-                                ${!isAvailable ? 'bg-gray-50 border-gray-100 opacity-30 cursor-not-allowed' : 
-                                  isSelected ? 'bg-amber-500 border-amber-600 text-white shadow-lg scale-105' : 
-                                  'bg-white border-gray-100 text-gray-500 hover:border-amber-300 hover:bg-amber-50/30'}
-                              `}
-                            >
-                               <span className="text-[10px] font-black uppercase tracking-widest">{name}</span>
-                               {alreadyExists && (
-                                 <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" title="Already exists as a period" />
-                               )}
-                               {!isAvailable && (
-                                 <span className="text-[8px] font-bold text-gray-400 absolute bottom-1 uppercase">No Data</span>
-                               )}
-                            </button>
+                          return renderedCards.length === 0 ? (
+                            <div className="col-span-12 py-4 text-center bg-gray-50 rounded-xl border border-gray-100 text-[10px] font-black uppercase text-gray-500 tracking-widest">
+                               ✅ All months of {selectedYear} already added
+                            </div>
+                          ) : (
+                            <>
+                              <div className="col-span-12 flex gap-1">{renderedCards}</div>
+                              <div className="col-span-12 text-[9px] font-semibold text-gray-400 uppercase mt-1 text-right">
+                                * Inactive months have no data
+                              </div>
+                            </>
                           );
-                        })}
-                      </div>
-
-                      <div className="flex justify-end">
-                         <button 
-                           disabled={selectedMonths.length === 0}
-                           onClick={() => {
-                             const colors = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444', '#EC4899', '#06B6D4', '#F43F5E', '#84CC16', '#A855F7', '#EAB308', '#6366F1'];
-                             let added = 0;
-                             let skipped = 0;
-                             let limitSkipped = 0;
-                             const newPeriods = [...periods];
-
-                             selectedMonths.sort((a,b) => a-b).forEach(monthNum => {
-                               const key = `${selectedYear}-${String(monthNum).padStart(2, '0')}`;
-                               const exists = periods.some(p => {
-                                 if (!p.from || !p.to) return false;
-                                 const d = new Date(p.from);
-                                 return d.getFullYear() === selectedYear && (d.getMonth() + 1) === monthNum;
-                               });
-
-                               if (exists) {
-                                 skipped++;
-                                 return;
-                               }
-
-                               if (newPeriods.length >= 12) {
-                                 limitSkipped++;
-                                 return;
-                               }
-
-                               const firstDay = new Date(selectedYear, monthNum - 1, 1);
-                               const lastDay = new Date(selectedYear, monthNum, 0);
-                               const monthName = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][monthNum - 1];
-
-                               newPeriods.push({
-                                 id: `month-${selectedYear}-${monthNum}`,
-                                 label: `${monthName} ${selectedYear}`,
-                                 from: firstDay.toISOString().split('T')[0],
-                                 to: lastDay.toISOString().split('T')[0],
-                                 color: colors[newPeriods.length % colors.length],
-                                 type: 'month'
-                               });
-                               added++;
-                             });
-
-                             saveComparePreset(newPeriods);
-                             setSelectedMonths([]);
-                             
-                             let msg = `✅ ${added} periods added.`;
-                             if (skipped > 0) msg += ` ⚠️ ${skipped} already existed (skipped).`;
-                             if (limitSkipped > 0) msg += ` 🚫 ${limitSkipped} skipped (reached 12 period limit).`;
-                             
-                             setSmartLoadAlert({
-                               type: added > 0 ? 'success' : 'warning',
-                               title: 'Quick Add Result',
-                               message: msg
-                             });
-                           }}
-                           className="flex items-center gap-2 bg-gray-900 text-white px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-600 transition-all shadow-xl disabled:opacity-20">
-                           Add Selected Months ({selectedMonths.length})
-                           <ChevronRight size={16} />
-                         </button>
+                        })()}
                       </div>
                     </div>
 
@@ -2765,7 +2782,57 @@ const SalesAnalyzer = () => {
                           <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">Period Management</h3>
                           <p className="text-[10px] text-gray-400 font-medium mt-1">Manage up to 12 date ranges for deep comparative analysis</p>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 relative">
+                          <button
+                            onClick={() => setShowLoadModal(!showLoadModal)}
+                            className="flex items-center gap-2 bg-white text-gray-700 border border-gray-200 px-3 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-gray-50 transition-colors shadow-sm"
+                          >
+                            <Download size={14} /> Load
+                          </button>
+                          {showLoadModal && (
+                            <div className="absolute top-10 right-24 z-50 w-64 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden p-2 flex flex-col gap-1">
+                               <h4 className="text-[10px] font-black uppercase text-gray-400 p-1 mb-1">Load Preset</h4>
+                               {savedConfigs.length === 0 ? (
+                                   <div className="p-4 text-center text-[10px] text-gray-400 font-bold bg-gray-50 rounded-lg">No saved presets</div>
+                               ) : (
+                                   savedConfigs.map(cfg => (
+                                     <button 
+                                       key={cfg.id} 
+                                       onClick={() => handleLoadConfig(cfg)}
+                                       className="w-full text-left p-2 text-xs font-semibold hover:bg-blue-50 hover:text-blue-600 rounded-lg group flex justify-between"
+                                     >
+                                         <span>{cfg.name}</span>
+                                         <span className="text-[10px] text-gray-400 group-hover:text-blue-400">{cfg.periods?.length} periods</span>
+                                     </button>
+                                   ))
+                               )}
+                            </div>
+                          )}
+                          <button
+                            onClick={() => setShowSaveModal(!showSaveModal)}
+                            className="flex items-center gap-2 bg-white text-gray-700 border border-gray-200 px-3 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-gray-50 transition-colors shadow-sm"
+                          >
+                            <Save size={14} /> Save
+                          </button>
+                          {showSaveModal && (
+                            <div className="absolute top-10 right-0 z-50 w-64 bg-white border border-gray-200 rounded-xl shadow-xl p-3 flex flex-col gap-2">
+                               <h4 className="text-[10px] font-black uppercase text-gray-400 mb-1">Save Current Periods</h4>
+                               <input 
+                                 type="text" 
+                                 placeholder="Preset name..." 
+                                 value={newConfigName} 
+                                 onChange={e => setNewConfigName(e.target.value)}
+                                 className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:border-blue-500 outline-none"
+                               />
+                               <button 
+                                 onClick={handleSaveConfig}
+                                 disabled={!newConfigName.trim()}
+                                 className="bg-gray-900 text-white rounded-lg px-3 py-2 text-[10px] font-black uppercase tracking-widest disabled:opacity-50 hover:bg-blue-600 transition-colors w-full"
+                               >
+                                  Save Preset
+                               </button>
+                            </div>
+                          )}
                           <button 
                              onClick={() => {
                                if (periods.length < 12) {
@@ -2774,6 +2841,7 @@ const SalesAnalyzer = () => {
                                   const newPeriods = [...periods, { 
                                     id: Date.now().toString(), 
                                     label: `Period ${String.fromCharCode(65 + periods.length)}`, 
+                                    description: "",
                                     from: '', to: '', 
                                     color: nextColor,
                                     type: 'custom'
@@ -2782,7 +2850,7 @@ const SalesAnalyzer = () => {
                                }
                              }}
                              disabled={periods.length >= 12}
-                             className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-all shadow-lg disabled:opacity-30">
+                             className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-all shadow-md disabled:opacity-30">
                             <Plus size={16} />
                             Add Period
                           </button>
@@ -2835,7 +2903,8 @@ const SalesAnalyzer = () => {
                                    <div className="flex flex-col">
                                       <input 
                                         type="text" 
-                                        value={p.label}
+                                        value={p.label || ''}
+                                        placeholder="Title..."
                                         onChange={e => {
                                            const up = [...periods];
                                            up[idx].label = e.target.value;
@@ -2843,8 +2912,19 @@ const SalesAnalyzer = () => {
                                         }}
                                         className={`bg-transparent border-none font-black text-gray-900 uppercase tracking-tight text-[10px] focus:outline-none ${isCompact ? 'w-20' : 'w-24'}`}
                                       />
+                                      <input 
+                                        type="text" 
+                                        value={p.description || ''}
+                                        placeholder="Description..."
+                                        onChange={e => {
+                                           const up = [...periods];
+                                           up[idx].description = e.target.value;
+                                           saveComparePreset(up);
+                                        }}
+                                        className={`bg-transparent border-none font-medium text-gray-500 tracking-tight text-[9px] mt-0.5 focus:outline-none ${isCompact ? 'w-20' : 'w-24'}`}
+                                      />
                                       {!isCompact && (
-                                          <div className="flex gap-1">
+                                          <div className="flex gap-1 mt-1">
                                             <span className={`text-[8px] font-black uppercase px-1 rounded-sm ${isMonth ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'}`}>
                                               {isMonth ? '📅 Month' : '✏️ Custom'}
                                             </span>
@@ -2952,12 +3032,24 @@ const SalesAnalyzer = () => {
                         const periodCalculations = rawCalculations.filter(pc => !pc.empty);
                         const emptyPeriods = rawCalculations.filter(pc => pc.empty && (pc.from && pc.to));
 
-                        if (periodCalculations.length < 2) {
+                        if (periodCalculations.length === 0) {
                           return (
-                            <div className="py-20 text-center bg-white border border-gray-100 rounded-[32px] opacity-40">
-                               <RefreshCw size={48} className="mx-auto mb-2 text-gray-300" />
-                               <p className="font-black text-gray-900 uppercase tracking-widest">Select dates for at least 2 periods</p>
-                               <p className="text-[10px] text-gray-400 mt-1">Comparison data will appear once dates are set and data is found</p>
+                            <div className="py-20 text-center bg-white border border-gray-100 rounded-[32px]">
+                               <Calendar size={48} className="mx-auto mb-4 text-gray-300" />
+                               <p className="font-black text-gray-900 uppercase text-lg tracking-widest">No periods selected yet</p>
+                               <p className="text-sm text-gray-400 mt-2 font-medium">Use the Quick Month Picker or "+ Add Period" to get started</p>
+                               <p className="text-[11px] font-black text-gray-500 bg-gray-100 inline-block px-4 py-1.5 rounded-full mt-4 uppercase tracking-widest">You need at least 2 periods to begin comparison</p>
+                            </div>
+                          );
+                        }
+                        
+                        if (periodCalculations.length === 1) {
+                          return (
+                            <div className="py-4 px-6 text-center bg-amber-50 border border-amber-200 rounded-[24px]">
+                               <p className="font-black text-amber-800 text-xs uppercase tracking-widest flex items-center justify-center gap-2">
+                                 <AlertCircle size={16} /> 
+                                 ⚠️ Add at least 1 more period with data to start comparison
+                               </p>
                             </div>
                           );
                         }

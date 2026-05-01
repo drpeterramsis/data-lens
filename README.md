@@ -42,6 +42,8 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 
 ## Version History
 
+- **v1.0.467:** Enhanced Compare tool: Quick Month picker is now single row, added inactive dates note, fixed period creation absolute dates, added Save/Load period preset manager handling data availability validation, and added period description editing field within the card.
+- **v1.0.466:** Overhauled the Compare Tool tab in SalesAnalyzer: removed default periods, added empty and single-period states, implemented compact month cards in the Quick Month Picker, hid already added months, and ensured instant calculation.
 - **v1.0.451:** Fixed missing Search icon import in ReportsTab.jsx.
 - **v1.0.450:** Implemented drill-down feature for Reports table cells. Clicking a cell now opens a detailed invoice list modal for data verification.
 - **v1.0.449:** Added structured CSV and XLSX export options in Reports with layout preservation (merged cells, multi-level headers). Updated versioning strategy.
@@ -103,4 +105,4 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 - **v1.0.001:** Initial release. Authentication, CSV parsing, Analysis tools, and Admin panel implemented.
 
 ---
-© 2026 Data Lens Analytics | version 1.0.451
+© 2026 Data Lens Analytics | version 1.0.466
