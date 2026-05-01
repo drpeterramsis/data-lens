@@ -17,7 +17,7 @@ import {
 import ReportsTab from '../reports/ReportsTab';
 
 const APP_VERSION = {
-  version: '1.0.473',
+  version: '1.0.474',
   releaseDate: 'May 2026',
   label: 'Dynamic Matrix & Multi-Period Perf Hub'
 };
@@ -1045,6 +1045,7 @@ const SalesAnalyzer = () => {
   const [perfSortKey, setPerfSortKey] = useState('total');
   const [perfSortDir, setPerfSortDir] = useState('desc');
   const [perfChartType, setPerfChartType] = useState('bar');
+  const [perfSelectedItems, setPerfSelectedItems] = useState([]); // Track selected rows for chart
   
   const [compareCollapsed, setCompareCollapsed] = useState({
     metrics: false,
@@ -3525,8 +3526,8 @@ const SalesAnalyzer = () => {
                                         </div>
                                      </div>
 
-                                     <div className="flex-1 min-w-[200px] h-full flex items-end">
-                                        <div className="relative w-full">
+                                     <div className="flex-1 min-w-[200px] h-full flex items-end gap-2">
+                                        <div className="relative flex-1">
                                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                                            <input 
                                              type="text" 
@@ -3535,6 +3536,22 @@ const SalesAnalyzer = () => {
                                              onChange={e => setPerfSearch(e.target.value)}
                                              className="w-full bg-gray-50 border border-gray-100 rounded-2xl pl-12 pr-4 py-3 text-[10px] font-bold outline-none focus:border-blue-300 focus:bg-white transition-all"
                                            />
+                                        </div>
+                                        <div className="flex gap-1">
+                                          <button 
+                                            onClick={() => setPerfSelectedItems(rows.map(r => r.name))}
+                                            className="px-3 py-3 rounded-2xl bg-gray-50 border border-gray-100 text-[9px] font-black uppercase text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-all shadow-sm"
+                                            title="Select All Visible"
+                                          >
+                                            Select All
+                                          </button>
+                                          <button 
+                                            onClick={() => setPerfSelectedItems([])}
+                                            className="px-3 py-3 rounded-2xl bg-gray-50 border border-gray-100 text-[9px] font-black uppercase text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-all shadow-sm"
+                                            title="Deselect All"
+                                          >
+                                            Clear
+                                          </button>
                                         </div>
                                      </div>
                                   </div>
@@ -3610,11 +3627,23 @@ const SalesAnalyzer = () => {
                                     return (
                                       <>
                                         {rows.length > 0 && (
-                                          <div className="h-[300px] mb-6 border border-gray-100 rounded-[24px] p-4 bg-gray-50/20 shadow-sm">
-                                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Top 10 Performance Chart</h4>
+                                          <div className="h-[300px] mb-6 border border-gray-100 rounded-[24px] p-4 bg-gray-50/20 shadow-sm relative">
+                                            <div className="flex justify-between items-center mb-4">
+                                               <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                                  {perfSelectedItems.length > 0 ? `Selected items (${perfSelectedItems.length})` : 'Top 10 Performance Chart'}
+                                               </h4>
+                                               {perfSelectedItems.length > 0 && (
+                                                  <button 
+                                                    onClick={() => setPerfSelectedItems([])}
+                                                    className="text-[9px] font-black text-emerald-600 uppercase hover:underline"
+                                                  >
+                                                     Reset to Top 10
+                                                  </button>
+                                               )}
+                                            </div>
                                             <ResponsiveContainer width="100%" height="100%">
                                               {perfChartType === 'bar' ? (
-                                                <BarChart data={rows.slice(0, 10)}>
+                                                <BarChart data={perfSelectedItems.length > 0 ? rows.filter(r => perfSelectedItems.includes(r.name)) : rows.slice(0, 10)}>
                                                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
                                                   <XAxis dataKey="name" fontSize={10} axisLine={false} tickLine={false} tickFormatter={(val) => val.length > 15 ? val.substring(0, 15) + '...' : val} />
                                                   <YAxis fontSize={10} axisLine={false} tickLine={false} />
@@ -3631,7 +3660,8 @@ const SalesAnalyzer = () => {
                                               ) : (
                                                 <LineChart data={periodCalculations.map(pc => {
                                                   const dataPoint = { name: pc.label };
-                                                  rows.slice(0, 5).forEach(r => {
+                                                  const sourceRows = perfSelectedItems.length > 0 ? rows.filter(r => perfSelectedItems.includes(r.name)) : rows.slice(0, 5);
+                                                  sourceRows.forEach(r => {
                                                     dataPoint[r.name] = r[`p-${pc.id}`];
                                                   });
                                                   return dataPoint;
@@ -3644,8 +3674,8 @@ const SalesAnalyzer = () => {
                                                     itemStyle={{ fontSize: '11px', fontWeight: 'bold' }}
                                                   />
                                                   <Legend wrapperStyle={{ fontSize: '10px', fontWeight: 'bold' }} />
-                                                  {rows.slice(0, 5).map((r, i) => {
-                                                    const colors = ['#6366F1', '#EC4899', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#F43F5E'];
+                                                  {(perfSelectedItems.length > 0 ? rows.filter(r => perfSelectedItems.includes(r.name)) : rows.slice(0, 5)).map((r, i) => {
+                                                    const colors = ['#6366F1', '#EC4899', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#F43F5E', '#14B8A6', '#F97316', '#A855F7'];
                                                     return (
                                                       <Line 
                                                         key={r.name} 
@@ -3669,7 +3699,17 @@ const SalesAnalyzer = () => {
                                            <table className="w-full text-[10px] text-left border-collapse">
                                               <thead className="bg-gray-50">
                                                  <tr>
-                                                    <th className="px-6 py-4 font-black uppercase text-gray-400 text-[10px] w-12 bg-gray-50 sticky left-0 z-20 border-r border-gray-100">#</th>
+                                                    <th className="px-6 py-4 font-black uppercase text-gray-400 text-[10px] w-12 bg-gray-50 sticky left-0 z-20 border-r border-gray-100">
+                                                       <input 
+                                                          type="checkbox"
+                                                          checked={perfSelectedItems.length === rows.length && rows.length > 0}
+                                                          onChange={() => {
+                                                            if (perfSelectedItems.length === rows.length) setPerfSelectedItems([]);
+                                                            else setPerfSelectedItems(rows.map(r => r.name));
+                                                          }}
+                                                          className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                                                       />
+                                                    </th>
                                                     <SortableTH 
                                                       label={perfDimension} 
                                                       sortKey="name" 
@@ -3714,7 +3754,15 @@ const SalesAnalyzer = () => {
                                                     const minInRow = Math.min(...row.pValues.filter(p => p.val > 0).map(p => p.val) || [0]);
 
                                                     return (
-                                                      <tr key={row.name} className="border-b border-gray-50 hover:bg-yellow-50/40 transition-colors group">
+                                                       <tr 
+                                                          key={row.name} 
+                                                          onClick={() => {
+                                                            setPerfSelectedItems(prev => 
+                                                              prev.includes(row.name) ? prev.filter(i => i !== row.name) : [...prev, row.name]
+                                                            );
+                                                          }}
+                                                          className={`border-b border-gray-50 transition-colors group cursor-pointer ${perfSelectedItems.includes(row.name) ? 'bg-emerald-50/20' : 'hover:bg-yellow-50/40'}`}
+                                                       >
                                                           <td className="px-6 py-2.5 font-black uppercase text-gray-400 text-[10px] w-12 bg-white sticky left-0 z-10 border-r border-gray-100 group-hover:bg-yellow-50/60">
                                                             <div className="flex items-center gap-2">
                                                               {rank}
