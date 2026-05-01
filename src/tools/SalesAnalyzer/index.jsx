@@ -15,9 +15,11 @@ import {
 } from 'recharts';
 
 import ReportsTab from '../reports/ReportsTab';
+import ResponsivePanel from '../../components/shared/ResponsivePanel';
+import { Menu } from 'lucide-react';
 
 const APP_VERSION = {
-  version: '1.0.482',
+  version: '1.0.483',
   releaseDate: 'May 2026',
   label: 'Dynamic Matrix & Multi-Period Perf Hub'
 };
@@ -916,6 +918,7 @@ const SalesAnalyzer = () => {
   const uploadModeRef = useRef('replace');
   const [filterProfiles, setFilterProfiles] = useState([]);
   const [showProfileManager, setShowProfileManager] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [smartLoadAlert, setSmartLoadAlert] = useState(null);
   const PROFILES_KEY = 'salesAnalyzer_filterProfiles';
 
@@ -2444,14 +2447,27 @@ const SalesAnalyzer = () => {
         </div>
       )}
       
-      <div className="flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 shrink-0">
-        <div>
-          <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">ATR Sales Analysis</h2>
-          <p className="text-xs text-gray-400 font-medium mt-0.5">
-            {data.length.toLocaleString()} INVOICES · {totalProducts} PRODUCTS · {totalMRs} MRs · {formatDate(startDate)} → {formatDate(endDate)}
-          </p>
+      <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-3 bg-white border-b border-gray-200 shrink-0 gap-4">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <button 
+            onClick={() => setIsSidebarOpen(true)}
+            className="lg:hidden p-2 hover:bg-gray-100 rounded-xl text-blue-600 relative"
+          >
+            <Menu size={20} />
+            {activeFilterCount > 0 && (
+              <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-blue-600 text-white text-[8px] font-black rounded-full flex items-center justify-center border border-white">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+          <div className="min-w-0">
+            <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight truncate">ATR Sales Analysis</h2>
+            <p className="text-[10px] sm:text-xs text-gray-400 font-medium mt-0.5 truncate">
+              {data.length.toLocaleString()} INVOICES · {totalProducts} PRODUCTS · {totalMRs} MRs
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
           {/* Always visible upload button */}
           <button
             onClick={handleUploadClick}
@@ -2507,16 +2523,23 @@ const SalesAnalyzer = () => {
       )}
 
 
-      <div className="flex flex-1 overflow-hidden h-[calc(100vh-theme(spacing.24))]">
-        <SideFiltersPanel 
-          filters={filters} 
-          setFilters={setFilters} 
-          filterOptions={filterOptions} 
-          activeFilterCount={activeFilterCount}
-          onManageProfiles={() => setShowProfileManager(true)}
-          profiles={filterProfiles}
-        />
-        <div className="flex flex-col flex-1 overflow-hidden">
+      <div className="flex flex-col lg:flex-row flex-1 overflow-hidden h-[calc(100vh-theme(spacing.24))] w-full max-w-full overflow-x-hidden">
+        <ResponsivePanel 
+          isOpen={isSidebarOpen} 
+          onClose={() => setIsSidebarOpen(false)}
+          count={activeFilterCount}
+        >
+          <SideFiltersPanel 
+            filters={filters} 
+            setFilters={setFilters} 
+            filterOptions={filterOptions} 
+            activeFilterCount={activeFilterCount}
+            onManageProfiles={() => setShowProfileManager(true)}
+            profiles={filterProfiles}
+          />
+        </ResponsivePanel>
+
+        <div className="flex flex-col flex-1 overflow-hidden min-w-0">
           <ActiveFiltersBar filters={filters} setFilters={setFilters} />
           
           <FilterProfilesManager 
@@ -2528,7 +2551,7 @@ const SalesAnalyzer = () => {
             onLoad={loadProfile}
             currentFilters={filters}
           />
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 px-4 pt-3 pb-2 shrink-0">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 px-4 pt-3 pb-2 shrink-0">
             {[
               { label: 'Net Quantity', value: kpis.netQty.toLocaleString(), suffix: 'units', icon: Package, color: 'text-emerald-600', bg: 'bg-emerald-50', negative: kpis.netQty < 0 },
               { label: 'Net Value', value: kpis.netValue.toLocaleString(), suffix: 'EGP', icon: DollarSign, color: 'text-blue-600', bg: 'bg-blue-50', negative: kpis.netValue < 0 },
@@ -2546,7 +2569,7 @@ const SalesAnalyzer = () => {
             ))}
           </div>
 
-          <div className="flex gap-2 px-6 pb-3 shrink-0 flex-wrap">
+          <div className="flex gap-2 px-6 pb-3 shrink-0 overflow-x-auto no-scrollbar whitespace-nowrap">
             {['Overview','By Product','By MR','By Customer','By Branch','Trend', 'Compare', 'Reports'].map(tab => (
               <button key={tab} onClick={() => setActiveTab(tab)} className={`px-5 py-2 rounded-full text-sm font-semibold transition-all border ${activeTab === tab ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-400 hover:text-blue-600'}`}>{tab}</button>
             ))}

@@ -22,7 +22,7 @@ const FOOTER_H = 48;
 // ════════════════════════════════════════════
 const AppLayout = ({ children }) => {
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
+    <div className="flex flex-col min-h-screen bg-gray-50 w-full max-w-full overflow-x-hidden">
 
       {/* Navbar — fixed at top, sets --nav-height via its own useEffect */}
       <Navbar />

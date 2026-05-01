@@ -4,7 +4,7 @@ import {
   ChevronRight, ChevronDown, Check, X,
   LayoutDashboard, BarChart3, Target, AlertTriangle, 
   Search, Download, ArrowLeft, MoreHorizontal,
-  ChevronLeft
+  ChevronLeft, Menu
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
@@ -33,6 +33,7 @@ import RankingsTab from './RankingsTab';
 import GapAnalysisTab from './GapAnalysisTab';
 import AtRiskAnalysisTab from './AtRiskAnalysisTab';
 import DrillDownTab from './DrillDownTab';
+import ResponsivePanel from '../../components/shared/ResponsivePanel';
 
 const SalesForecastTool = () => {
   // ════════════════════════════════════════════
@@ -43,6 +44,7 @@ const SalesForecastTool = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [drillPath, setDrillPath] = useState([]); // Array of { level, id, name }
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   const [filters, setFilters] = useState({
     lines: [],
@@ -80,16 +82,9 @@ const SalesForecastTool = () => {
   };
 
   const processParsedData = (rows) => {
-    // Expected structure has headers. Let's find them or assuming they start at index 0/1
-    // Headers: Line Name | DM ID | DM Name (District Name) | MR ID | MR Name (Area Name) | Product Code | Product Name | Sales Unit | Sales Value | Target Unit | Target Value | Ratio | Sales Points | Target Points | Ratio.1
-    
     const parsedData = [];
-    // Basic heuristic: find row that looks like headers or just skip first if we know fixed format
-    // For now, let's assume row 0 or 1 is header.
-    
-    // Skip subtotal rows ("Total" in first cell) or empty rows
     rows.forEach((row, idx) => {
-      if (idx === 0) return; // Skip headers for now or use them to map
+      if (idx === 0) return;
       if (!row || row.length === 0) return;
       const firstCell = row[0]?.toString().trim();
       if (!firstCell || firstCell === 'Total' || firstCell === 'Line Name') return;
@@ -111,10 +106,10 @@ const SalesForecastTool = () => {
         salesValue: cleanValue(row[8]),
         targetUnit: cleanValue(row[9]),
         targetValue: cleanValue(row[10]),
-        achievementRatio: cleanValue(row[11]), // Already as percentage (e.g. 42.98)
+        achievementRatio: cleanValue(row[11]),
         salesPoints: cleanValue(row[12]),
         targetPoints: cleanValue(row[13]),
-        pointsRatio: cleanValue(row[14]) // Ratio.1
+        pointsRatio: cleanValue(row[14])
       });
     });
 
@@ -163,21 +158,18 @@ const SalesForecastTool = () => {
     if (filters.mrs.length > 0) data = data.filter(r => filters.mrs.includes(r.mrName));
     if (filters.products.length > 0) data = data.filter(r => filters.products.includes(r.productName));
 
-    // Achievement Range Filter
     const progress = (periodProgress.currentDay / periodProgress.totalDays) * 100;
 
     data = data.filter(r => {
       const ach = r.targetUnit > 0 ? (r.salesUnit / r.targetUnit) * 100 : 0;
       const projAch = r.targetUnit > 0 ? (projectValue(r.salesUnit, progress) / r.targetUnit) * 100 : 0;
       
-      // achievementRange filter
       let passRange = true;
       if (filters.achievementRange === '<50%') passRange = ach < 50;
       else if (filters.achievementRange === '50-75%') passRange = ach >= 50 && ach < 75;
       else if (filters.achievementRange === '75-100%') passRange = ach >= 75 && ach < 100;
       else if (filters.achievementRange === '>100%') passRange = ach >= 100;
 
-      // At Risk Only
       const passRisk = !filters.atRiskOnly || projAch < 95;
 
       return passRange && passRisk;
@@ -213,32 +205,28 @@ const SalesForecastTool = () => {
     };
   }, [filteredData, periodProgress]);
 
-  // ════════════════════════════════════════════
-  // UI COMPONENTS
-  // ════════════════════════════════════════════
-
   if (rawData.length === 0) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-gray-50 min-h-[calc(100vh-140px)]">
+      <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8 bg-gray-50 min-h-[calc(100vh-140px)]">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="max-w-md w-full bg-white rounded-3xl shadow-xl p-8 text-center"
+          className="max-w-md w-full bg-white rounded-3xl shadow-xl p-6 sm:p-8 text-center"
         >
-          <div className="w-20 h-20 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-6 text-blue-600">
-            <TrendingUp size={40} />
+          <div className="w-16 h-16 sm:w-20 sm:h-20 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-6 text-blue-600">
+            <TrendingUp size={32} />
           </div>
-          <h1 className="text-2xl font-black text-gray-900 mb-2 uppercase tracking-tight">Sales Forecast Tool</h1>
-          <p className="text-gray-500 mb-8 leading-relaxed">
+          <h1 className="text-xl sm:text-2xl font-black text-gray-900 mb-2 uppercase tracking-tight">Sales Forecast Tool</h1>
+          <p className="text-sm text-gray-500 mb-8 leading-relaxed">
             Upload your sales data file (.xlsx or .csv) to generate projections, gap analysis, and performance rankings.
           </p>
           
-          <label className="block border-2 border-dashed border-gray-200 rounded-2xl p-10 cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-all group">
+          <label className="block border-2 border-dashed border-gray-200 rounded-2xl p-6 sm:p-10 cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-all group">
             <input type="file" className="hidden" accept=".xlsx, .xls, .csv" onChange={handleFileUpload} />
             <div className="flex flex-col items-center">
-              <Upload size={32} className="text-gray-400 group-hover:text-blue-500 transition-colors mb-4" />
-              <span className="text-sm font-bold text-gray-600">Drag & Drop or Click to Upload</span>
-              <span className="text-[10px] text-gray-400 mt-2 uppercase tracking-widest font-black">Excel / CSV Supported</span>
+              <Upload size={24} className="text-gray-400 group-hover:text-blue-500 transition-colors mb-4" />
+              <span className="text-xs sm:text-sm font-bold text-gray-600">Drag & Drop or Click to Upload</span>
+              <span className="text-[9px] text-gray-400 mt-2 uppercase tracking-widest font-black">Excel / CSV Supported</span>
             </div>
           </label>
         </motion.div>
@@ -246,12 +234,18 @@ const SalesForecastTool = () => {
     );
   }
 
+  const activeFiltersCount = filters.lines.length + filters.dms.length + filters.mrs.length + filters.products.length + (filters.atRiskOnly ? 1 : 0);
+
   return (
-    <div className="flex flex-1 overflow-hidden h-full">
-      {/* SIDEBAR FILTERS */}
-      <div className="w-64 flex flex-col bg-white border-r border-gray-200 shrink-0 overflow-hidden shadow-sm z-10">
-        <div className="p-4 border-b border-gray-100">
-          <div className="flex items-center gap-2 text-gray-900 font-black uppercase tracking-widest text-xs mb-4">
+    <div className="flex flex-col lg:flex-row flex-1 overflow-hidden h-full w-full max-w-full overflow-x-hidden">
+      {/* SIDEBAR FILTERS - RESPONSIVE PANEL */}
+      <ResponsivePanel 
+        isOpen={isSidebarOpen} 
+        onClose={() => setIsSidebarOpen(false)}
+        count={activeFiltersCount}
+      >
+        <div className="p-4 flex flex-col h-full">
+          <div className="hidden lg:flex items-center gap-2 text-gray-900 font-black uppercase tracking-widest text-xs mb-4">
             <Filter size={14} className="text-blue-600" />
             Filters
           </div>
@@ -313,45 +307,53 @@ const SalesForecastTool = () => {
               <span className="text-xs font-bold text-gray-700 group-hover:text-gray-900 transition-colors">At Risk Only</span>
             </label>
           </div>
+
+          <div className="mt-auto pt-6">
+            <button 
+              onClick={() => {
+                setFilters({ lines: [], dms: [], mrs: [], products: [], achievementRange: 'all', atRiskOnly: false });
+                setIsSidebarOpen(false);
+              }}
+              className="w-full py-2 bg-gray-50 text-gray-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-50 hover:text-red-600 transition-all border border-gray-200"
+            >
+              Clear All Filters
+            </button>
+          </div>
         </div>
-        
-        <div className="mt-auto p-4 border-t border-gray-100">
-          <button 
-            onClick={() => setFilters({ lines: [], dms: [], mrs: [], products: [], achievementRange: 'all', atRiskOnly: false })}
-            className="w-full py-2 bg-gray-50 text-gray-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-50 hover:text-red-600 transition-all border border-gray-200"
-          >
-            Clear All Filters
-          </button>
-        </div>
-      </div>
+      </ResponsivePanel>
 
       {/* MAIN CONTENT AREA */}
-      <div className="flex-1 flex flex-col overflow-hidden bg-gray-50/50">
+      <div className="flex-1 flex flex-col overflow-hidden bg-gray-50/50 min-w-0">
         {/* Header Bar */}
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shrink-0">
-          <div className="flex items-center gap-3">
-            <h2 className="text-lg font-black text-gray-900 uppercase tracking-tight flex items-center gap-2">
-              <span className="text-2xl">📈</span> Sales Forecast
+        <header className="h-auto sm:h-16 bg-white border-b border-gray-200 flex flex-col sm:flex-row items-center justify-between px-4 sm:px-6 py-2 sm:py-0 shrink-0 gap-2">
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <button 
+              onClick={() => setIsSidebarOpen(true)}
+              className="lg:hidden p-2 hover:bg-gray-100 rounded-xl text-blue-600 relative"
+            >
+              <Menu size={20} />
+              {activeFiltersCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-blue-600 text-white text-[8px] font-black rounded-full flex items-center justify-center border border-white">
+                  {activeFiltersCount}
+                </span>
+              )}
+            </button>
+            <h2 className="text-base sm:text-lg font-black text-gray-900 uppercase tracking-tight flex items-center gap-2 truncate">
+              <span className="text-xl sm:text-2xl">📈</span> Sales Forecast
             </h2>
-            {fileName && (
-              <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-bold border border-blue-100">
-                <span className="max-w-[150px] truncate">{fileName}</span>
-                <Check size={14} className="text-blue-500" />
-              </div>
-            )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
             <button 
               onClick={clearData}
-              className="px-4 py-2 text-red-500 hover:bg-red-50 rounded-xl text-xs font-bold transition-all flex items-center gap-2"
+              className="px-3 py-2 text-red-500 hover:bg-red-50 rounded-xl text-[10px] sm:text-xs font-bold transition-all flex items-center gap-2"
             >
               <Trash2 size={16} />
-              Clear Data
+              <span className="hidden xs:inline">Clear</span>
             </button>
-            <label className="cursor-pointer px-4 py-2 bg-gray-900 text-white hover:bg-blue-600 rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-2">
+            <label className="cursor-pointer px-3 py-2 bg-gray-900 text-white hover:bg-blue-600 rounded-xl text-[10px] sm:text-xs font-bold transition-all shadow-md flex items-center gap-2">
               <Upload size={16} />
-              Upload Again
+              Upload
               <input type="file" className="hidden" accept=".xlsx, .xls, .csv" onChange={handleFileUpload} />
             </label>
           </div>
@@ -359,29 +361,29 @@ const SalesForecastTool = () => {
 
         {/* Summary Mini Bar */}
         {summary && (
-          <div className="h-12 bg-gray-900 flex items-center gap-4 px-6 shrink-0 overflow-x-auto no-scrollbar">
+          <div className="h-10 sm:h-12 bg-gray-900 flex items-center gap-3 sm:gap-4 px-4 sm:px-6 shrink-0 overflow-x-auto whitespace-nowrap no-scrollbar scroll-smooth">
             <StatBadge label="Records" value={summary.records} />
             <StatBadge label="MRs" value={summary.mrs} />
             <StatBadge label="Lines" value={summary.lines} />
-            <StatBadge label="Avg Achievement" value={`${summary.avgAchievement}%`} highlight={summary.avgAchievement >= 100 ? 'text-emerald-400' : 'text-amber-400'} />
+            <StatBadge label="Avg Ach." value={`${summary.avgAchievement}%`} highlight={summary.avgAchievement >= 100 ? 'text-emerald-400' : 'text-amber-400'} />
             <StatBadge label="At Risk" value={summary.atRisk} highlight={summary.atRisk > 0 ? 'text-red-400' : 'text-emerald-400'} />
           </div>
         )}
 
         {/* Tab Navigation */}
-        <div className="bg-white border-b border-gray-200 px-6 shrink-0 z-10 sticky top-0">
-          <div className="flex overflow-x-auto no-scrollbar gap-8">
-            <TabButton active={activeTab === 'overview'} label="Performance Overview" icon={<LayoutDashboard size={16} />} onClick={() => setActiveTab('overview')} />
-            <TabButton active={activeTab === 'forecast'} label="Forecast & Projection" icon={<TrendingUp size={16} />} onClick={() => setActiveTab('forecast')} />
-            <TabButton active={activeTab === 'rankings'} label="Rankings" icon={<MoreHorizontal size={16} />} onClick={() => setActiveTab('rankings')} />
-            <TabButton active={activeTab === 'gap'} label="Gap Analysis" icon={<Target size={16} />} onClick={() => setActiveTab('gap')} />
-            <TabButton active={activeTab === 'risk'} label="At Risk Analysis" icon={<AlertTriangle size={16} />} onClick={() => setActiveTab('risk')} />
-            <TabButton active={activeTab === 'drill'} label="Drill Down" icon={<Search size={16} />} onClick={() => setActiveTab('drill')} />
+        <div className="bg-white border-b border-gray-200 px-4 sm:px-6 shrink-0 z-10 sticky top-0 overflow-x-auto no-scrollbar">
+          <div className="flex gap-4 sm:gap-8 min-w-max">
+            <TabButton active={activeTab === 'overview'} label="Performance" icon={<LayoutDashboard size={14} />} onClick={() => setActiveTab('overview')} />
+            <TabButton active={activeTab === 'forecast'} label="Forecast" icon={<TrendingUp size={14} />} onClick={() => setActiveTab('forecast')} />
+            <TabButton active={activeTab === 'rankings'} label="Rankings" icon={<MoreHorizontal size={14} />} onClick={() => setActiveTab('rankings')} />
+            <TabButton active={activeTab === 'gap'} label="Gap" icon={<Target size={14} />} onClick={() => setActiveTab('gap')} />
+            <TabButton active={activeTab === 'risk'} label="Risk" icon={<AlertTriangle size={14} />} onClick={() => setActiveTab('risk')} />
+            <TabButton active={activeTab === 'drill'} label="Drill Down" icon={<Search size={14} />} onClick={() => setActiveTab('drill')} />
           </div>
         </div>
 
         {/* Tab Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar scroll-smooth">
           <AnimatePresence mode="wait">
              <motion.div
                key={activeTab}
@@ -389,7 +391,7 @@ const SalesForecastTool = () => {
                animate={{ opacity: 1, x: 0 }}
                exit={{ opacity: 0, x: -10 }}
                transition={{ duration: 0.2 }}
-               className="h-full"
+               className="h-full min-w-0"
              >
                <TabContent 
                  tab={activeTab} 
@@ -451,7 +453,7 @@ const FilterGroup = ({ label, options, selected, onChange }) => {
                   <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input 
                     type="text" 
-                    placeholder={`Search ${label}...`}
+                    placeholder={`Search...`}
                     className="w-full bg-gray-50 border border-gray-100 rounded-lg pl-8 pr-3 py-1.5 text-[11px] focus:bg-white focus:border-blue-300 outline-none transition-all"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
@@ -503,8 +505,8 @@ const TabButton = ({ active, label, icon, onClick }) => (
       : 'border-transparent text-gray-400 font-bold hover:text-gray-600'
     }`}
   >
-    {icon}
-    <span className="text-sm tracking-tight">{label}</span>
+    <span className="sm:inline hidden">{icon}</span>
+    <span className="text-xs sm:text-sm tracking-tight">{label}</span>
   </button>
 );
 
