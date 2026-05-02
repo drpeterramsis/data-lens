@@ -491,22 +491,20 @@ const FilterProfilesManager = ({
     setLocalEditing(null);
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-[110] bg-gray-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white rounded-[32px] overflow-hidden shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col md:flex-row border border-white/20">
+    <div className="fixed inset-0 z-[110] bg-gray-900/60 backdrop-blur-sm flex items-center justify-center p-0 sm:p-4">
+      <div className="bg-white sm:rounded-[32px] overflow-hidden shadow-2xl w-full max-w-5xl h-full sm:h-[85vh] flex flex-col md:flex-row border border-white/20">
         
         {/* LEFT: LIST */}
-        <div className="flex-1 flex flex-col border-r border-gray-100 bg-gray-50/50">
-          <div className="p-6 border-b border-gray-100">
+        <div className="flex-1 flex flex-col border-r border-gray-100 bg-gray-50/50 min-h-0">
+          <div className="p-4 sm:p-6 border-b border-gray-100">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight flex items-center gap-2">
-                  <History className="text-blue-600" size={24} />
+                <h3 className="text-lg sm:text-xl font-black text-gray-900 uppercase tracking-tight flex items-center gap-2 truncate">
+                  <History className="text-blue-600 w-5 h-5 sm:w-6 sm:h-6" />
                   Saved Filter Profiles
                 </h3>
-                <p className="text-xs text-gray-400 font-medium mt-1">Manage your analysis shortcuts ({profiles.length}/20)</p>
+                <p className="text-[10px] sm:text-xs text-gray-400 font-medium mt-1">Manage analyzer shortcuts ({profiles.length}/20)</p>
               </div>
               <button 
                 onClick={onClose}
@@ -522,19 +520,18 @@ const FilterProfilesManager = ({
                 placeholder="Search profiles..." 
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className="w-full bg-white border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:border-blue-500 outline-none transition-all shadow-sm"
+                className="w-full bg-white border border-gray-200 rounded-xl pl-10 pr-4 py-2 text-sm focus:border-blue-500 outline-none transition-all shadow-sm"
               />
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-6 space-y-3">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3">
             {filteredProfiles.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center opacity-40 py-12">
                 <div className="w-16 h-16 bg-gray-200 rounded-full mb-4 flex items-center justify-center">
                   <Filter size={32} />
                 </div>
                 <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">No profiles found</p>
-                <p className="text-[10px] text-gray-400 mt-1">Start by saving your current filters</p>
               </div>
             ) : (
               filteredProfiles.map(profile => {
@@ -550,7 +547,6 @@ const FilterProfilesManager = ({
                   }
                 });
 
-                // Date ranges as special tags
                 if (profile.filters.fromDate || profile.filters.toDate) {
                   allFilterTags.unshift({ key: 'date', value: `${profile.filters.fromDate || '...'} → ${profile.filters.toDate || '...'}` });
                 }
@@ -560,23 +556,23 @@ const FilterProfilesManager = ({
                 return (
                   <div key={profile.id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all group">
                     <div className="flex justify-between items-start mb-3">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-3 h-3 rounded-full ${colorObj.dot}`} />
-                        <h4 className="font-black text-gray-800 uppercase tracking-tight">{profile.name}</h4>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className={`w-3 h-3 rounded-full shrink-0 ${colorObj.dot}`} />
+                        <h4 className="font-black text-gray-800 uppercase tracking-tight truncate">{profile.name}</h4>
                         {JSON.stringify(profile.filters) === JSON.stringify(currentFilters) && (
-                          <span className="text-[8px] bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded-full font-black uppercase tracking-tighter">Active</span>
+                          <span className="text-[8px] bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded-full font-black uppercase tracking-tighter shrink-0">Active</span>
                         )}
                       </div>
-                      <div className="flex gap-1">
+                      <div className="flex gap-1 shrink-0 ml-2">
                         <button 
                           onClick={() => onLoad(profile)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          className="p-1.5 sm:p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title="Load Profile">
                           <CheckCircle2 size={16} />
                         </button>
                         <button 
                           onClick={() => setLocalEditing(profile)}
-                          className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                          className="p-1.5 sm:p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
                           title="Edit Info">
                           <Edit2 size={16} />
                         </button>
@@ -584,7 +580,7 @@ const FilterProfilesManager = ({
                           onClick={() => {
                             if(window.confirm(`Delete profile "${profile.name}"?`)) onDelete(profile.id);
                           }}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          className="p-1.5 sm:p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title="Delete Profile">
                           <Trash2 size={16} />
                         </button>
@@ -599,15 +595,15 @@ const FilterProfilesManager = ({
 
                     <div className="flex flex-wrap gap-1 mb-2">
                       {visibleTags.map((tag, idx) => (
-                        <span key={idx} className="text-[9px] font-bold bg-gray-50 text-gray-500 border border-gray-100 px-2 py-0.5 rounded-md uppercase flex items-center gap-1 shrink-0">
-                          <span className="text-gray-300 font-black">{tag.key}:</span> {tag.value}
+                        <span key={idx} className="text-[9px] font-bold bg-gray-50 text-gray-500 border border-gray-100 px-2 py-0.5 rounded-md uppercase flex items-center gap-1">
+                          <span className="text-gray-300 font-black">{tag.key}:</span> <span className="truncate max-w-[80px]">{tag.value}</span>
                         </span>
                       ))}
                       {allFilterTags.length > 3 && (
                         <button 
                           onClick={() => toggleExpand(profile.id)}
                           className="text-[9px] font-black text-blue-600 hover:underline uppercase px-1">
-                          {isExpanded ? 'Show Less' : `+ ${allFilterTags.length - 3} more`}
+                          {isExpanded ? 'Less' : `+ ${allFilterTags.length - 3}`}
                         </button>
                       )}
                     </div>
@@ -619,8 +615,8 @@ const FilterProfilesManager = ({
                       </div>
                       <button 
                         onClick={() => onLoad(profile)}
-                        className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${JSON.stringify(profile.filters) === JSON.stringify(currentFilters) ? 'bg-gray-100 text-gray-400 cursor-default' : 'bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white'}`}>
-                        Load Profile
+                        className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${JSON.stringify(profile.filters) === JSON.stringify(currentFilters) ? 'bg-gray-100 text-gray-400 cursor-default' : 'bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white'}`}>
+                        Load
                       </button>
                     </div>
                   </div>
@@ -631,10 +627,10 @@ const FilterProfilesManager = ({
         </div>
 
         {/* RIGHT: SAVE FORM */}
-        <div className="w-full md:w-[380px] flex flex-col bg-white">
-          <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-            <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">
-              {localEditing ? 'Update Profile' : 'Save As Profile'}
+        <div className="w-full md:w-[380px] flex flex-col bg-white border-t md:border-t-0 md:border-l border-gray-100">
+          <div className="p-4 sm:p-6 border-b border-gray-100 flex items-center justify-between">
+            <h3 className="text-lg sm:text-xl font-black text-gray-900 uppercase tracking-tight">
+              {localEditing ? 'Update Profile' : 'Save Profile'}
             </h3>
             <button 
               onClick={onClose}
@@ -643,20 +639,20 @@ const FilterProfilesManager = ({
             </button>
           </div>
 
-          <div className="flex-1 p-6 space-y-6 overflow-y-auto">
+          <div className="flex-1 p-4 sm:p-6 space-y-6 overflow-y-auto">
             {/* Filter Preview */}
-            <div className="bg-blue-50/50 rounded-2xl p-4 border border-blue-100/50">
+            <div className="bg-blue-50/50 rounded-2xl p-3 sm:p-4 border border-blue-100/50">
               <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-3 block">
                 Current Filter Preview
               </span>
               {activeFiltersOnly.length === 0 ? (
-                <p className="text-xs text-blue-300 font-medium italic">No active filters to save</p>
+                <p className="text-xs text-blue-300 font-medium italic">No active filters</p>
               ) : (
                 <div className="flex flex-wrap gap-1.5">
                   {activeFiltersOnly.map(([k, v]) => (
                     <div key={k} className="bg-white border border-blue-100 px-2 py-1 rounded-lg shadow-sm">
                       <span className="text-[10px] font-bold text-blue-700 capitalize">{k}: </span>
-                      <span className="text-[10px] text-gray-500 font-medium">
+                      <span className="text-[10px] text-gray-500 font-medium truncate max-w-[100px] inline-block align-bottom">
                         {Array.isArray(v) ? v.join(', ') : v}
                       </span>
                     </div>
@@ -672,30 +668,30 @@ const FilterProfilesManager = ({
                   type="text" 
                   value={name}
                   onChange={e => setName(e.target.value)}
-                  placeholder="e.g. Sales Q3 - Pharma"
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 transition-all"
+                  placeholder="e.g. Sales Q3"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-blue-500 transition-all"
                 />
               </div>
 
               <div>
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">Description (Optional)</label>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">Description</label>
                 <textarea 
                   value={desc}
                   onChange={e => setDesc(e.target.value)}
-                  placeholder="Notes about these filters..."
-                  rows={3}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 transition-all resize-none"
+                  placeholder="Notes..."
+                  rows={2}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-blue-500 transition-all resize-none"
                 />
               </div>
 
               <div>
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Choose Profile Color</label>
-                <div className="flex flex-wrap gap-3">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Color</label>
+                <div className="flex flex-wrap gap-2 sm:gap-3">
                   {PRESET_COLORS.map(c => (
                     <button
                       key={c.id}
                       onClick={() => setSelectedColor(c.id)}
-                      className={`w-8 h-8 rounded-full transition-all flex items-center justify-center ${c.bg} ${c.border} border-2 ${selectedColor === c.id ? 'scale-125 shadow-lg border-gray-900' : 'hover:scale-110'}`}
+                      className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full transition-all flex items-center justify-center ${c.bg} ${c.border} border-2 ${selectedColor === c.id ? 'scale-110 shadow-lg border-gray-900' : 'hover:scale-105'}`}
                     >
                       {selectedColor === c.id && <div className={`w-2 h-2 rounded-full bg-gray-900`} />}
                     </button>
@@ -705,19 +701,14 @@ const FilterProfilesManager = ({
             </div>
           </div>
 
-          <div className="p-6 bg-gray-50 border-t border-gray-100">
+          <div className="p-4 sm:p-6 bg-gray-50 border-t border-gray-100">
             <button 
               disabled={!name.trim() || (activeFiltersOnly.length === 0 && !localEditing)}
               onClick={handleSave}
-              className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-blue-600 disabled:opacity-30 disabled:hover:bg-gray-900 transition-all shadow-xl flex items-center justify-center gap-2">
+              className="w-full py-3.5 sm:py-4 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-blue-600 disabled:opacity-30 transition-all shadow-xl flex items-center justify-center gap-2">
               <Save size={18} />
-              {localEditing ? 'Update Selected Profile' : 'Save As Profile'}
+              {localEditing ? 'Update' : 'Save'}
             </button>
-            {profiles.length >= 20 && !localEditing && (
-              <p className="text-center text-[10px] text-red-500 font-bold uppercase mt-3">
-                Profile limit reached (Max 20)
-              </p>
-            )}
           </div>
         </div>
       </div>
@@ -2451,48 +2442,44 @@ const SalesAnalyzer = () => {
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <button 
             onClick={() => setIsSidebarOpen(true)}
-            className="lg:hidden p-2 hover:bg-gray-100 rounded-xl text-blue-600 relative"
+            className="lg:hidden p-2.5 hover:bg-gray-100 rounded-xl text-blue-600 relative shrink-0"
           >
             <Menu size={20} />
             {activeFilterCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-blue-600 text-white text-[8px] font-black rounded-full flex items-center justify-center border border-white">
+              <span className="absolute top-1 right-1 w-4 h-4 bg-blue-600 text-white text-[8px] font-black rounded-full flex items-center justify-center border border-white">
                 {activeFilterCount}
               </span>
             )}
           </button>
           <div className="min-w-0">
-            <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight truncate">ATR Sales Analysis</h2>
-            <p className="text-[10px] sm:text-xs text-gray-400 font-medium mt-0.5 truncate">
+            <h2 className="text-lg sm:text-xl font-black text-gray-900 uppercase tracking-tight truncate">ATR Sales Analysis</h2>
+            <p className="text-[9px] sm:text-xs text-gray-400 font-medium mt-0.5 truncate uppercase tracking-tighter">
               {data.length.toLocaleString()} INVOICES · {totalProducts} PRODUCTS · {totalMRs} MRs
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-          {/* Always visible upload button */}
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto justify-end">
           <button
             onClick={handleUploadClick}
             disabled={isLoading}
-            className="flex items-center gap-2 
-                       bg-blue-600 hover:bg-blue-700
-                       disabled:bg-blue-300
-                       text-white text-xs font-black 
-                       uppercase tracking-widest
-                       px-4 py-2.5 rounded-xl 
-                       transition-all shadow-sm
-                       shrink-0">
-            {isLoading 
-              ? <span className="animate-spin">⏳</span>
-              : <Upload size={13}/>
-            }
-            {isLoading 
-              ? 'Processing...'
-              : data.length > 0 
-                ? 'Add / Replace' 
-                : 'Upload File'
-            }
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-[10px] font-black uppercase tracking-widest px-4 py-2.5 rounded-xl transition-all shadow-sm"
+          >
+            {isLoading ? <span className="animate-spin text-xs">⏳</span> : <Upload size={13}/>}
+            {isLoading ? 'Wait...' : data.length > 0 ? 'Batch Load' : 'Upload File'}
           </button>
-          <button onClick={() => setFilters(f=>({...f, fromDate:'', toDate:''}))} className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:border-blue-400 hover:text-blue-600 transition-all font-semibold">📅 Full Period</button>
-          <button onClick={handleReset} className="text-xs font-black uppercase tracking-widest bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-all shadow-sm flex items-center gap-2"><RefreshCw size={12}/> Reset</button>
+          <button 
+            onClick={() => setFilters(f=>({...f, fromDate:'', toDate:''}))} 
+            className="flex-1 sm:flex-none text-[10px] px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 hover:border-blue-400 hover:text-blue-600 transition-all font-black uppercase tracking-widest bg-white shadow-sm"
+          >
+            Full Period
+          </button>
+          <button 
+            onClick={handleReset} 
+            className="flex-1 sm:flex-none text-[10px] font-black uppercase tracking-widest bg-gray-100 hover:bg-gray-200 px-4 py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2"
+          >
+            <RefreshCw size={12}/> 
+            Reset
+          </button>
         </div>
       </div>
 
@@ -2878,7 +2865,7 @@ const SalesAnalyzer = () => {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-12 gap-1 mb-6">
+                      <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-12 gap-2 mb-6">
                         {(() => {
                           const monthsArray = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                           const renderedCards = [];
@@ -2921,10 +2908,10 @@ const SalesAnalyzer = () => {
                                   saveComparePreset(newPeriods);
                                 }}
                                 className={`
-                                  w-full h-10 rounded uppercase text-[10px] font-black border transition-all flex items-center justify-center
+                                  w-full h-10 rounded-xl uppercase text-[10px] font-black border transition-all flex items-center justify-center
                                   ${!isAvailable 
                                     ? 'bg-gray-100 border-gray-100 text-gray-300 cursor-not-allowed' 
-                                    : 'bg-white border-gray-200 text-gray-500 hover:border-blue-500 hover:text-blue-600 cursor-pointer'}
+                                    : 'bg-white border-gray-200 text-gray-500 hover:border-blue-500 hover:text-blue-600 cursor-pointer shadow-sm hover:shadow-md'}
                                 `}
                               >
                                 {name}
@@ -2933,13 +2920,13 @@ const SalesAnalyzer = () => {
                           });
 
                           return renderedCards.length === 0 ? (
-                            <div className="col-span-12 py-4 text-center bg-gray-50 rounded-xl border border-gray-100 text-[10px] font-black uppercase text-gray-500 tracking-widest">
-                               ✅ All months of {selectedYear} already added
+                            <div className="col-span-4 sm:col-span-6 lg:col-span-12 py-4 text-center bg-gray-50 rounded-xl border border-gray-100 text-[10px] font-black uppercase text-gray-500 tracking-widest">
+                               ✅ {selectedYear} months added
                             </div>
                           ) : (
                             <>
-                              <div className="col-span-12 flex gap-1">{renderedCards}</div>
-                              <div className="col-span-12 text-[9px] font-semibold text-gray-400 uppercase mt-1 text-right">
+                              <div className="col-span-4 sm:col-span-6 lg:col-span-12 flex flex-wrap gap-2">{renderedCards}</div>
+                              <div className="col-span-4 sm:col-span-6 lg:col-span-12 text-[9px] font-semibold text-gray-400 uppercase mt-1 text-right">
                                 * Inactive months have no data
                               </div>
                             </>

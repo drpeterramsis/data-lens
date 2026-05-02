@@ -58,38 +58,38 @@ const GapAnalysisTab = ({ data, periodProgress }) => {
   return (
     <div className="space-y-6 pb-20">
       {/* GAP SUMMARY CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         <GapCard 
           label="Total Units Gap" 
           value={gapSummary.totalUnitsGap.toLocaleString()} 
-          sub="Remaining to hit 100% Target"
+          sub="Remaining to 100% Target"
           icon={<Target className="text-red-500" />}
         />
         <GapCard 
           label="Total Value Gap" 
           value={`$${gapSummary.totalValueGap.toLocaleString()}`} 
-          sub="Potential Revenue Remaining"
+          sub="Potential Revenue"
           icon={<Zap className="text-amber-500" />}
         />
         <GapCard 
           label="MR Success Rate" 
           value={`${gapSummary.percentHitTarget.toFixed(1)}%`} 
-          sub="MRs who already achieved 100%"
+          sub="Achieved 100%"
           icon={<ShieldAlert className={`text-${gapSummary.percentHitTarget > 50 ? 'emerald' : 'red'}-500`} />}
         />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Waterfall Chart */}
-        <div className="lg:col-span-4 bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-          <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-6">Top Gaps Contribution</h3>
-          <div className="h-[400px]">
+        <div className="lg:col-span-4 bg-white rounded-3xl p-4 sm:p-6 shadow-sm border border-gray-100 min-w-0">
+          <h3 className="text-xs sm:text-sm font-black text-gray-900 uppercase tracking-widest mb-6">Top Gaps Contribution</h3>
+          <div className="h-[300px] sm:h-[400px]">
              <ResponsiveContainer width="100%" height="100%">
                <BarChart data={waterfallData} layout="vertical">
                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#F1F3F5" />
                  <XAxis type="number" hide />
-                 <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} />
-                 <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '12px', border: 'none' }} />
+                 <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} />
+                 <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '12px', border: 'none', fontSize: '10px' }} />
                  <Bar dataKey="gap" radius={[0, 4, 4, 0]}>
                    {waterfallData.map((entry, index) => (
                      <Cell key={`cell-${index}`} fill={entry.gap > 0 ? '#EF4444' : '#10B981'} />
@@ -101,17 +101,17 @@ const GapAnalysisTab = ({ data, periodProgress }) => {
         </div>
 
         {/* GAP TABLE */}
-        <div className="lg:col-span-8 bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="lg:col-span-8 bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden min-w-0">
           <div className="p-6 border-b border-gray-100">
             <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">Bridging the Gap</h3>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
+          <div className="w-full overflow-x-auto">
+            <table className="w-full text-left min-w-[700px]">
               <thead>
                 <tr className="bg-gray-50/50">
                   <TH label="MR" />
-                  <TH label="Current" align="right" />
-                  <TH label="Target" align="right" />
+                  <TH label="Current" align="right" className="hidden sm:table-cell" />
+                  <TH label="Target" align="right" className="hidden sm:table-cell" />
                   <TH label="Remaining Gap" align="right" />
                   <TH label="Daily Rate Req." align="right" />
                   <TH label="Difficulty" align="center" />
@@ -120,16 +120,16 @@ const GapAnalysisTab = ({ data, periodProgress }) => {
               <tbody className="divide-y divide-gray-100">
                 {gapSummary.mrGaps.map((mr, idx) => (
                   <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 text-xs font-bold text-gray-900">{mr.name}</td>
-                    <td className="px-6 py-4 text-xs font-medium text-gray-400 text-right">{mr.sales.toLocaleString()}</td>
-                    <td className="px-6 py-4 text-xs font-medium text-gray-400 text-right">{mr.target.toLocaleString()}</td>
+                    <td className="px-6 py-4 text-xs font-black text-gray-900">{mr.name}</td>
+                    <td className="px-6 py-4 text-xs font-medium text-gray-400 text-right hidden sm:table-cell">{mr.sales.toLocaleString()}</td>
+                    <td className="px-6 py-4 text-xs font-medium text-gray-400 text-right hidden sm:table-cell">{mr.target.toLocaleString()}</td>
                     <td className="px-6 py-4 text-right">
                        <span className="text-xs font-black text-red-600">{mr.gap > 0 ? mr.gap.toLocaleString() : 'Surplus'}</span>
-                       <div className="text-[10px] font-bold text-gray-400">{mr.gapPercent.toFixed(1)}% remaining</div>
+                       <div className="text-[9px] font-bold text-gray-400">{mr.gapPercent.toFixed(1)}% gap</div>
                     </td>
                     <td className="px-6 py-4 text-xs font-black text-blue-600 text-right">{mr.dailyNeeded.toFixed(1)}/day</td>
                     <td className="px-6 py-4 text-center">
-                       <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${mr.difficulty.bg} ${mr.difficulty.color}`}>
+                       <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest whitespace-nowrap ${mr.difficulty.bg} ${mr.difficulty.color}`}>
                          {mr.difficulty.label}
                        </span>
                     </td>

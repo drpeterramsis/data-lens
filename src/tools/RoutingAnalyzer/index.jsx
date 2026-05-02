@@ -10,7 +10,8 @@ import {
   TrendingDown, MapPin, Clock, Award, Target, Stethoscope,
   Upload, FileText, Activity, Building2, Maximize2,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import ResponsivePanel from '../../components/shared/ResponsivePanel';
+import { Menu } from 'lucide-react';
 import Papa from 'papaparse';
 import { saveAs } from 'file-saver';
 

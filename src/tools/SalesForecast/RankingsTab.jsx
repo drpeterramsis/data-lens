@@ -96,28 +96,28 @@ const RankingsTab = ({ data }) => {
     <div className="space-y-10 pb-20">
       {/* MR RANKINGS SECTION */}
       <section className="bg-white rounded-[32px] shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-8 border-b border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="p-4 sm:p-8 border-b border-gray-100 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500 shadow-inner">
-              <Trophy size={24} />
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500 shadow-inner">
+              <Trophy size={20} />
             </div>
             <div>
-              <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">MR Performance Rankings</h3>
-              <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">Top performers across the organization</p>
+              <h3 className="text-lg sm:text-xl font-black text-gray-900 uppercase tracking-tight">MR Performance Rankings</h3>
+              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Top performers across the organization</p>
             </div>
           </div>
 
-          <div className="flex bg-gray-100 p-1 rounded-2xl">
+          <div className="flex flex-wrap bg-gray-100 p-1 rounded-2xl">
             {[
-              { id: 'achUnits', label: 'Units Ach.' },
-              { id: 'achValue', label: 'Value Ach.' },
+              { id: 'achUnits', label: 'Units' },
+              { id: 'achValue', label: 'Value' },
               { id: 'absUnits', label: 'Abs. Units' },
               { id: 'absValue', label: 'Abs. Value' }
             ].map(m => (
               <button
                 key={m.id}
                 onClick={() => setMrRankMetric(m.id)}
-                className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+                className={`flex-1 min-w-[80px] px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
                   mrRankMetric === m.id ? 'bg-white text-gray-900 shadow-md' : 'text-gray-400 hover:text-gray-600'
                 }`}
               >
@@ -127,38 +127,38 @@ const RankingsTab = ({ data }) => {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
+        <div className="w-full overflow-x-auto">
+          <table className="w-full text-left min-w-[700px]">
             <thead>
               <tr className="bg-gray-50/50">
                 <TH label="Rank" align="center" />
                 <TH label="MR Name" />
-                <TH label="Line" />
+                <TH label="Line" className="hidden sm:table-cell" />
                 <TH label={mrRankMetric.startsWith('ach') ? 'Achievement %' : 'Total Units/Value'} align="right" />
                 <TH label="vs Average" align="right" />
-                <TH label="Perf Score" align="center" />
+                <TH label="Perf Score" align="center" className="hidden lg:table-cell" />
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {mrRankings.map((mr) => (
                 <tr key={mr.name} className="hover:bg-gray-50/80 transition-colors group">
-                  <td className="px-6 py-5 text-center">
+                  <td className="px-6 py-4 text-center">
                     <RankBadge rank={mr.rank} />
                   </td>
-                  <td className="px-6 py-5">
-                    <div className="font-black text-gray-900 text-sm leading-tight">{mr.name}</div>
-                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">{mr.area}</div>
+                  <td className="px-6 py-4">
+                    <div className="font-black text-gray-900 text-sm leading-tight truncate max-w-[120px] sm:max-w-none">{mr.name}</div>
+                    <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1 truncate">{mr.area}</div>
                   </td>
-                  <td className="px-6 py-5">
-                    <span className="px-2.5 py-1 bg-gray-100 text-gray-600 rounded-lg text-[10px] font-black uppercase tracking-widest">{mr.line}</span>
+                  <td className="px-6 py-4 hidden sm:table-cell">
+                    <span className="px-2.5 py-1 bg-gray-100 text-gray-600 rounded-lg text-[9px] font-black uppercase tracking-widest">{mr.line}</span>
                   </td>
-                  <td className="px-6 py-5 text-right font-black text-gray-900">
+                  <td className="px-6 py-4 text-right font-black text-gray-900">
                     {mrRankMetric.startsWith('ach') ? `${mr.metricVal.toFixed(1)}%` : mr.metricVal.toLocaleString()}
                   </td>
-                  <td className={`px-6 py-5 text-right font-bold text-xs ${mr.vsAverage >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                  <td className={`px-6 py-4 text-right font-bold text-[10px] ${mr.vsAverage >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
                     {mr.vsAverage >= 0 ? '+' : ''}{mr.vsAverage.toFixed(1)}%
                   </td>
-                  <td className="px-6 py-5">
+                  <td className="px-6 py-4 hidden lg:table-cell">
                     <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden min-w-[80px]">
                       <div 
                         className={`h-full transition-all duration-1000 ${mr.metricVal >= 100 ? 'bg-emerald-500' : mr.metricVal >= 75 ? 'bg-amber-500' : 'bg-red-500'}`}
@@ -177,10 +177,10 @@ const RankingsTab = ({ data }) => {
         {/* PRODUCT RANKINGS */}
         <section className="bg-white rounded-[32px] shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-6 border-b border-gray-100">
-             <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">Top Products by Volume</h3>
+             <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest">Top Products by Volume</h3>
           </div>
-          <div className="overflow-x-auto">
-             <table className="w-full text-left">
+          <div className="w-full overflow-x-auto">
+             <table className="w-full text-left min-w-[450px]">
                <thead>
                  <tr className="bg-gray-50/50">
                     <TH label="#" align="center" />
@@ -190,16 +190,16 @@ const RankingsTab = ({ data }) => {
                     <TH label="MRs" align="center" />
                  </tr>
                </thead>
-               <tbody className="divide-y divide-gray-100 text-xs">
+               <tbody className="divide-y divide-gray-100 text-[11px]">
                  {productRankings.slice(0, 10).map((p, i) => (
                    <tr key={i} className="hover:bg-gray-50">
-                     <td className="px-6 py-4 text-center font-black text-gray-400">{i + 1}</td>
-                     <td className="px-6 py-4 font-bold text-gray-900">{p.name}</td>
-                     <td className="px-6 py-4 text-right font-black">{p.units.toLocaleString()}</td>
-                     <td className={`px-6 py-4 text-right font-black ${p.achievement >= 100 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                     <td className="px-6 py-3 text-center font-black text-gray-400">{i + 1}</td>
+                     <td className="px-6 py-3 font-bold text-gray-900 truncate max-w-[150px]">{p.name}</td>
+                     <td className="px-6 py-3 text-right font-black">{p.units.toLocaleString()}</td>
+                     <td className={`px-6 py-3 text-right font-black ${p.achievement >= 100 ? 'text-emerald-600' : 'text-amber-600'}`}>
                        {p.achievement.toFixed(0)}%
                      </td>
-                     <td className="px-6 py-4 text-center">
+                     <td className="px-6 py-3 text-center">
                         <span className="bg-blue-50 text-blue-600 px-2 py-1 rounded-lg font-black">{p.mrCount}</span>
                      </td>
                    </tr>

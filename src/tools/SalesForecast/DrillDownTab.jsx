@@ -67,19 +67,19 @@ const DrillDownTab = ({ data, drillPath, setDrillPath }) => {
   return (
     <div className="space-y-6 pb-20">
       {/* BREADCRUMBS */}
-      <div className="flex items-center gap-2 mb-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+      <div className="flex items-center gap-2 mb-4 bg-white p-3 sm:p-4 rounded-2xl shadow-sm border border-gray-100 overflow-x-auto no-scrollbar whitespace-nowrap scroll-smooth">
         <button 
           onClick={() => setDrillPath([])}
-          className={`text-xs font-black uppercase tracking-widest ${level === 0 ? 'text-gray-900 cursor-default' : 'text-blue-600 hover:underline'}`}
+          className={`text-[10px] sm:text-xs font-black uppercase tracking-widest flex-shrink-0 ${level === 0 ? 'text-gray-900 cursor-default' : 'text-blue-600 hover:underline'}`}
         >
           All Lines
         </button>
         {drillPath.map((p, i) => (
           <React.Fragment key={i}>
-            <ChevronRight size={14} className="text-gray-300" />
+            <ChevronRight size={14} className="text-gray-300 flex-shrink-0" />
             <button 
               onClick={() => setDrillPath(prev => prev.slice(0, i + 1))}
-              className={`text-xs font-black uppercase tracking-widest ${i === drillPath.length - 1 ? 'text-gray-900 cursor-default' : 'text-blue-600 hover:underline'}`}
+              className={`text-[10px] sm:text-xs font-black uppercase tracking-widest flex-shrink-0 ${i === drillPath.length - 1 ? 'text-gray-900 cursor-default' : 'text-blue-600 hover:underline'}`}
             >
               {p.name}
             </button>
@@ -88,7 +88,7 @@ const DrillDownTab = ({ data, drillPath, setDrillPath }) => {
         {level > 0 && (
           <button 
             onClick={goBack}
-            className="ml-auto flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-colors"
+            className="ml-auto sticky right-0 bg-white/90 backdrop-blur-sm pl-4 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-colors flex-shrink-0"
           >
             <ArrowLeft size={14} />
             Back
@@ -105,7 +105,7 @@ const DrillDownTab = ({ data, drillPath, setDrillPath }) => {
           transition={{ duration: 0.15 }}
         >
           {level < 3 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
               {drillingItems.map((item, idx) => (
                 <DrillCard 
                   key={idx} 
@@ -117,23 +117,23 @@ const DrillDownTab = ({ data, drillPath, setDrillPath }) => {
             </div>
           ) : (
             <div className="bg-white rounded-[32px] shadow-sm border border-gray-100 overflow-hidden">
-               <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">Product Breakdown</h3>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Detailed performance for {drillPath[2].name}</p>
+               <div className="p-6 border-b border-gray-100 flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest truncate">Product Breakdown</h3>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1 truncate">Detailed performance for {drillPath[2].name}</p>
                   </div>
-                  <Package className="text-gray-200" size={32} />
+                  <Package className="text-blue-100 flex-shrink-0" size={32} />
                </div>
-               <div className="overflow-x-auto">
-                 <table className="w-full text-left">
+               <div className="w-full overflow-x-auto">
+                 <table className="w-full text-left min-w-[700px]">
                     <thead>
                       <tr className="bg-gray-50/50">
                         <TH label="Product" />
                         <TH label="Sales Units" align="right" />
-                        <TH label="Target Units" align="right" />
+                        <TH label="Target Units" align="right" className="hidden sm:table-cell" />
                         <TH label="Achievement %" align="right" />
-                        <TH label="Sales Value" align="right" />
-                        <TH label="Points" align="right" />
+                        <TH label="Sales Value" align="right" className="hidden lg:table-cell" />
+                        <TH label="Points" align="right" className="hidden sm:table-cell" />
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -142,21 +142,21 @@ const DrillDownTab = ({ data, drillPath, setDrillPath }) => {
                         return (
                           <tr key={i} className="hover:bg-gray-50 transition-colors group">
                             <td className="px-6 py-4">
-                               <div className="font-black text-gray-900 text-sm">{p.name}</div>
+                               <div className="font-black text-gray-900 text-sm truncate max-w-[150px] sm:max-w-none">{p.name}</div>
                                <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{p.code}</div>
                             </td>
                             <td className="px-6 py-4 text-sm font-bold text-gray-900 text-right">{p.salesUnits.toLocaleString()}</td>
-                            <td className="px-6 py-4 text-sm font-medium text-gray-400 text-right">{p.targetUnits.toLocaleString()}</td>
+                            <td className="px-6 py-4 text-sm font-medium text-gray-400 text-right hidden sm:table-cell">{p.targetUnits.toLocaleString()}</td>
                             <td className="px-6 py-4 text-right">
                                <div className="flex flex-col items-end gap-1">
-                                 <span className={`text-xs font-black ${ach >= 100 ? 'text-emerald-500' : 'text-amber-500'}`}>{ach.toFixed(1)}%</span>
-                                 <div className="w-20 bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                                 <span className={`text-[11px] font-black ${ach >= 100 ? 'text-emerald-500' : 'text-amber-500'}`}>{ach.toFixed(1)}%</span>
+                                 <div className="w-16 sm:w-20 bg-gray-100 h-1.5 rounded-full overflow-hidden">
                                    <div className={`h-full ${ach >= 100 ? 'bg-emerald-500' : 'bg-amber-500'}`} style={{ width: `${Math.min(100, ach)}%` }} />
                                  </div>
                                </div>
                             </td>
-                            <td className="px-6 py-4 text-sm font-black text-gray-900 text-right">${p.salesValue.toLocaleString()}</td>
-                            <td className="px-6 py-4 text-sm font-black text-blue-600 text-right">{p.points.toLocaleString()}</td>
+                            <td className="px-6 py-4 text-sm font-black text-gray-900 text-right hidden lg:table-cell">${p.salesValue.toLocaleString()}</td>
+                            <td className="px-6 py-4 text-sm font-black text-blue-600 text-right hidden sm:table-cell">{p.points.toLocaleString()}</td>
                           </tr>
                         );
                       })}
