@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from "react-router-dom";
 import { useAuth } from '../context/AuthContext';
+import { APP_VERSION } from '../config/version';
 
 const APP_VERSION_DATA = {
-  version: '1.0.483',
+  version: APP_VERSION,
   releaseDate: 'May 2026',
   label: 'Sales Forecast & Advanced Multi-Period Hub'
 };

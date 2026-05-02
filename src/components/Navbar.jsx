@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useLocation, NavLink } from 'react-router-dom';
 import { LayoutDashboard, Settings, Activity, BarChart3, Menu, X, Map, TrendingUp } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
 
 const Navbar = () => {
@@ -105,66 +104,30 @@ const Navbar = () => {
         </div>
       </nav>
 
-      {/* Mobile Drawer */}
-      <AnimatePresence>
-        {menuOpen && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setMenuOpen(false)}
-              className="md:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
-              style={{ top: 'var(--nav-height)' }}
-            />
-            {/* Panel */}
-            <motion.div
-              initial={{ y: -20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: -20, opacity: 0 }}
-              className="md:hidden fixed left-0 right-0 bg-gray-900 border-t border-gray-800 z-50 shadow-2xl overflow-hidden"
-              style={{ top: 'var(--nav-height)' }}
-            >
-              <div className="px-4 py-6 space-y-2">
-                {/* Mobile User Info */}
-                <div className="flex items-center gap-3 px-4 py-3 mb-4 bg-gray-800/50 rounded-2xl border border-gray-700">
-                  <div 
-                    className="w-12 h-12 rounded-full flex items-center justify-center border-2 border-yellow-400 shadow-sm"
-                    style={{ backgroundColor: user?.username ? `hsl(${user.username.length * 40}, 60%, 40%)` : '#1A1A2E' }}
-                  >
-                    <span className="text-sm font-black text-white">
-                      {getInitials(user?.name)}
-                    </span>
-                  </div>
-                  <div>
-                    <div className="text-white font-black text-sm">{user?.name}</div>
-                    <div className="text-[10px] text-yellow-400 font-bold uppercase tracking-widest">{user?.role}</div>
-                  </div>
-                </div>
-
-                {visibleItems.map((item) => (
-                  <NavLink
-                    key={item.path}
-                    to={item.path}
-                    onClick={() => setMenuOpen(false)}
-                    className={({ isActive }) =>
-                      `flex items-center gap-4 px-5 py-4 rounded-2xl font-black transition-all ${
-                        isActive
-                          ? 'bg-yellow-400 text-gray-900 shadow-lg scale-[1.02]'
-                          : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                      }`
-                    }
-                  >
-                    <item.icon size={20} />
-                    <span className="text-sm uppercase tracking-tight">{item.title}</span>
-                  </NavLink>
-                ))}
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      {/* Mobile drawer */}
+      {menuOpen && (
+        <div className="md:hidden fixed top-[60px] left-0 right-0 bg-gray-900 border-t border-gray-800 z-40 shadow-xl overflow-hidden animate-in slide-in-from-top-4 duration-200">
+          <div className="px-4 py-4 space-y-2">
+            {visibleItems.map((item) => (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                onClick={() => setMenuOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${
+                    isActive
+                      ? 'bg-yellow-400 text-gray-900'
+                      : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                  }`
+                }
+              >
+                <item.icon size={20} />
+                <span>{item.title}</span>
+              </NavLink>
+            ))}
+          </div>
+        </div>
+      )}
     </>
   );
 };

@@ -72,55 +72,55 @@ const ForecastTab = ({ data, periodProgress, setPeriodProgress }) => {
   return (
     <div className="space-y-6 pb-20">
       {/* PERIOD SETTINGS */}
-      <div className="bg-white rounded-3xl p-4 sm:p-6 shadow-sm border border-gray-100 flex flex-col lg:flex-row items-center justify-between gap-6">
-        <div className="flex items-center gap-4 w-full lg:w-auto">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600">
-            <Clock size={20} />
+      <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600">
+            <Clock size={24} />
           </div>
           <div>
-            <h3 className="text-xs sm:text-sm font-black text-gray-900 uppercase tracking-widest">Period Progress</h3>
-            <p className="text-[10px] text-gray-500 font-medium mt-1">Configure current timeline</p>
+            <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">Period Progress</h3>
+            <p className="text-xs text-gray-500 font-medium mt-1">Configure current timeline to calculate projections</p>
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-center gap-6 w-full lg:w-auto">
-          <div className="flex flex-col items-center w-full sm:w-auto">
+        <div className="flex items-center gap-6">
+          <div className="flex flex-col items-center">
             <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Current Day</span>
-            <div className="flex items-center gap-3 bg-gray-50 p-1.5 rounded-xl border border-gray-100 w-full sm:w-auto justify-center">
+            <div className="flex items-center gap-3 bg-gray-50 p-1.5 rounded-xl border border-gray-100">
               <button 
                 onClick={() => setPeriodProgress(prev => ({ ...prev, currentDay: Math.max(1, prev.currentDay - 1) }))}
-                className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm hover:bg-gray-100 font-bold"
+                className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm hover:bg-gray-100"
               >-</button>
               <span className="w-8 text-center font-black text-gray-900">{currentDay}</span>
               <button 
                 onClick={() => setPeriodProgress(prev => ({ ...prev, currentDay: Math.min(totalDays, prev.currentDay + 1) }))}
-                className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm hover:bg-gray-100 font-bold"
+                className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm hover:bg-gray-100"
               >+</button>
             </div>
           </div>
 
-          <div className="flex flex-col items-center w-full sm:w-auto">
+          <div className="flex flex-col items-center">
             <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Total Days</span>
             <select 
               value={totalDays}
               onChange={(e) => setPeriodProgress(prev => ({ ...prev, totalDays: parseInt(e.target.value) }))}
-              className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-2 font-black text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 w-full sm:w-auto"
+              className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-2 font-black text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             >
               {[28, 29, 30, 31].map(d => <option key={d} value={d}>{d} Days</option>)}
             </select>
           </div>
 
-          <div className="hidden sm:block h-12 w-[1px] bg-gray-100" />
+          <div className="h-12 w-[1px] bg-gray-100" />
 
-          <div className="text-center sm:text-right w-full sm:w-auto">
-            <div className="text-xl sm:text-2xl font-black text-blue-600 tracking-tight">{progressPercent.toFixed(1)}%</div>
+          <div className="text-right">
+            <div className="text-2xl font-black text-blue-600 tracking-tight">{progressPercent.toFixed(1)}%</div>
             <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Month Complete</div>
           </div>
         </div>
       </div>
 
       {/* FORECAST SUMMARY */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <FStat label="Projected Total Units" value={summary.totalProjUnits.toLocaleString(undefined, { maximumFractionDigits: 0 })} />
         <FStat label="Projected Total Value" value={`$${summary.totalProjValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} />
         <FStat 
@@ -160,8 +160,8 @@ const ForecastTab = ({ data, periodProgress, setPeriodProgress }) => {
         <div className="p-6 border-b border-gray-100">
           <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">Projection Analysis Table</h3>
         </div>
-        <div className="w-full overflow-x-auto rounded-xl">
-          <table className="w-full text-left border-collapse min-w-[900px]">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50/50">
                 <TH label="MR" />

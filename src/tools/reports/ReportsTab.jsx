@@ -289,43 +289,43 @@ const DrilldownModal = ({ info, onClose }) => {
   });
 
   return (
-    <div className="fixed inset-0 z-[300] flex items-center justify-center p-0 sm:p-6 lg:p-8 bg-gray-900/60 backdrop-blur-sm">
-      <div className="bg-white w-full sm:max-w-6xl h-full sm:max-h-[90vh] rounded-none sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
+    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-gray-900/60 backdrop-blur-sm">
+      <div className="bg-white w-full max-w-6xl h-full max-h-[90vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
         {/* Header */}
-        <div className="px-4 py-4 sm:px-6 bg-gray-900 border-b border-gray-800 flex items-center justify-between">
-          <div className="min-w-0">
-            <h3 className="text-white font-black text-sm sm:text-lg tracking-tight flex items-center gap-2 truncate">
-              <Table2 className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
+        <div className="px-6 py-4 bg-gray-900 border-b border-gray-800 flex items-center justify-between">
+          <div>
+            <h3 className="text-white font-black text-lg tracking-tight flex items-center gap-2">
+              <Table2 className="w-5 h-5 text-blue-400" />
               Drill-down: <span className="text-blue-400">{info.title}</span>
             </h3>
-            <p className="text-gray-400 text-[10px] sm:text-xs font-medium">Showing {filteredInvoices.length} invoices</p>
+            <p className="text-gray-400 text-xs font-medium">Showing {filteredInvoices.length} invoices found in this selection</p>
           </div>
           <button 
             onClick={onClose}
-            className="p-2 hover:bg-white/10 rounded-full text-gray-400 hover:text-white transition-all ml-2"
+            className="p-2 hover:bg-white/10 rounded-full text-gray-400 hover:text-white transition-all"
           >
             <X className="w-6 h-6" />
           </button>
         </div>
 
         {/* Filters */}
-        <div className="px-4 py-3 sm:px-6 bg-gray-50 border-b border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="relative w-full sm:flex-1 sm:max-w-md">
+        <div className="px-6 py-3 bg-gray-50 border-b border-gray-100 flex flex-wrap items-center justify-between gap-4">
+          <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input 
               type="text" 
-              placeholder="Search invoices..."
+              placeholder="Search invoice #, customer, or MR..."
               className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:border-blue-500 outline-none transition-all shadow-sm"
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
           </div>
-          <div className="flex bg-white p-1 border border-gray-200 rounded-xl shadow-sm w-full sm:w-auto">
+          <div className="flex bg-white p-1 border border-gray-200 rounded-xl shadow-sm">
             {['all', 'sale', 'return'].map(t => (
               <button
                 key={t}
                 onClick={() => setFilterType(t)}
-                className={`flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${filterType === t ? 'bg-gray-900 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
+                className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${filterType === t ? 'bg-gray-900 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
               >
                 {t}
               </button>
@@ -334,63 +334,63 @@ const DrilldownModal = ({ info, onClose }) => {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-auto p-4 sm:p-6">
-          <div className="grid grid-cols-1 gap-4 sm:gap-6">
+        <div className="flex-1 overflow-auto p-6">
+          <div className="grid grid-cols-1 gap-6">
             {filteredInvoices.map(inv => (
               <div key={inv.invoiceNo} className="border border-gray-100 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-                <div className="bg-gray-50 px-4 py-3 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="bg-gray-50 px-4 py-3 border-b border-gray-100 flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-3">
                     <span className="bg-blue-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest shadow-sm">#{inv.invoiceNo}</span>
                     <span className="text-xs font-bold text-gray-800">{fmtD(inv.invoiceDate)}</span>
                   </div>
-                  <div className="flex items-center justify-between sm:justify-end gap-6 text-xs w-full sm:w-auto">
-                    <div className="flex flex-col items-start sm:items-end">
+                  <div className="flex items-center gap-4 text-xs">
+                    <div className="flex flex-col items-end">
                       <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Net Value</span>
                       <span className="font-bold text-gray-800">{inv.netValue.toLocaleString()} EGP</span>
                     </div>
-                    <div className="flex flex-col items-start sm:items-end">
+                    <div className="flex flex-col items-end">
                       <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Net Qty</span>
                       <span className="font-bold text-emerald-600">{inv.netQty.toLocaleString()}</span>
                     </div>
                     {inv.returnQty > 0 && (
-                      <div className="flex flex-col items-start sm:items-end">
+                      <div className="flex flex-col items-end">
                         <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Returns</span>
                         <span className="font-bold text-red-500">{inv.returnQty.toLocaleString()}</span>
                       </div>
                     )}
                   </div>
                 </div>
-                <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 bg-white text-[11px] sm:text-xs">
+                <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4 bg-white">
                    <div className="space-y-1">
                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Customer</p>
-                     <p className="font-bold text-gray-700 truncate">{inv.customerName}</p>
+                     <p className="text-xs font-bold text-gray-700">{inv.customerName}</p>
                    </div>
                    <div className="space-y-1">
                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Medical Rep</p>
-                     <p className="font-bold text-gray-700 truncate">{inv.mrName}</p>
+                     <p className="text-xs font-bold text-gray-700">{inv.mrName}</p>
                    </div>
                    <div className="space-y-1">
                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Branch</p>
-                     <p className="font-bold text-gray-700">{inv.branch}</p>
+                     <p className="text-xs font-bold text-gray-700">{inv.branch}</p>
                    </div>
                 </div>
                 
                 {/* Product list preview */}
-                <div className="bg-white border-t border-gray-50 overflow-x-auto">
-                  <table className="w-full text-[10px] min-w-[400px]">
+                <div className="bg-white border-t border-gray-50">
+                  <table className="w-full text-[10px]">
                     <thead className="bg-gray-50 text-gray-500">
                       <tr>
-                        <th className="px-4 py-2 text-left font-bold uppercase tracking-widest border-b border-gray-100">Product</th>
-                        <th className="px-4 py-2 text-right font-bold uppercase tracking-widest border-b border-gray-100 w-24">Net Qty</th>
-                        <th className="px-4 py-2 text-right font-bold uppercase tracking-widest border-b border-gray-100 w-24">Net Value</th>
+                        <th className="px-4 py-1.5 text-left font-bold uppercase tracking-widest border-b border-gray-100">Product</th>
+                        <th className="px-4 py-1.5 text-right font-bold uppercase tracking-widest border-b border-gray-100 w-24">Net Qty</th>
+                        <th className="px-4 py-1.5 text-right font-bold uppercase tracking-widest border-b border-gray-100 w-24">Net Value</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                       {inv.products.map((p, pidx) => (
                         <tr key={pidx} className="hover:bg-blue-50/30 transition-colors">
-                          <td className="px-4 py-2 text-gray-800 font-medium truncate max-w-[200px]">{p.productName}</td>
-                          <td className="px-4 py-2 text-right font-mono font-bold text-emerald-600">{p.netQty.toLocaleString()}</td>
-                          <td className="px-4 py-2 text-right font-mono text-gray-600">{p.netValue.toLocaleString()}</td>
+                          <td className="px-4 py-1.5 text-gray-800 font-medium">{p.productName}</td>
+                          <td className="px-4 py-1.5 text-right font-mono font-bold text-emerald-600">{p.netQty.toLocaleString()}</td>
+                          <td className="px-4 py-1.5 text-right font-mono text-gray-600">{p.netValue.toLocaleString()}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -399,10 +399,10 @@ const DrilldownModal = ({ info, onClose }) => {
               </div>
             ))}
             {filteredInvoices.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-20 text-gray-400 bg-gray-50/50 rounded-3xl border-2 border-dashed border-gray-200">
+              <div className="flex flex-col items-center justify-center py-24 text-gray-400 bg-gray-50/50 rounded-3xl border-2 border-dashed border-gray-200">
                  <Search className="w-12 h-12 mb-4 opacity-20" />
-                 <p className="text-sm font-black uppercase tracking-widest opacity-40">No matching invoices</p>
-                 <button onClick={() => setSearch('')} className="mt-4 text-blue-500 text-xs font-bold hover:underline">Clear search filters</button>
+                 <p className="text-lg font-black uppercase tracking-widest opacity-40">No matching invoices</p>
+                 <button onClick={() => setSearch('')} className="mt-4 text-blue-500 font-bold hover:underline">Clear search filters</button>
               </div>
             )}
           </div>
@@ -900,7 +900,7 @@ const Report1 = ({ data, filterOptions }) => {
           {/* Metric */}
           <div>
             <label className="text-[10px] font-black text-gray-500 uppercase tracking-wider block mb-1.5">Metric</label>
-            <div className="grid grid-cols-3 gap-1.5">
+            <div className="flex gap-1.5">
               {[
                 { id: 'qty',   label: 'Units' },
                 { id: 'value', label: 'Value' },
@@ -909,7 +909,7 @@ const Report1 = ({ data, filterOptions }) => {
                 <button
                   key={m.id}
                   onClick={() => setMetric(m.id)}
-                  className={`py-2 px-1 rounded-xl text-[10px] font-black uppercase transition-all border truncate ${metric === m.id ? 'bg-amber-400 text-black border-amber-400 shadow-sm' : 'bg-white text-gray-500 border-gray-200 hover:border-amber-200'}`}
+                  className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase transition-all border ${metric === m.id ? 'bg-amber-400 text-black border-amber-400' : 'bg-white text-gray-500 border-gray-200 hover:border-amber-200'}`}
                 >
                   {m.label}
                 </button>
@@ -920,17 +920,16 @@ const Report1 = ({ data, filterOptions }) => {
           {/* Group By */}
           <div>
             <label className="text-[10px] font-black text-gray-500 uppercase tracking-wider block mb-1.5">Group By</label>
-            <div className="grid grid-cols-2 gap-1.5">
+            <div className="flex gap-1.5">
               {[
-                { id: 'month',   label: 'Monthly' },
-                { id: 'quarter', label: 'Quarterly' },
+                { id: 'month',   label: '📅 Monthly' },
+                { id: 'quarter', label: '📆 Quarterly' },
               ].map(g => (
                 <button
                   key={g.id}
                   onClick={() => setGroupBy(g.id)}
-                  className={`py-2 px-1 rounded-xl text-[10px] font-black uppercase transition-all border truncate ${groupBy === g.id ? 'bg-blue-500 text-white border-blue-500 shadow-sm' : 'bg-white text-gray-500 border-gray-200 hover:border-blue-200'}`}
+                  className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase transition-all border ${groupBy === g.id ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-gray-500 border-gray-200 hover:border-blue-200'}`}
                 >
-                  {groupBy === g.id && (g.id === 'month' ? '📅 ' : '📆 ')}
                   {g.label}
                 </button>
               ))}

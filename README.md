@@ -42,7 +42,6 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 
 ## Version History
 
-- **v1.0.483:** Full mobile responsiveness overhaul across Sales Forecast and Sales Analyzer. Implemented `ResponsivePanel` (drawer) for filters, added mobile toggles, reflowed KPI cards, and optimized tables with horizontal scrolling and column hiding. Updated global layout to prevent horizontal overflow and fixed chart clipping on small screens.
 - **v1.0.482:** Fixed `CartesianGrid` reference error in `AtRiskAnalysisTab`.
 - **v1.0.481:** Fixed missing icon imports (`TrendingUp`, `Cell`) in `Navbar` and `SalesForecast` components.
 - **v1.0.480:** Implemented the **Sales Forecast Tool**. Added automated .xlsx / .csv parsing for sales targets and achievement data. Added 6 analysis tabs: Performance Overview, Forecast & Projection, Rankings, Gap Analysis, At Risk Analysis, and Drill Down. Implemented period-based projections (MTD to Month-end), Risk Matrix scatter plot, and 4-level deep Drill Down (Line → DM → MR → Product). Integrated cross-tab navigation and global filters.
@@ -121,4 +120,4 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 - **v1.0.001:** Initial release. Authentication, CSV parsing, Analysis tools, and Admin panel implemented.
 
 ---
-© 2026 Data Lens Analytics | version 1.0.483
+© 2026 Data Lens Analytics | version 1.0.482

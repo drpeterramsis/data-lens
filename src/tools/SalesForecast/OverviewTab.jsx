@@ -71,7 +71,7 @@ const OverviewTab = ({ data }) => {
   return (
     <div className="space-y-6 pb-20">
       {/* SUMMARY CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <SummaryCard label="Total Sales Units" value={stats.totalSalesUnits.toLocaleString()} />
         <SummaryCard label="Total Sales Value" value={`$${stats.totalSalesValue.toLocaleString()}`} />
         <SummaryCard label="Total Target Units" value={stats.totalTargetUnits.toLocaleString()} />
@@ -112,20 +112,20 @@ const OverviewTab = ({ data }) => {
 
         {/* TABLE */}
         <div className="lg:col-span-12 bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="p-6 border-b border-gray-100 flex items-center justify-between">
             <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest text-[16px]">Performance Breakdown</h3>
-            <button className="w-full sm:w-auto px-4 py-2 bg-gray-50 text-gray-600 rounded-xl text-xs font-bold transition-all hover:bg-blue-50 hover:text-blue-600 flex items-center justify-center gap-2">
+            <button className="px-4 py-2 bg-gray-50 text-gray-600 rounded-xl text-xs font-bold transition-all hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2">
               <Download size={16} />
               Export CSV
             </button>
           </div>
-          <div className="w-full overflow-x-auto rounded-xl">
-            <table className="w-full text-left border-collapse min-w-[800px]">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-gray-50/50">
                   <TH label="MR Name" />
-                  <TH label="Area" className="hidden sm:table-cell" />
-                  <TH label="Line" className="hidden lg:table-cell" />
+                  <TH label="Area" />
+                  <TH label="Line" />
                   <TH label="Sales Units" align="right" />
                   <TH label="Target Units" align="right" />
                   <TH label="Ach %" align="right" />

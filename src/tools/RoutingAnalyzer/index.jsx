@@ -10,8 +10,7 @@ import {
   TrendingDown, MapPin, Clock, Award, Target, Stethoscope,
   Upload, FileText, Activity, Building2, Maximize2,
 } from 'lucide-react';
-import ResponsivePanel from '../../components/shared/ResponsivePanel';
-import { Menu } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import Papa from 'papaparse';
 import { saveAs } from 'file-saver';
 
@@ -134,6 +133,32 @@ const CustomerTable = ({
     </span>
   );
 
+  const [hiddenColumns, setHiddenColumns] = useState(() => {
+    const saved = localStorage.getItem('routingHiddenCols');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [showColMenu, setShowColMenu] = useState(false);
+  const colMenuRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (colMenuRef.current && !colMenuRef.current.contains(event.target)) {
+        setShowColMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('routingHiddenCols', JSON.stringify(hiddenColumns));
+  }, [hiddenColumns]);
+
+  const toggleColumn = (col) => {
+    setHiddenColumns(p => p.includes(col) ? p.filter(c => c !== col) : [...p, col]);
+  };
+
   const columns = [
     { label: 'ID',            col: 'customerId' },
     ...(showMonthColumn ? [{ label: 'Month', col: 'sourceMonth' }] : []),
@@ -147,63 +172,81 @@ const CustomerTable = ({
     { label: 'Reported Days', col: null },
     { label: 'Interval',      col: 'daysInterval' },
     { label: 'Status',        col: '_status' },
-  ];
+  ].filter(c => !hiddenColumns.includes(c.label));
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden min-h-0">
       {/* ── Toolbar ── */}
-      <div className="flex-shrink-0 flex flex-wrap items-center justify-between gap-2 px-4 py-2 bg-white border-b border-gray-100">
-        {/* Quick toggles */}
+      <div className="flex-shrink-0 flex flex-col p-4 bg-white border-b border-gray-100 gap-3">
+        {/* Row 1: Hide Cols and Search */}
+        <div className="flex items-center justify-between gap-2">
+            {/* Column Toggle */}
+            <div className="relative" ref={colMenuRef}>
+               <button 
+                 onClick={() => setShowColMenu(!showColMenu)}
+                 className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-100 text-[10px] font-black text-gray-600 hover:bg-gray-200 uppercase tracking-tighter">
+                 <SlidersHorizontal className="w-3 h-3" /> Hide Cols
+               </button>
+               <div className={`absolute top-full left-0 mt-1 bg-white border border-gray-200 shadow-xl rounded-xl p-2 w-40 z-50 ${showColMenu ? 'block' : 'hidden'}`}>
+                  {['ID', 'Month', 'Name', 'Grade', 'Specialty', 'MR Name', 'Planned', 'Reported', 'Planned Days', 'Reported Days', 'Interval', 'Status']
+                    .filter(label => label !== 'ID' && label !== 'Name') // Keep ID/Name fixed
+                    .map(label => (
+                      <label key={label} className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer">
+                        <input type="checkbox" checked={!hiddenColumns.includes(label)} onChange={() => toggleColumn(label)} className="w-3 h-3" />
+                        <span className="text-[10px] font-bold text-gray-700">{label}</span>
+                      </label>
+                    ))}
+               </div>
+            </div>
+            
+            {/* Search */}
+            <div className="relative flex-grow max-w-[200px]">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-300" />
+              <input
+                type="text"
+                placeholder="Search..."
+                value={searchQ}
+                onChange={e => { setSearchQ(e.target.value); setCurrentPage(1); }}
+                className="pl-8 pr-7 py-1.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-800 w-full placeholder:text-gray-300 focus:ring-2 focus:ring-yellow-400/20 focus:border-yellow-400 bg-white"
+              />
+              {searchQ && (
+                <button onClick={() => { setSearchQ(''); setCurrentPage(1); }} className="absolute right-2 top-1/2 -translate-y-1/2">
+                  <X className="w-3 h-3 text-gray-300 hover:text-red-400" />
+                </button>
+              )}
+            </div>
+        </div>
+
+        {/* Row 2: Filter */}
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Filter:</span>
+          <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest min-w-[32px]">Filter:</span>
           {[
-            { id: 'all',       label: 'All',          count: deduplicatedData.length },
-            { id: 'full',      label: '✅ Full',       count: stats.fullyCovered },
-            { id: 'partial',   label: '🟡 Partial',   count: stats.partial },
-            { id: 'uncovered', label: '❌ Uncovered', count: stats.uncovered },
+            { id: 'all',       emoji: '👥', label: 'All',       count: deduplicatedData.length },
+            { id: 'full',      emoji: '✅', label: 'Full',      count: stats.fullyCovered },
+            { id: 'partial',   emoji: '🟡', label: 'Partial',   count: stats.partial },
+            { id: 'uncovered', emoji: '❌', label: 'Uncovered', count: stats.uncovered },
           ].map(opt => (
             <button
               key={opt.id}
               onClick={() => { setQuickVisitFilter(opt.id); setCurrentPage(1); }}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter transition-all
+              className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter transition-all
                 ${quickVisitFilter === opt.id
                   ? 'bg-gray-900 text-white shadow-sm'
                   : 'bg-gray-100 text-gray-500 hover:bg-gray-200 border border-gray-200'}`}
             >
-              {opt.label}
+              {opt.emoji}
+              <span className="hidden sm:inline-block">{opt.label}</span>
               <span className={`text-[9px] px-1 py-0.5 rounded font-black ${quickVisitFilter === opt.id ? 'bg-white/20 text-white' : 'bg-white text-gray-500 border border-gray-200'}`}>
                 {opt.count}
               </span>
             </button>
           ))}
         </div>
-
-        {/* Search + count */}
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-300" />
-            <input
-              type="text"
-              placeholder="Search..."
-              value={searchQ}
-              onChange={e => { setSearchQ(e.target.value); setCurrentPage(1); }}
-              className="pl-8 pr-7 py-1.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-800 w-44 placeholder:text-gray-300 focus:ring-2 focus:ring-yellow-400/20 focus:border-yellow-400 bg-white"
-            />
-            {searchQ && (
-              <button onClick={() => { setSearchQ(''); setCurrentPage(1); }} className="absolute right-2 top-1/2 -translate-y-1/2">
-                <X className="w-3 h-3 text-gray-300 hover:text-red-400" />
-              </button>
-            )}
-          </div>
-          <span className="text-[10px] font-black text-gray-400 whitespace-nowrap hidden sm:block">
-            <span className="text-gray-900">{sortedData.length}</span> / <span className="text-gray-900">{deduplicatedData.length}</span>
-          </span>
-        </div>
       </div>
 
       {/* ── Table ── */}
       <div className="flex-1 overflow-auto min-h-0">
-        <table className="w-full text-sm border-collapse" style={{ minWidth: isModal ? '1100px' : '900px' }}>
+        <table className="w-auto text-sm border-collapse" style={{ minWidth: 'max-content' }}>
           <thead>
             <tr>
               {columns.map(({ label, col }) => (
@@ -223,90 +266,29 @@ const CustomerTable = ({
               const missed = r.monthlyData ? [] : r.monthPlanned.filter(d => !r.monthReported.includes(d));
               return (
                 <tr key={`${r.customerId}_${i}`} className={`${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'} hover:bg-yellow-50/40 transition-colors`}>
-                  {/* ID */}
-                  <td className="px-2.5 py-1.5 text-[11px] text-gray-500 font-mono whitespace-nowrap border-b border-gray-50">{r.customerId}</td>
-
-                  {/* Month */}
-                  {showMonthColumn && (
-                    <td className="px-2.5 py-1.5 border-b border-gray-50">
-                      <div className="flex flex-wrap gap-0.5">
-                        {(r.customerMonths || [r.sourceMonth]).map(m => (
-                          <span key={m} className="px-1.5 py-0.5 rounded text-[9px] font-black bg-yellow-50 text-yellow-700 border border-yellow-200">{m?.slice(0, 3)}</span>
-                        ))}
-                      </div>
-                    </td>
-                  )}
-
-                  {/* Name */}
-                  <td className="px-2.5 py-1.5 text-[11px] text-gray-800 font-semibold border-b border-gray-50 max-w-[160px] truncate">{r.customerName}</td>
-
-                  {/* Grade */}
-                  <td className="px-2.5 py-1.5 border-b border-gray-50"><GradeBadge grade={r.customerGrade} /></td>
-
-                  {/* Specialty */}
-                  <td className="px-2.5 py-1.5 text-[11px] text-yellow-600 border-b border-gray-50 max-w-[130px] truncate">{r.specialty}</td>
-
-                  {/* MR */}
-                  {showMRColumn && (
-                    <td className="px-2.5 py-1.5 text-[11px] text-gray-600 border-b border-gray-50 max-w-[120px] truncate">{r.mrName}</td>
-                  )}
-
-                  {/* Planned count */}
-                  <td className="px-2.5 py-1.5 text-[11px] text-gray-700 font-bold border-b border-gray-50 text-center">{r.totalPlanned}</td>
-
-                  {/* Reported count */}
-                  <td className="px-2.5 py-1.5 text-[11px] text-gray-700 font-bold border-b border-gray-50 text-center">{r.totalReported}</td>
-
-                  {/* Planned Days */}
-                  <td className="px-2.5 py-1.5 border-b border-gray-50">
-                    {r.monthlyData ? (
-                      <div className="space-y-0.5">
-                        {Object.entries(r.monthlyData).map(([m, d]) => (
-                          <div key={m} className="flex items-center gap-1">
-                            <span className="text-[8px] font-black text-gray-400 w-7 flex-shrink-0">{m.slice(0, 3)}:</span>
-                            <div className="flex flex-wrap gap-0.5">
-                              {d.planned.map(day => <span key={day} className="px-1 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-black border border-blue-100">{day}</span>)}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="flex flex-wrap gap-0.5 max-w-[120px]">
-                        {r.monthPlanned.map(d => <span key={d} className="px-1 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-black border border-blue-100">{d}</span>)}
-                      </div>
-                    )}
-                  </td>
-
-                  {/* Reported Days */}
-                  <td className="px-2.5 py-1.5 border-b border-gray-50">
-                    {r.monthlyData ? (
-                      <div className="space-y-0.5">
-                        {Object.entries(r.monthlyData).map(([m, d]) => {
-                          const mMissed = d.planned.filter(dd => !d.reported.includes(dd));
-                          return (
-                            <div key={m} className="flex items-center gap-1">
-                              <span className="text-[8px] font-black text-gray-400 w-7 flex-shrink-0">{m.slice(0, 3)}:</span>
-                              <div className="flex flex-wrap gap-0.5">
-                                {d.reported.map(day => <span key={day} className="px-1 py-0.5 bg-green-50 text-green-600 rounded text-[9px] font-black border border-green-100">{day}</span>)}
-                                {mMissed.map(day => <span key={`m${day}`} className="px-1 py-0.5 bg-red-50 text-red-400 rounded text-[9px] font-black border border-red-100 line-through">{day}</span>)}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="flex flex-wrap gap-0.5 max-w-[120px]">
-                        {r.monthReported.map(d => <span key={d} className="px-1 py-0.5 bg-green-50 text-green-600 rounded text-[9px] font-black border border-green-100">{d}</span>)}
-                        {missed.map(d => <span key={`m${d}`} className="px-1 py-0.5 bg-red-50 text-red-400 rounded text-[9px] font-black border border-red-100 line-through">{d}</span>)}
-                      </div>
-                    )}
-                  </td>
-
-                  {/* Interval */}
-                  <td className="px-2.5 py-1.5 text-[11px] text-gray-500 border-b border-gray-50 text-center whitespace-nowrap">{r.daysInterval}d</td>
-
-                  {/* Status */}
-                  <td className="px-2.5 py-1.5 border-b border-gray-50 whitespace-nowrap">{getStatusBadge(status)}</td>
+                  {columns.map(col => {
+                    switch (col.label) {
+                      case 'ID': return <td key={col.label} className="px-2.5 py-1.5 text-[11px] text-gray-500 font-mono whitespace-nowrap border-b border-gray-50">{r.customerId}</td>;
+                      case 'Month': return <td key={col.label} className="px-2.5 py-1.5 border-b border-gray-50">
+                        <div className="flex flex-wrap gap-0.5 whitespace-nowrap">{(r.customerMonths || [r.sourceMonth]).map(m => (<span key={m} className="px-1.5 py-0.5 rounded text-[9px] font-black bg-yellow-50 text-yellow-700 border border-yellow-200">{m?.slice(0, 3)}</span>))}</div>
+                        </td>;
+                      case 'Name': return <td key={col.label} className="px-2.5 py-1.5 text-[11px] text-gray-800 font-semibold border-b border-gray-50 whitespace-nowrap">{r.customerName}</td>;
+                      case 'Grade': return <td key={col.label} className="px-2.5 py-1.5 border-b border-gray-50 text-center"><GradeBadge grade={r.customerGrade} /></td>;
+                      case 'Specialty': return <td key={col.label} className="px-2.5 py-1.5 text-[11px] text-yellow-600 border-b border-gray-50 whitespace-nowrap">{r.specialty}</td>;
+                      case 'MR Name': return <td key={col.label} className="px-2.5 py-1.5 text-[11px] text-gray-600 border-b border-gray-50 whitespace-nowrap">{r.mrName}</td>;
+                      case 'Planned': return <td key={col.label} className="px-2.5 py-1.5 text-[11px] text-gray-700 font-bold border-b border-gray-50 text-center">{r.totalPlanned}</td>;
+                      case 'Reported': return <td key={col.label} className="px-2.5 py-1.5 text-[11px] text-gray-700 font-bold border-b border-gray-50 text-center">{r.totalReported}</td>;
+                      case 'Planned Days': return <td key={col.label} className="px-2.5 py-1.5 border-b border-gray-50">
+                        {r.monthlyData ? (<div className="space-y-0.5">{Object.entries(r.monthlyData).map(([m, d]) => (<div key={m} className="flex items-center gap-1"><span className="text-[8px] font-black text-gray-400 w-7 flex-shrink-0">{m.slice(0, 3)}:</span><div className="flex flex-wrap gap-0.5 whitespace-nowrap">{d.planned.map(day => <span key={day} className="px-1 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-black border border-blue-100">{day}</span>)}</div></div>))}</div>) : (<div className="flex flex-wrap gap-0.5 whitespace-nowrap">{r.monthPlanned.map(d => <span key={d} className="px-1 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-black border border-blue-100">{d}</span>)}</div>)}
+                      </td>;
+                      case 'Reported Days': return <td key={col.label} className="px-2.5 py-1.5 border-b border-gray-50">
+                        {r.monthlyData ? (<div className="space-y-0.5">{Object.entries(r.monthlyData).map(([m, d]) => {const mMissed = d.planned.filter(dd => !d.reported.includes(dd)); return (<div key={m} className="flex items-center gap-1"><span className="text-[8px] font-black text-gray-400 w-7 flex-shrink-0">{m.slice(0, 3)}:</span><div className="flex flex-wrap gap-0.5 whitespace-nowrap">{d.reported.map(day => <span key={day} className="px-1 py-0.5 bg-green-50 text-green-600 rounded text-[9px] font-black border border-green-100">{day}</span>)}{mMissed.map(day => <span key={`m${day}`} className="px-1 py-0.5 bg-red-50 text-red-400 rounded text-[9px] font-black border border-red-100 line-through">{day}</span>)}</div></div>);})}</div>) : (<div className="flex flex-wrap gap-0.5 whitespace-nowrap">{r.monthReported.map(d => <span key={d} className="px-1 py-0.5 bg-green-50 text-green-600 rounded text-[9px] font-black border border-green-100">{d}</span>)}{missed.map(d => <span key={`m${d}`} className="px-1 py-0.5 bg-red-50 text-red-400 rounded text-[9px] font-black border border-red-100 line-through">{d}</span>)}</div>)}
+                      </td>;
+                      case 'Interval': return <td key={col.label} className="px-2.5 py-1.5 text-[11px] text-gray-500 border-b border-gray-50 text-center whitespace-nowrap">{r.daysInterval}d</td>;
+                      case 'Status': return <td key={col.label} className="px-2.5 py-1.5 border-b border-gray-50 whitespace-nowrap text-center">{getStatusBadge(status)}</td>;
+                      default: return null;
+                    }
+                  })}
                 </tr>
               );
             })}
@@ -446,9 +428,10 @@ const RoutingAnalyzer = () => {
   const [showUploadModal,  setShowUploadModal]  = useState(false);
   const [showTableModal,   setShowTableModal]   = useState(false); // ← NEW
   const [uploadMode,       setUploadMode]       = useState('replace');
-  const [isSidebarOpen,    setIsSidebarOpen]    = useState(true);
+  const [isSidebarOpen,    setIsSidebarOpen]    = useState(false);
   const [expandedMR,       setExpandedMR]       = useState(null);
   const [isEditingTargets, setIsEditingTargets] = useState(false);
+  const [isKpiExpanded,    setIsKpiExpanded]    = useState(true);
   const [gradeTargets,     setGradeTargets]     = useState({ 'A+': 3, 'A': 2, 'B': 1, 'C': 1 });
 
   const [filters, setFilters] = useState({
@@ -1241,50 +1224,49 @@ const RoutingAnalyzer = () => {
       {/* ── Mobile overlay ── */}
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 z-30 bg-black/20 md:hidden"
+          className="fixed inset-0 z-30 bg-black/20"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
       {/* ── Main wrapper ── */}
       <div
-        className="fixed overflow-hidden transition-all duration-300 min-h-0 bg-gray-50 flex flex-col"
+        className="fixed overflow-hidden transition-all duration-300 min-h-0 bg-gray-50 flex flex-col w-full"
         style={{
           top: NAV_H_VAR,
           bottom: `${FOOTER_H}px`,
-          left: isSidebarOpen ? `${SIDEBAR_W}px` : '0px',
+          left: '0px',
           right: '0px'
         }}
       >
         {/* ══ FIXED TOP HEADER ══ */}
-        <div className="flex-shrink-0 bg-white shadow-sm z-20">
-
+      <div className="flex-shrink-0 bg-white shadow-sm z-20 w-full overflow-x-hidden">
           {/* Header bar */}
           <div className="flex items-center justify-between px-4 h-[52px] border-b border-gray-100">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <button
                 onClick={() => setIsSidebarOpen(p => !p)}
                 className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-all ${isSidebarOpen ? 'bg-yellow-50 border-yellow-200 text-yellow-600' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}`}
               >
                 <Filter className="w-3.5 h-3.5" />
               </button>
-              <div>
-                <span className="text-sm font-black text-gray-900 tracking-tight">
+              <div className="min-w-0">
+                <span className="block text-xs font-black text-gray-900 tracking-tight truncate">
                   ROUTING <span className="text-yellow-500">ANALYZER</span>
                 </span>
-                <p className="text-[9px] text-gray-400 font-bold flex items-center gap-1">
+                <p className="hidden sm:block text-[9px] text-gray-400 font-bold flex items-center gap-1">
                   <span className="w-1.5 h-1.5 bg-green-400 rounded-full inline-block" />
                   v{ROUTING_VERSION.version}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2">
               {/* Export */}
               {rawData.length > 0 && (
                 <button onClick={handleExport}
                   className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-gray-50 transition-all shadow-sm">
-                  <Download className="w-3.5 h-3.5" /> Export ({sortedData.length})
+                  <Download className="w-3.5 h-3.5" /> Export
                 </button>
               )}
               {/* Clear */}
@@ -1326,9 +1308,44 @@ const RoutingAnalyzer = () => {
             </div>
           )}
 
-          {/* KPIs */}
+        {/* ══ KPIs GRID ══ */}
           {rawData.length > 0 && (
-            <div className="border-b border-gray-100">{renderKPIs()}</div>
+            <div className="border-b border-gray-100 p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest ">Key Performance Indicators</span>
+                <button onClick={() => setIsKpiExpanded(!isKpiExpanded)} className="text-gray-400 hover:text-gray-600">
+                  {isKpiExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+              </div>
+              {isKpiExpanded && (
+                <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-9 gap-2">
+                  {[
+                    { label: 'All HCPs',    value: stats.totalHCP,    icon: '👨‍⚕️', color: 'text-blue-700',    bg: 'bg-blue-50',    border: 'border-blue-100' },
+                    { label: 'Active',      value: stats.active,      icon: '✅',   color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-100' },
+                    { label: 'Deleted',     value: stats.deleted,     icon: '🗑️',  color: 'text-gray-500',    bg: 'bg-gray-50',    border: 'border-gray-200' },
+                    { label: 'Planned',     value: stats.totalPlanned,  icon: '📋', color: 'text-gray-700',    bg: 'bg-gray-50',    border: 'border-gray-100' },
+                    { label: 'Reported',    value: stats.totalReported, icon: '📝', color: 'text-green-600',   bg: 'bg-green-50',   border: 'border-green-100' },
+                    {
+                      label: 'Coverage', value: `${stats.coverage.toFixed(1)}%`, icon: '🎯',
+                      color:  stats.coverage >= 80 ? 'text-emerald-600' : stats.coverage >= 50 ? 'text-amber-500' : 'text-red-500',
+                      bg:     stats.coverage >= 80 ? 'bg-emerald-50'    : stats.coverage >= 50 ? 'bg-amber-50'    : 'bg-red-50',
+                      border: stats.coverage >= 80 ? 'border-emerald-100' : stats.coverage >= 50 ? 'border-amber-100' : 'border-red-100',
+                    },
+                    { label: 'Full',        value: stats.fullyCovered, icon: '💚', color: 'text-green-700',   bg: 'bg-green-50',   border: 'border-green-100' },
+                    { label: 'Partial',     value: stats.partial,      icon: '🟡', color: 'text-amber-600',   bg: 'bg-amber-50',   border: 'border-amber-100' },
+                    { label: 'Not Visited', value: stats.uncovered,    icon: '❌', color: 'text-red-600',     bg: 'bg-red-50',     border: 'border-red-100' },
+                  ].map((card, i) => (
+                    <div key={i} className={`${card.bg} border ${card.border} rounded-xl px-2 py-1.5 flex flex-col justify-center min-w-[60px] text-center`}>
+                      <span className="text-[10px]">{card.icon}</span>
+                      <p className={`text-xs font-black leading-none mt-0.5 ${card.color}`}>
+                        {typeof card.value === 'number' ? card.value.toLocaleString() : card.value}
+                      </p>
+                      <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest leading-none mt-0.5 truncate">{card.label}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
 
           {/* Active Filters */}
@@ -1385,7 +1402,7 @@ const RoutingAnalyzer = () => {
 
         {/* ══ SCROLLABLE CONTENT ══ */}
         {activeTab === 'list' ? (
-          <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+          <div className="flex-1 flex flex-col overflow-hidden min-h-0 sm:h-full">
             <CustomerTable {...tableProps} />
           </div>
         ) : (

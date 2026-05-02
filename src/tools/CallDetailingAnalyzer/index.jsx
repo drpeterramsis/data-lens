@@ -850,7 +850,7 @@ const CallDetailingAnalyzer = () => {
   const hasData = rawData.length > 0;
 
   return (
-    <div className="space-y-6 pb-24 relative max-w-7xl mx-auto px-4">
+    <div className="space-y-6 pb-24 relative max-w-7xl mx-auto px-4 w-full overflow-hidden min-w-0">
       
       {/* Hidden file input */}
       <input

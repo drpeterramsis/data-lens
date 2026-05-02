@@ -63,7 +63,7 @@ const AtRiskAnalysisTab = ({ data, periodProgress }) => {
   return (
     <div className="space-y-6 pb-20">
       {/* RISK SUMMARY CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <RiskCard label="Total At Risk MRs" value={riskSummary.totalAtRisk} icon={<AlertTriangle className="text-amber-500" />} />
         <RiskCard label="Total At Risk Gap" value={riskSummary.totalGap.toLocaleString(undefined, { maximumFractionDigits: 0 })} icon={<TrendingDown className="text-red-500" />} />
         <RiskCard label="Critical MRs (<75%)" value={riskSummary.criticalMRs} icon={<AlertCircle className="text-red-600" />} />
