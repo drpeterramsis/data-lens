@@ -1,18 +1,47 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Settings, ChevronRight, Activity, BarChart3, Shield, Map } from 'lucide-react';
+import { 
+  LayoutDashboard, 
+  Settings, 
+  Activity, 
+  BarChart3, 
+  Map, 
+  TrendingUp, 
+  Link as LinkIcon, 
+  LogOut,
+  ChevronLeft,
+  ChevronRight,
+  X
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSidebar } from '../context/SidebarContext';
 
 const Sidebar = () => {
-  const { user } = useAuth();
-  const { isOpen } = useSidebar();
+  const { user, logout } = useAuth();
+  const { isExpanded, isMobileOpen, toggleExpanded, closeMobile } = useSidebar();
+
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape' && isMobileOpen) {
+        closeMobile();
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [isMobileOpen, closeMobile]);
+
+  const getInitials = (name) => {
+    if (!name || typeof name !== 'string') return '??';
+    return name.split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase().substring(0, 2);
+  };
 
   const menuItems = [
     { title: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, role: 'all' },
     { title: 'Call Detailing', path: '/tools/call-detailing', icon: Activity, role: 'user' },
     { title: 'ATR Sales Analyzer', path: '/tools/sales-analyzer', icon: BarChart3, role: 'user' },
+    { title: 'Sales Forecast', path: '/tools/sales-forecast', icon: TrendingUp, role: 'user' },
     { title: 'Routing Analyzer', path: '/routing-analyzer', icon: Map, role: 'user' },
+    { title: 'Links Library', path: '/links-library', icon: LinkIcon, role: 'user' },
     { title: 'User Management', path: '/admin/users', icon: Settings, role: 'admin' },
   ];
 
@@ -24,39 +53,106 @@ const Sidebar = () => {
   });
 
   return (
-    <aside 
-      className={`fixed left-0 top-14 bottom-0 bg-white border-r border-border z-40 flex flex-col transition-all duration-300 transform shadow-sm ${
-        isOpen ? 'w-60 translate-x-0' : 'w-0 -translate-x-full'
-      }`}
-    >
-      <div className={`flex-1 overflow-y-auto py-6 pb-24 ${isOpen ? 'opacity-100' : 'opacity-0'} transition-opacity duration-200`}>
-        <div className="px-4 mb-6">
-          <p className="text-[10px] uppercase font-black tracking-[0.2em] text-gray-400 pl-3">Navigation</p>
+    <>
+      {/* Backdrop */}
+      {isMobileOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 transition-opacity duration-300"
+          onMouseDown={closeMobile}
+        />
+      )}
+
+      {/* Sidebar Container */}
+      <aside 
+        className={`fixed top-0 left-0 bottom-0 h-full bg-gray-900 border-r border-gray-800 text-white z-50 flex flex-col transition-all duration-300 transform 
+          ${isExpanded ? 'md:w-[240px]' : 'md:w-[64px]'} 
+          ${isMobileOpen ? 'w-[280px] translate-x-0' : 'w-[280px] -translate-x-full md:translate-x-0'}
+        `}
+      >
+        {/* Top Section - Logo */}
+        <div className={`h-14 flex items-center shrink-0 border-b border-gray-800 relative ${isExpanded || isMobileOpen ? 'px-4' : 'px-0 justify-center'}`}>
+          <div className="flex items-center gap-2 overflow-hidden h-full py-2">
+            <span className="text-xl shrink-0">🔍</span>
+            <div className={`flex flex-col whitespace-nowrap transition-opacity duration-300 ${isExpanded || isMobileOpen ? 'opacity-100' : 'opacity-0 hidden md:block'}`}>
+              <div className="font-bold text-base text-white leading-tight">Data Lens</div>
+              <div className="text-[10px] text-yellow-400 leading-tight">Pharma Analytics Portal</div>
+            </div>
+          </div>
+          
+          {/* Mobile Close Button */}
+          <button 
+            className="md:hidden absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-white"
+            onClick={closeMobile}
+          >
+            <X size={20} />
+          </button>
         </div>
-        
-        <nav className="px-2 space-y-1">
+
+        {/* Navigation Items */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden py-4 px-2 space-y-1 custom-scrollbar">
           {visibleItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
+              onClick={() => {
+                if (window.innerWidth < 768) closeMobile();
+              }}
+              title={(!isExpanded && !isMobileOpen) ? item.title : undefined}
               className={({ isActive }) =>
-                `group flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 border-l-4 font-bold text-sm whitespace-nowrap overflow-hidden ${
-                  isActive
-                    ? 'bg-accent/10 border-accent text-accent-dark shadow-sm'
-                    : 'border-transparent text-gray-500 hover:bg-gray-50 hover:text-gray-900'
-                }`
+                `group flex items-center rounded-xl font-bold transition-all whitespace-nowrap overflow-hidden
+                ${isActive 
+                  ? 'bg-yellow-400 text-gray-900 shadow-sm' 
+                  : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                }
+                ${isExpanded || isMobileOpen ? 'px-3 py-2.5 gap-3' : 'justify-center p-2.5'}
+                `
               }
             >
-              <div className="flex items-center gap-3">
-                <item.icon size={18} className="transition-transform group-hover:scale-110 shrink-0" />
-                <span>{item.title}</span>
-              </div>
-              <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+              <item.icon size={20} className="shrink-0" />
+              <span className={`transition-opacity duration-300 ${isExpanded || isMobileOpen ? 'opacity-100' : 'opacity-0 hidden md:block w-0'}`}>
+                {item.title}
+              </span>
             </NavLink>
           ))}
-        </nav>
-      </div>
-    </aside>
+        </div>
+
+        {/* Bottom Section - User Info */}
+        <div className="shrink-0 border-t border-gray-800 relative">
+          <div className={`flex items-center ${isExpanded || isMobileOpen ? 'p-4 gap-3' : 'p-3 flex-col gap-2'}`}>
+            <div 
+              className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 border-2 border-gray-700 shadow-sm"
+              style={{ backgroundColor: user?.username ? `hsl(${user.username.length * 40}, 60%, 40%)` : '#198754' }}
+              title={(!isExpanded && !isMobileOpen) ? user?.name : undefined}
+            >
+              <span className="text-xs font-black text-white">
+                {getInitials(user?.name)}
+              </span>
+            </div>
+            
+            <div className={`flex-1 min-w-0 flex flex-col justify-center whitespace-nowrap transition-opacity duration-300 ${isExpanded || isMobileOpen ? 'opacity-100' : 'opacity-0 hidden md:block w-0 h-0'}`}>
+              <div className="text-sm font-bold truncate text-white">{user?.name}</div>
+              <div className="text-[10px] text-gray-400 font-medium uppercase tracking-wider truncate pb-[1px]">{user?.role}</div>
+            </div>
+
+            <button 
+              onClick={logout}
+              className={`text-gray-400 hover:text-red-400 transition-colors ${isExpanded || isMobileOpen ? 'p-1.5' : 'p-0 pt-2'}`}
+              title="Logout"
+            >
+              <LogOut size={18} />
+            </button>
+          </div>
+
+          {/* Desktop Collapse Arrow Button */}
+          <button
+            onClick={toggleExpanded}
+            className="hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-gray-800 border border-gray-700 text-gray-300 rounded-full items-center justify-center hover:bg-gray-700 hover:text-white transition-colors z-50 shadow-sm"
+          >
+            {isExpanded ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
+          </button>
+        </div>
+      </aside>
+    </>
   );
 };
 

@@ -21,7 +21,7 @@
 
 @layer base {
   :root {
-    --nav-height: 84px; /* fallback */
+    --nav-height: 56px;
     color-scheme: light;
   }
   
@@ -72,6 +72,16 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #CED4DA;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #111827;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #374151;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #4B5563;
 }
 
 .shadow-soft {

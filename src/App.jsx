@@ -1,9 +1,9 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { SidebarProvider } from './context/SidebarContext';
+import { SidebarProvider, useSidebar } from './context/SidebarContext';
 import ProtectedRoute from './components/ProtectedRoute';
-import Navbar from './components/Navbar';
+import Sidebar from './components/Sidebar';
 import Footer from './components/Footer';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -11,38 +11,72 @@ import CallDetailingAnalyzer from './tools/CallDetailingAnalyzer';
 import SalesAnalyzer from './tools/SalesAnalyzer';
 import RoutingAnalyzer from './tools/RoutingAnalyzer';
 import SalesForecastTool from './tools/SalesForecast';
+import LinksLibrary from './tools/LinksLibrary';
 import UserManagement from './pages/admin/UserManagement';
 import ScrollToTopButton from './components/ScrollToTopButton';
+import { Menu } from 'lucide-react';
 
 // ── Must match Footer.jsx h-[48px] ──
 const FOOTER_H = 48;
+
+const Header = () => {
+  const { toggleMobile } = useSidebar();
+  const location = useLocation();
+  
+  const breadcrumbMap = {
+    '/dashboard': 'Dashboard',
+    '/tools/call-detailing': 'Call Detailing',
+    '/tools/sales-analyzer': 'ATR Sales Analyzer',
+    '/routing-analyzer': 'Routing Analyzer',
+    '/tools/sales-forecast': 'Sales Forecast',
+    '/links-library': 'Links Library',
+    '/admin/users': 'User Management'
+  };
+  
+  const currentPath = breadcrumbMap[location.pathname] || 'Data Lens';
+
+  return (
+    <header className="h-14 flex items-center bg-white border-b border-gray-200 px-4 md:px-6 z-10 shrink-0 shadow-sm">
+      <button 
+        className="md:hidden mr-3 p-1.5 rounded-md text-gray-600 hover:bg-gray-100 transition-colors"
+        onClick={toggleMobile}
+      >
+        <Menu size={24} />
+      </button>
+      <h1 className="text-lg font-bold text-gray-800">{currentPath}</h1>
+    </header>
+  );
+};
 
 // ════════════════════════════════════════════
 // APP LAYOUT
 // ════════════════════════════════════════════
 const AppLayout = ({ children }) => {
+  const { isExpanded } = useSidebar();
+
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-gray-50">
 
-      {/* Navbar — fixed at top, sets --nav-height via its own useEffect */}
-      <Navbar />
+      <Sidebar />
 
-      {/* Main body — sits between Navbar and Footer */}
-      <main
-        className="flex-1 flex flex-col overflow-hidden"
-        style={{
-          marginTop:    'var(--nav-height, 64px)',
-          marginBottom: `${FOOTER_H}px`,
-        }}
+      {/* Main body — responds to sidebar width on desktop */}
+      <div 
+        className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${isExpanded ? 'md:ml-[240px]' : 'md:ml-[64px]'}`}
       >
-        {children}
-      </main>
+        <Header />
 
-      {/* Footer — fixed at bottom */}
-      <Footer />
+        <main
+          className="flex-1 flex flex-col overflow-auto relative"
+          style={{
+            marginBottom: `${FOOTER_H}px`,
+          }}
+        >
+          {children}
+        </main>
 
-      {/* Scroll to top button */}
-      <ScrollToTopButton />
+        <Footer />
+        <ScrollToTopButton />
+      </div>
     </div>
   );
 };
@@ -120,6 +154,17 @@ const AppRoutes = () => {
       />
 
       {/* User Management — Admin only */}
+      <Route
+        path="/links-library"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <LinksLibrary />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+
       <Route
         path="/admin/users"
         element={

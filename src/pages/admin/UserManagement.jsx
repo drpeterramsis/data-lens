@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, UserPlus, Edit, Power, Shield, Settings, Mail, X, Check, Search, Info } from 'lucide-react';
+import { Plus, UserPlus, Edit, Power, Shield, Settings, Mail, X, Check, Search, Info, Github } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import Toast, { useToast } from '../../components/Toast';
+import { getFileContent, updateFileContent, validateJSON } from '../../services/githubService';
 
 const AVAILABLE_TOOLS = [
   { 
@@ -33,6 +34,51 @@ const UserManagement = () => {
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const [deleteConfirmName, setDeleteConfirmName] = useState('');
   const { toast, showToast, hideToast } = useToast();
+
+  // JSON Editor States
+  const [isJsonModalOpen, setIsJsonModalOpen] = useState(false);
+  const [jsonContent, setJsonContent] = useState('');
+  const [jsonError, setJsonError] = useState(null);
+  const [fileSha, setFileSha] = useState('');
+  const [isLoadingJson, setIsLoadingJson] = useState(false);
+
+  const handleOpenJsonModal = async () => {
+    setIsJsonModalOpen(true);
+    setIsLoadingJson(true);
+    setJsonError(null);
+    try {
+      const { content, sha } = await getFileContent('src/data/users.json');
+      setJsonContent(content);
+      setFileSha(sha);
+    } catch (err) {
+      setJsonError(err.message);
+    } finally {
+      setIsLoadingJson(false);
+    }
+  };
+
+  const handleSaveJson = async () => {
+    const { isValid, error } = validateJSON(jsonContent);
+    if (!isValid) {
+      setJsonError(`Invalid JSON: ${error}`);
+      return;
+    }
+
+    if (!window.confirm("Are you sure you want to update this file on GitHub?")) {
+      return;
+    }
+
+    setIsLoadingJson(true);
+    try {
+      await updateFileContent('src/data/users.json', jsonContent, fileSha, 'Update users.json via app');
+      showToast("Users file updated on GitHub ✅", "success");
+      setIsJsonModalOpen(false);
+    } catch (err) {
+      setJsonError(err.message);
+    } finally {
+      setIsLoadingJson(false);
+    }
+  };
 
   const [formData, setFormData] = useState({
     name: '',
@@ -219,13 +265,22 @@ const UserManagement = () => {
           <p className="text-gray-400 text-xs font-bold uppercase tracking-[0.2em] mt-1">Control system access and assign supervisor toolsets</p>
         </div>
         
-        <button
-          onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 px-6 py-3 bg-accent hover:bg-accent-hover text-accent-dark font-black uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95"
-        >
-          <UserPlus size={20} />
-          <span>Onboard Supervisor</span>
-        </button>
+        <div className="flex flex-col md:flex-row gap-3">
+          <button
+            onClick={handleOpenJsonModal}
+            className="flex items-center gap-2 px-6 py-3 bg-gray-900 hover:bg-black text-white font-black uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95"
+          >
+            <Github size={20} />
+            <span>Edit Data File</span>
+          </button>
+          <button
+            onClick={() => handleOpenModal()}
+            className="flex items-center gap-2 px-6 py-3 bg-accent hover:bg-accent-hover text-accent-dark font-black uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95"
+          >
+            <UserPlus size={20} />
+            <span>Onboard Supervisor</span>
+          </button>
+        </div>
       </div>
 
       <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-soft">
@@ -525,6 +580,82 @@ const UserManagement = () => {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      {/* JSON Editor Modal */}
+      <AnimatePresence>
+        {isJsonModalOpen && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsJsonModalOpen(false)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="relative w-full max-w-4xl bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[80vh]"
+            >
+              <div className="absolute top-0 left-0 right-0 h-1.5 bg-gray-900" />
+              
+              <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                    <Github size={22} className="text-gray-900" />
+                    Edit src/data/users.json
+                  </h3>
+                  <p className="text-xs font-bold text-red-500 uppercase tracking-widest flex items-center gap-1 mt-1">
+                    ⚠️ Direct JSON editing. Invalid JSON will break the app.
+                  </p>
+                </div>
+                <button onClick={() => setIsJsonModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors">
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="flex-1 p-6 flex flex-col min-h-0 bg-gray-50">
+                {isLoadingJson ? (
+                  <div className="flex-1 flex flex-col items-center justify-center gap-3">
+                    <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
+                    <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">Loading from GitHub...</p>
+                  </div>
+                ) : (
+                  <>
+                    <textarea 
+                      value={jsonContent}
+                      onChange={(e) => setJsonContent(e.target.value)}
+                      className="w-full flex-1 font-mono text-sm bg-gray-900 text-gray-100 p-4 rounded-xl shadow-inner focus:outline-none focus:ring-2 focus:ring-accent resize-none custom-scrollbar"
+                      spellCheck={false}
+                    />
+                    {jsonError && (
+                      <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm font-bold">
+                        {jsonError}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              <div className="p-6 border-t border-gray-100 flex items-center justify-end gap-3 bg-white bg-gray-50/50">
+                <button 
+                  onClick={() => setIsJsonModalOpen(false)}
+                  className="px-6 py-3 rounded-xl border border-gray-200 font-black text-gray-500 uppercase tracking-widest hover:bg-gray-50 transition-all font-medium"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleSaveJson}
+                  disabled={isLoadingJson}
+                  className="px-6 py-3 bg-gray-900 hover:bg-black text-white font-black uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95 disabled:opacity-50"
+                >
+                  {isLoadingJson ? 'Saving...' : 'Save to GitHub'}
+                </button>
+              </div>
             </motion.div>
           </div>
         )}
