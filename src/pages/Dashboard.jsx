@@ -51,7 +51,7 @@ const Dashboard = () => {
     }
   ];
 
-  const visibleTools = allTools.filter(tool => user?.tools?.includes(tool.id));
+  const visibleTools = allTools.filter(tool => user?.allowedPages?.includes(tool.id));
 
   return (
     <div className="space-y-10 py-6">
@@ -129,7 +129,7 @@ const Dashboard = () => {
          </div>
          <div className="relative z-10 bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-2xl flex-1 flex flex-col items-center gap-3">
              <span className="text-[10px] uppercase font-black tracking-[0.3em] text-accent">Security Protocol</span>
-             <p className="text-xs text-center text-gray-300 font-medium">This node is verified as <span className="text-white font-black">{user?.name}</span></p>
+             <p className="text-xs text-center text-gray-300 font-medium">This node is verified as <span className="text-white font-black">{user?.fullName}</span></p>
              <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
                 <div className="h-full bg-accent w-full" />
              </div>

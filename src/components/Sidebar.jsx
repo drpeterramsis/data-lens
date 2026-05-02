@@ -19,16 +19,46 @@ import { useSidebar } from '../context/SidebarContext';
 const Sidebar = () => {
   const { user, logout } = useAuth();
   const { isExpanded, isMobileOpen, toggleExpanded, closeMobile } = useSidebar();
+  const sidebarRef = React.useRef(null);
+
+  const closeSidebar = () => {
+    if (window.innerWidth < 768) {
+      if (isMobileOpen) closeMobile();
+    } else {
+      if (isExpanded) toggleExpanded();
+    }
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        sidebarRef.current && 
+        !sidebarRef.current.contains(event.target)
+      ) {
+        closeSidebar();
+      }
+    };
+
+    if (isMobileOpen || isExpanded) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isMobileOpen, isExpanded, closeMobile, toggleExpanded]);
 
   useEffect(() => {
     const handleEsc = (e) => {
-      if (e.key === 'Escape' && isMobileOpen) {
-        closeMobile();
+      if (e.key === 'Escape') {
+        closeSidebar();
       }
     };
-    window.addEventListener('keydown', handleEsc);
-    return () => window.removeEventListener('keydown', handleEsc);
-  }, [isMobileOpen, closeMobile]);
+    document.addEventListener('keydown', handleEsc);
+    return () => document.removeEventListener('keydown', handleEsc);
+  }, [isMobileOpen, isExpanded, closeMobile, toggleExpanded]);
 
   const getInitials = (name) => {
     if (!name || typeof name !== 'string') return '??';
@@ -36,34 +66,35 @@ const Sidebar = () => {
   };
 
   const menuItems = [
-    { title: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, role: 'all' },
-    { title: 'Call Detailing', path: '/tools/call-detailing', icon: Activity, role: 'user' },
-    { title: 'ATR Sales Analyzer', path: '/tools/sales-analyzer', icon: BarChart3, role: 'user' },
-    { title: 'Sales Forecast', path: '/tools/sales-forecast', icon: TrendingUp, role: 'user' },
-    { title: 'Routing Analyzer', path: '/routing-analyzer', icon: Map, role: 'user' },
-    { title: 'Links Library', path: '/links-library', icon: LinkIcon, role: 'user' },
-    { title: 'User Management', path: '/admin/users', icon: Settings, role: 'admin' },
+    { title: 'Dashboard', path: '/dashboard', id: 'dashboard', icon: LayoutDashboard },
+    { title: 'Call Detailing', path: '/tools/call-detailing', id: 'call-detailing', icon: Activity },
+    { title: 'ATR Sales Analyzer', path: '/tools/sales-analyzer', id: 'sales-analyzer', icon: BarChart3 },
+    { title: 'Sales Forecast', path: '/tools/sales-forecast', id: 'sales-forecast', icon: TrendingUp },
+    { title: 'Routing Analyzer', path: '/routing-analyzer', id: 'routing-analyzer', icon: Map },
+    { title: 'Links Library', path: '/links-library', id: 'links-library', icon: LinkIcon },
+    { title: 'User Management', path: '/admin/users', id: 'user-management', icon: Settings },
   ];
 
   const visibleItems = menuItems.filter(item => {
-    if (item.role === 'all') return true;
-    if (item.role === 'admin') return user?.role === 'admin';
-    if (item.role === 'user') return user?.role === 'admin' || user?.role === 'manager' || user?.role === 'viewer';
-    return false;
+    if (user?.role === 'admin') return true;
+    return user?.allowedPages?.includes(item.id);
   });
 
   return (
     <>
       {/* Backdrop */}
-      {isMobileOpen && (
+      {(isMobileOpen || isExpanded) && (
         <div 
-          className="fixed inset-0 bg-black/50 z-40 transition-opacity duration-300"
-          onMouseDown={closeMobile}
+          className={`fixed inset-0 z-40 transition-opacity duration-300 ${isMobileOpen ? 'bg-black/50' : 'hidden md:block bg-transparent'}`}
+          onClick={closeSidebar}
+          onTouchStart={closeSidebar}
+          aria-hidden="true"
         />
       )}
 
       {/* Sidebar Container */}
       <aside 
+        ref={sidebarRef}
         className={`fixed top-0 left-0 bottom-0 h-full bg-gray-900 border-r border-gray-800 text-white z-50 flex flex-col transition-all duration-300 transform 
           ${isExpanded ? 'md:w-[240px]' : 'md:w-[64px]'} 
           ${isMobileOpen ? 'w-[280px] translate-x-0' : 'w-[280px] -translate-x-full md:translate-x-0'}
@@ -95,7 +126,7 @@ const Sidebar = () => {
               key={item.path}
               to={item.path}
               onClick={() => {
-                if (window.innerWidth < 768) closeMobile();
+                closeSidebar();
               }}
               title={(!isExpanded && !isMobileOpen) ? item.title : undefined}
               className={({ isActive }) =>
@@ -122,15 +153,15 @@ const Sidebar = () => {
             <div 
               className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 border-2 border-gray-700 shadow-sm"
               style={{ backgroundColor: user?.username ? `hsl(${user.username.length * 40}, 60%, 40%)` : '#198754' }}
-              title={(!isExpanded && !isMobileOpen) ? user?.name : undefined}
+              title={(!isExpanded && !isMobileOpen) ? user?.fullName : undefined}
             >
               <span className="text-xs font-black text-white">
-                {getInitials(user?.name)}
+                {user?.avatar || getInitials(user?.fullName)}
               </span>
             </div>
             
             <div className={`flex-1 min-w-0 flex flex-col justify-center whitespace-nowrap transition-opacity duration-300 ${isExpanded || isMobileOpen ? 'opacity-100' : 'opacity-0 hidden md:block w-0 h-0'}`}>
-              <div className="text-sm font-bold truncate text-white">{user?.name}</div>
+              <div className="text-sm font-bold truncate text-white">{user?.fullName}</div>
               <div className="text-[10px] text-gray-400 font-medium uppercase tracking-wider truncate pb-[1px]">{user?.role}</div>
             </div>
 

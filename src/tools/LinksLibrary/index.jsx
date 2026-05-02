@@ -1,33 +1,39 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Link as LinkIcon, Plus, Edit, Trash2, X, AlertTriangle, ExternalLink, Github } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import usersData from '../../data/users.json';
 import initialLinksData from '../../data/linksLibrary.json';
 import Toast, { useToast } from '../../components/Toast';
-import { getFileContent, updateFileContent, validateJSON } from '../../services/githubService';
+import { getFileContent, updateFileContent, validateJSON, getLatestSHA, saveFileToGitHub, getFileFromGitHub } from '../../services/githubService';
 
 const LinksLibrary = () => {
-  const { user } = useAuth();
+  const { user, users: allUsers } = useAuth();
   const isAdmin = user?.role === 'admin';
   const { toast, showToast, hideToast } = useToast();
   
-  // State for all links (persisted in localStorage for demo purposes)
-  const [links, setLinks] = useState(() => {
-    const saved = localStorage.getItem('datalens_links');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        return initialLinksData;
-      }
-    }
-    return initialLinksData;
-  });
+  const [links, setLinks] = useState([]);
+  const [linksSHA, setLinksSHA] = useState('');
+  const [isLoadingData, setIsLoadingData] = useState(true);
 
-  // Save to localStorage whenever links change
+  // Fetch Links from GitHub
+  const fetchLinks = async () => {
+    try {
+      setIsLoadingData(true);
+      const { content, sha } = await getFileFromGitHub('src/data/linksLibrary.json');
+      setLinks(content.links || []);
+      setLinksSHA(sha);
+    } catch (e) {
+      console.error("Failed to load links from GitHub", e);
+      if (links.length === 0) setLinks(initialLinksData.links || []);
+    } finally {
+      setIsLoadingData(false);
+    }
+  };
+
   useEffect(() => {
-    localStorage.setItem('datalens_links', JSON.stringify(links));
-  }, [links]);
+    fetchLinks();
+    const interval = setInterval(fetchLinks, 5 * 60 * 1000); // refresh every 5 min
+    return () => clearInterval(interval);
+  }, []);
 
   // View state
   const [searchQuery, setSearchQuery] = useState('');
@@ -95,9 +101,6 @@ const LinksLibrary = () => {
       setIsLoadingJson(false);
     }
   };
-
-  // Get all users from JSON for admin dropdowns
-  const allUsers = usersData.users || [];
 
   // Filter the links based on current user role, search query, and admin filters
   const visibleLinks = useMemo(() => {
@@ -191,7 +194,11 @@ const LinksLibrary = () => {
     });
   };
 
-  const handleSave = () => {
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!isAdmin) return;
+
     // Validate
     const errors = {};
     if (!formData.name.trim()) errors.name = 'Name is required';
@@ -204,30 +211,72 @@ const LinksLibrary = () => {
       return;
     }
 
+    setIsSaving(true);
     const now = new Date().toISOString();
     
-    if (editingLink) {
-      // Update existing
-      setLinks(prev => prev.map(l => 
-        l.id === editingLink ? { ...l, ...formData, updatedAt: now } : l
-      ));
-    } else {
-      // Create new
-      const newLink = {
-        id: `lnk_${Date.now()}`,
-        ...formData,
-        createdAt: now,
-        updatedAt: now
-      };
-      setLinks(prev => [...prev, newLink]);
+    try {
+      let updatedLinks;
+      let commitMessage = '';
+
+      if (editingLink) {
+        // Update existing
+        updatedLinks = links.map(l => 
+          l.id === editingLink ? { ...l, ...formData, updatedAt: now } : l
+        );
+        commitMessage = 'Update link: ' + formData.name;
+      } else {
+        // Create new
+        const newLink = {
+          id: `lnk_${Date.now()}`,
+          ...formData,
+          createdAt: now,
+          updatedAt: now
+        };
+        updatedLinks = [...links, newLink];
+        commitMessage = 'Add new link: ' + formData.name;
+      }
+
+      const latestSHA = await getLatestSHA('src/data/linksLibrary.json');
+      const success = await saveFileToGitHub('src/data/linksLibrary.json', { links: updatedLinks }, latestSHA, commitMessage);
+      
+      if (success) {
+        setLinks(updatedLinks);
+        setLinksSHA(latestSHA);
+        showToast(editingLink ? "Link updated on GitHub ✅" : "Link added and saved to GitHub ✅", "success");
+        handleCloseModal();
+      } else {
+        showToast("Failed to save. Please try again ❌", "error");
+      }
+    } catch (e) {
+      showToast("Something went wrong. Please try again ❌", "error");
+    } finally {
+      setIsSaving(false);
     }
-    
-    handleCloseModal();
   };
 
-  const handleDelete = (id) => {
-    setLinks(prev => prev.filter(l => l.id !== id));
-    setConfirmDeleteId(null);
+  const handleDelete = async (id) => {
+    if (!isAdmin) return;
+
+    setIsSaving(true);
+    try {
+      const linkToDelete = links.find(l => l.id === id);
+      const remainingLinks = links.filter(l => l.id !== id);
+      
+      const latestSHA = await getLatestSHA('src/data/linksLibrary.json');
+      const success = await saveFileToGitHub('src/data/linksLibrary.json', { links: remainingLinks }, latestSHA, 'Delete link: ' + (linkToDelete ? linkToDelete.name : 'Unknown'));
+      
+      if (success) {
+        setLinks(remainingLinks);
+        setConfirmDeleteId(null);
+        showToast("Link deleted from GitHub ✅", "success");
+      } else {
+        showToast("Failed to delete. Please try again ❌", "error");
+      }
+    } catch (e) {
+      showToast("Something went wrong. Please try again ❌", "error");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -293,7 +342,7 @@ const LinksLibrary = () => {
               >
                 <option value="">All Users</option>
                 {allUsers.map(u => (
-                  <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
+                  <option key={u.id} value={u.id}>{u.fullName} ({u.role})</option>
                 ))}
               </select>
               {adminUserFilter && (
@@ -368,7 +417,7 @@ const LinksLibrary = () => {
                         const u = allUsers.find(user => user.id === id);
                         return u ? (
                           <span key={id} className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded whitespace-nowrap">
-                            {u.name.split(' ')[0]}
+                            {u.fullName?.split(' ')[0]}
                           </span>
                         ) : null;
                       })}
@@ -519,8 +568,8 @@ const LinksLibrary = () => {
                           onChange={() => handleUserSelectToggle(u.id)}
                         />
                         <div className="flex-1 min-w-0">
-                          <div className="text-sm font-bold text-gray-900 truncate">{u.name}</div>
-                          <div className="text-xs text-gray-500 truncate">{u.role} &bull; {u.jobTitle}</div>
+                          <div className="text-sm font-bold text-gray-900 truncate">{u.fullName}</div>
+                          <div className="text-xs text-gray-500 truncate">{u.role} &bull; {u.email}</div>
                         </div>
                       </label>
                     ))}
@@ -550,15 +599,17 @@ const LinksLibrary = () => {
             <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3 rounded-b-2xl">
               <button 
                 onClick={handleCloseModal}
-                className="px-4 py-2 text-sm font-bold text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-lg transition-colors"
+                disabled={isSaving}
+                className="px-4 py-2 text-sm font-bold text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
               <button 
                 onClick={handleSave}
-                className="px-6 py-2 text-sm font-bold bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors shadow-sm"
+                disabled={isSaving}
+                className="px-6 py-2 text-sm font-bold bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors shadow-sm disabled:opacity-50"
               >
-                {editingLink ? 'Save Changes' : 'Create Link'}
+                {isSaving ? 'Saving...' : (editingLink ? 'Save Changes' : 'Create Link')}
               </button>
             </div>
           </div>
@@ -579,15 +630,17 @@ const LinksLibrary = () => {
             <div className="flex gap-3">
               <button 
                 onClick={() => setConfirmDeleteId(null)}
-                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors"
+                disabled={isSaving}
+                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
               <button 
                 onClick={() => handleDelete(confirmDeleteId)}
-                className="flex-1 px-4 py-2 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 transition-colors shadow-sm"
+                disabled={isSaving}
+                className="flex-1 px-4 py-2 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 transition-colors shadow-sm disabled:opacity-50"
               >
-                Delete
+                {isSaving ? 'Deleting...' : 'Delete'}
               </button>
             </div>
           </div>

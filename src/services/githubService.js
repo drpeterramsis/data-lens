@@ -101,3 +101,52 @@ export const validateJSON = (jsonString) => {
     return { isValid: false, error: e.message };
   }
 };
+
+/**
+ * Gets the file content and SHA from GitHub, parsing it as JSON
+ * @param {string} filePath 
+ * @returns {Promise<{content: any, sha: string}>}
+ */
+export const getFileFromGitHub = async (filePath) => {
+  try {
+    const { content, sha } = await getFileContent(filePath);
+    return { content: JSON.parse(content), sha };
+  } catch (error) {
+    console.error(`Error parsing JSON from GitHub for ${filePath}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Saves JSON document to GitHub API
+ * @param {string} filePath 
+ * @param {object} jsonData 
+ * @param {string} sha 
+ * @param {string} commitMessage 
+ * @returns {Promise<boolean>}
+ */
+export const saveFileToGitHub = async (filePath, jsonData, sha, commitMessage) => {
+  try {
+    const newContent = JSON.stringify(jsonData, null, 2);
+    await updateFileContent(filePath, newContent, sha, commitMessage);
+    return true;
+  } catch (error) {
+    console.error('Error saving JSON file to GitHub:', error);
+    return false;
+  }
+};
+
+/**
+ * Always fetch fresh SHA before any update
+ * @param {string} filePath 
+ * @returns {Promise<string>}
+ */
+export const getLatestSHA = async (filePath) => {
+  try {
+    const { sha } = await getFileContent(filePath);
+    return sha;
+  } catch (error) {
+    console.error('Error getting latest SHA:', error);
+    throw error;
+  }
+};

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import initialUsers from '../data/users.json';
+import { getFileFromGitHub } from '../services/githubService';
 
 const AuthContext = createContext();
 
@@ -8,52 +9,75 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState([]);
 
-  useEffect(() => {
-    // Load users and prioritize localStorage overrides
-    const storedUsers = localStorage.getItem('datalens_users_override');
-    const parsedStored = storedUsers ? JSON.parse(storedUsers) : [];
-    
-    // Merge stored users with initial users to ensure new tools/fields are added
-    const mergedUsers = initialUsers.users.map(initialU => {
-      const storedU = parsedStored.find(u => u.id === initialU.id);
-      if (storedU) {
-        // Ensure sales-forecast and other new tools from initial users are merged
-        const mergedTools = Array.from(new Set([...(storedU.tools || []), ...(initialU.tools || [])]));
-        return { ...storedU, tools: mergedTools };
+  const fetchUsers = async () => {
+    try {
+      const { content } = await getFileFromGitHub('src/data/users.json');
+      if (content && content.users) {
+        setUsers(content.users);
+        return content.users;
       }
-      return initialU;
-    });
-
-    // Add any completely new users that were in localstorage but not initial
-    parsedStored.forEach(su => {
-      if (!mergedUsers.find(mu => mu.id === su.id)) {
-        mergedUsers.push(su);
-      }
-    });
-
-    setUsers(mergedUsers);
-
-    // Check for existing session
-    const savedUserStr = localStorage.getItem('pharma_current_user');
-    if (savedUserStr) {
-      const savedUser = JSON.parse(savedUserStr);
-      // Refresh user fields from actual users source (in case tools were updated in users.json)
-      const freshUser = mergedUsers.find(u => u.id === savedUser.id) || savedUser;
-      setUser(freshUser);
+    } catch (e) {
+      console.error("Failed to fetch users from GitHub", e);
+      if (users.length === 0) setUsers(initialUsers.users);
     }
-    
-    setLoading(false);
+  };
+
+  useEffect(() => {
+    const initAuth = async () => {
+      // First run from local data
+      let currentUsers = initialUsers.users;
+      try {
+        const { content } = await getFileFromGitHub('src/data/users.json');
+        if (content && content.users) {
+           currentUsers = content.users;
+        }
+      } catch (e) { }
+
+      setUsers(currentUsers);
+
+      const savedUserStr = localStorage.getItem('pharma_current_user');
+      if (savedUserStr) {
+        const savedUser = JSON.parse(savedUserStr);
+        const freshUser = currentUsers.find(u => u.id === savedUser.id) || savedUser;
+        setUser(freshUser);
+      }
+      setLoading(false);
+    };
+
+    initAuth();
+  }, []);
+
+  // Make sure when user state updates, we also check if their role/active changed
+  useEffect(() => {
+    if (user && users.length > 0) {
+      const liveUser = users.find(u => u.id === user.id);
+      if (liveUser && (liveUser.isActive !== user.isActive || liveUser.role !== user.role || JSON.stringify(liveUser.allowedPages) !== JSON.stringify(user.allowedPages))) {
+         setUser(liveUser);
+         localStorage.setItem('pharma_current_user', JSON.stringify(liveUser));
+      }
+      // If user is deleted
+      if (!liveUser) {
+        logout();
+      }
+    }
+  }, [users, user]);
+
+  useEffect(() => {
+    const interval = setInterval(fetchUsers, 5 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
   const login = (username, password) => {
-    // case insensitive username check
-    const foundUser = users.find(u => u.username.toLowerCase() === username.toLowerCase() && u.password === password);
+    const foundUser = users.find(u => 
+      (u.username?.toLowerCase() === username.toLowerCase() || u.email?.toLowerCase() === username.toLowerCase()) 
+      && u.password === password
+    );
     
     if (!foundUser) {
       return { success: false, message: 'Invalid username or password' };
     }
 
-    if (!foundUser.active) {
+    if (!foundUser.isActive) {
       return { success: false, message: 'Account disabled' };
     }
 
@@ -69,7 +93,6 @@ export const AuthProvider = ({ children }) => {
 
   const updateUsers = (newUsers) => {
     setUsers(newUsers);
-    localStorage.setItem('datalens_users_override', JSON.stringify(newUsers));
   };
 
   return (

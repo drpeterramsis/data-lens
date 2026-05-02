@@ -2,47 +2,79 @@
   "users": [
     {
       "id": "1",
+      "fullName": "Peter Admin",
       "username": "peterramsis",
-      "name": "Peter Admin",
-      "jobTitle": "General Manager",
       "email": "admin@datalens.com",
       "password": "dlDL2@26",
       "role": "admin",
-      "active": true,
-      "tools": ["call-detailing", "sales-analyzer", "routing-analyzer", "sales-forecast"]
+      "avatar": "PA",
+      "isActive": true,
+      "allowedPages": [
+        "dashboard",
+        "call-detailing",
+        "sales-analyzer",
+        "sales-forecast",
+        "routing-analyzer",
+        "links-library",
+        "user-management"
+      ],
+      "createdAt": "2026-05-02T10:00:00Z",
+      "updatedAt": "2026-05-02T10:00:00Z"
     },
     {
       "id": "2",
+      "fullName": "Sara Mohamed",
       "username": "sara_m",
-      "name": "Sara Mohamed",
-      "jobTitle": "District Manager (DM)",
       "email": "sara@datalens.com",
       "password": "sara123",
-      "role": "manager",
-      "active": true,
-      "tools": ["call-detailing", "sales-analyzer", "routing-analyzer", "sales-forecast"]
+      "role": "user",
+      "avatar": "SM",
+      "isActive": true,
+      "allowedPages": [
+        "dashboard",
+        "call-detailing",
+        "sales-analyzer",
+        "routing-analyzer",
+        "sales-forecast"
+      ],
+      "createdAt": "2026-05-02T10:00:00Z",
+      "updatedAt": "2026-05-02T10:00:00Z"
     },
     {
       "id": "3",
+      "fullName": "Omar Ali",
       "username": "omar_a",
-      "name": "Omar Ali",
-      "jobTitle": "Medical Representative",
       "email": "omar@datalens.com",
       "password": "omar123",
-      "role": "viewer",
-      "active": true,
-      "tools": ["call-detailing", "sales-forecast"]
+      "role": "user",
+      "avatar": "OA",
+      "isActive": true,
+      "allowedPages": [
+        "dashboard",
+        "call-detailing",
+        "sales-forecast"
+      ],
+      "createdAt": "2026-05-02T10:00:00Z",
+      "updatedAt": "2026-05-02T10:00:00Z"
     },
     {
       "id": "4",
+      "fullName": "Medical Representative",
       "username": "mr_user",
-      "name": "Medical Representative",
-      "jobTitle": "Medical Representative",
       "email": "mr_user@datalens.com",
       "password": "datalens2026",
-      "role": "manager",
-      "active": true,
-      "tools": ["call-detailing", "sales-analyzer", "routing-analyzer", "sales-forecast"]
+      "role": "user",
+      "avatar": "MR",
+      "isActive": true,
+      "allowedPages": [
+        "dashboard",
+        "call-detailing",
+        "sales-analyzer",
+        "routing-analyzer",
+        "sales-forecast"
+      ],
+      "createdAt": "2026-05-02T10:00:00Z",
+      "updatedAt": "2026-05-02T10:00:00Z"
     }
   ]
 }
