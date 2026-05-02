@@ -1,24 +1,18 @@
-[
-  {
-    "id": "lnk_001",
-    "name": "Sales Dashboard",
-    "description": "View monthly sales performance and KPIs",
-    "url": "https://example.com/sales",
-    "buttonLabel": "Open Dashboard",
-    "allowedUserIds": ["1", "3"],
-    "isActive": true,
-    "createdAt": "2026-01-15T09:00:00Z",
-    "updatedAt": "2026-01-15T09:00:00Z"
-  },
-  {
-    "id": "lnk_002",
-    "name": "Training Portal",
-    "description": "Access all training materials and videos",
-    "url": "https://example.com/training",
-    "buttonLabel": "Start Learning",
-    "allowedUserIds": ["2", "3", "4"],
-    "isActive": true,
-    "createdAt": "2026-01-20T10:00:00Z",
-    "updatedAt": "2026-01-20T10:00:00Z"
-  }
-]
+{
+  "links": [
+    {
+      "id": "lnk_1777727771986",
+      "name": "Skill-Zaty",
+      "description": "Empowering professionals to master in-demand technical and soft skills through learning paths that drive career acceleration",
+      "url": "https://t.me/+DAQt0cG0WW42MTZk",
+      "buttonLabel": "Open",
+      "allowedUserIds": [
+        "usr_1777727452369",
+        "1"
+      ],
+      "isActive": true,
+      "createdAt": "2026-05-02T13:16:11.986Z",
+      "updatedAt": "2026-05-02T13:16:11.986Z"
+    }
+  ]
+}

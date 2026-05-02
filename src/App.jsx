@@ -11,10 +11,11 @@ import CallDetailingAnalyzer from './tools/CallDetailingAnalyzer';
 import SalesAnalyzer from './tools/SalesAnalyzer';
 import RoutingAnalyzer from './tools/RoutingAnalyzer';
 import SalesForecastTool from './tools/SalesForecast';
-import LinksLibrary from './tools/LinksLibrary';
+import Library from './tools/LinksLibrary';
 import UserManagement from './pages/admin/UserManagement';
 import ScrollToTopButton from './components/ScrollToTopButton';
 import { Menu } from 'lucide-react';
+import { ALL_TOOLS } from './config/toolsConfig';
 
 // ── Must match Footer.jsx h-[48px] ──
 const FOOTER_H = 48;
@@ -23,27 +24,18 @@ const Header = () => {
   const { toggleMobile } = useSidebar();
   const location = useLocation();
   
-  const breadcrumbMap = {
-    '/dashboard': 'Dashboard',
-    '/tools/call-detailing': 'Call Detailing',
-    '/tools/sales-analyzer': 'ATR Sales Analyzer',
-    '/routing-analyzer': 'Routing Analyzer',
-    '/tools/sales-forecast': 'Sales Forecast',
-    '/links-library': 'Links Library',
-    '/admin/users': 'User Management'
-  };
-  
-  const currentPath = breadcrumbMap[location.pathname] || 'Data Lens';
+  const currentTool = ALL_TOOLS.find(t => t.route === location.pathname);
+  const currentPath = currentTool ? currentTool.name : 'Data Lens';
 
   return (
-    <header className="h-14 flex items-center bg-white border-b border-gray-200 px-4 md:px-6 z-10 shrink-0 shadow-sm">
+    <header className="h-14 flex items-center bg-gray-900 border-b border-gray-800 text-white px-4 md:px-6 z-10 shrink-0 shadow-sm">
       <button 
-        className="md:hidden mr-3 p-1.5 rounded-md text-gray-600 hover:bg-gray-100 transition-colors"
+        className="md:hidden mr-3 p-1.5 rounded-md text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
         onClick={toggleMobile}
       >
         <Menu size={24} />
       </button>
-      <h1 className="text-lg font-bold text-gray-800">{currentPath}</h1>
+      <h1 className="text-lg font-bold text-white">{currentPath}</h1>
     </header>
   );
 };
@@ -159,7 +151,7 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <AppLayout>
-              <LinksLibrary />
+              <Library />
             </AppLayout>
           </ProtectedRoute>
         }
@@ -168,7 +160,7 @@ const AppRoutes = () => {
       <Route
         path="/admin/users"
         element={
-          <ProtectedRoute requireAdmin>
+          <ProtectedRoute adminOnly>
             <AppLayout>
               <UserManagement />
             </AppLayout>

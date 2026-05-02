@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Link as LinkIcon, Plus, Edit, Trash2, X, AlertTriangle, ExternalLink, Github } from 'lucide-react';
+import { Search, Link as LinkIcon, Plus, Edit, Trash2, X, AlertTriangle, ExternalLink, Github, Folder } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import initialLinksData from '../../data/linksLibrary.json';
 import Toast, { useToast } from '../../components/Toast';
 import { getFileContent, updateFileContent, validateJSON, getLatestSHA, saveFileToGitHub, getFileFromGitHub } from '../../services/githubService';
 
-const LinksLibrary = () => {
+const CATEGORIES = ["Reports", "Dashboards", "Tools", "References", "Training", "HR", "Finance", "Operations", "Other", "Custom..."];
+
+const Library = () => {
   const { user, users: allUsers } = useAuth();
   const isAdmin = user?.role === 'admin';
   const { toast, showToast, hideToast } = useToast();
@@ -19,11 +21,11 @@ const LinksLibrary = () => {
     try {
       setIsLoadingData(true);
       const { content, sha } = await getFileFromGitHub('src/data/linksLibrary.json');
-      setLinks(content.links || []);
+      setLinks(Array.isArray(content) ? content : (content.links || []));
       setLinksSHA(sha);
     } catch (e) {
       console.error("Failed to load links from GitHub", e);
-      if (links.length === 0) setLinks(initialLinksData.links || []);
+      if (links.length === 0) setLinks(Array.isArray(initialLinksData) ? initialLinksData : (initialLinksData.links || []));
     } finally {
       setIsLoadingData(false);
     }
@@ -38,6 +40,7 @@ const LinksLibrary = () => {
   // View state
   const [searchQuery, setSearchQuery] = useState('');
   const [adminUserFilter, setAdminUserFilter] = useState(''); // admin only filter by user
+  const [selectedCategory, setSelectedCategory] = useState('All');
   
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -48,6 +51,8 @@ const LinksLibrary = () => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
+    category: 'Other',
+    customCategory: '',
     url: '',
     buttonLabel: 'Open',
     allowedUserIds: [],
@@ -102,7 +107,12 @@ const LinksLibrary = () => {
     }
   };
 
-  // Filter the links based on current user role, search query, and admin filters
+  const availableCategories = useMemo(() => {
+    const cats = new Set(links.map(l => l.category || 'Other'));
+    return ['All', ...Array.from(cats).sort()];
+  }, [links]);
+
+  // Filter the links based on current user role, search query, admin filters, and category
   const visibleLinks = useMemo(() => {
     let filtered = links;
 
@@ -110,27 +120,32 @@ const LinksLibrary = () => {
     if (!isAdmin) {
       // Regular users only see active links assigned to them
       filtered = filtered.filter(link => 
-        link.isActive && link.allowedUserIds.includes(user.id)
+        link.isActive && link.allowedUserIds?.includes(user.id)
       );
     } else if (adminUserFilter) {
       // Admins can filter by user
       filtered = filtered.filter(link => 
-        link.allowedUserIds.includes(adminUserFilter)
+        link.allowedUserIds?.includes(adminUserFilter)
       );
     }
 
-    // 2. Search query filtering
+    // 2. Category filtering
+    if (selectedCategory !== 'All') {
+      filtered = filtered.filter(link => (link.category || 'Other') === selectedCategory);
+    }
+
+    // 3. Search query filtering
     if (searchQuery) {
       const qs = searchQuery.toLowerCase();
       filtered = filtered.filter(link => 
-        link.name.toLowerCase().includes(qs) || 
+        link.name?.toLowerCase().includes(qs) || 
         link.description?.toLowerCase().includes(qs)
       );
     }
 
-    // 3. Sort logic (newest first or alphabetical)
-    return filtered.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  }, [links, isAdmin, user?.id, adminUserFilter, searchQuery]);
+    // 4. Sort logic (newest first or alphabetical)
+    return filtered.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  }, [links, isAdmin, user?.id, adminUserFilter, selectedCategory, searchQuery]);
 
 
   // Helper: validate URL
@@ -144,9 +159,12 @@ const LinksLibrary = () => {
 
   const handleOpenModal = (link = null) => {
     if (link) {
+      const isPredefined = CATEGORIES.includes(link.category);
       setFormData({
         name: link.name,
         description: link.description || '',
+        category: isPredefined || !link.category ? (link.category || 'Other') : 'Custom...',
+        customCategory: isPredefined ? '' : link.category,
         url: link.url,
         buttonLabel: link.buttonLabel || 'Open',
         allowedUserIds: link.allowedUserIds || [],
@@ -154,9 +172,11 @@ const LinksLibrary = () => {
       });
       setEditingLink(link.id);
     } else {
-      setFormData({
+       setFormData({
         name: '',
         description: '',
+        category: 'Other',
+        customCategory: '',
         url: '',
         buttonLabel: 'Open',
         allowedUserIds: [],
@@ -218,26 +238,39 @@ const LinksLibrary = () => {
       let updatedLinks;
       let commitMessage = '';
 
+      const finalCategory = formData.category === 'Custom...' ? (formData.customCategory.trim() || 'Other') : formData.category;
+      
+      const submitData = {
+        name: formData.name,
+        description: formData.description,
+        category: finalCategory,
+        url: formData.url,
+        buttonLabel: formData.buttonLabel,
+        allowedUserIds: formData.allowedUserIds,
+        isActive: formData.isActive
+      };
+
       if (editingLink) {
         // Update existing
         updatedLinks = links.map(l => 
-          l.id === editingLink ? { ...l, ...formData, updatedAt: now } : l
+          l.id === editingLink ? { ...l, ...submitData, updatedAt: now } : l
         );
-        commitMessage = 'Update link: ' + formData.name;
+        commitMessage = `Update link: ${submitData.name} in category ${submitData.category}`;
       } else {
         // Create new
         const newLink = {
           id: `lnk_${Date.now()}`,
-          ...formData,
+          ...submitData,
           createdAt: now,
           updatedAt: now
         };
         updatedLinks = [...links, newLink];
-        commitMessage = 'Add new link: ' + formData.name;
+        commitMessage = `Add link: ${submitData.name} in category ${submitData.category}`;
       }
 
       const latestSHA = await getLatestSHA('src/data/linksLibrary.json');
-      const success = await saveFileToGitHub('src/data/linksLibrary.json', { links: updatedLinks }, latestSHA, commitMessage);
+      const payload = { links: updatedLinks };
+      const success = await saveFileToGitHub('src/data/linksLibrary.json', payload, latestSHA, commitMessage);
       
       if (success) {
         setLinks(updatedLinks);
@@ -290,8 +323,8 @@ const LinksLibrary = () => {
             <LinkIcon size={24} className="text-gray-900" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Links Library</h1>
-            <p className="text-sm text-gray-500">Access all your important resources and dashboards</p>
+            <h1 className="text-2xl font-bold text-gray-900">Library</h1>
+            <p className="text-sm text-gray-500">Access all your important resources and links</p>
           </div>
         </div>
         
@@ -362,6 +395,22 @@ const LinksLibrary = () => {
         )}
       </div>
 
+      {/* Category Tabs */}
+      {availableCategories.length > 1 && (
+        <div className="flex flex-wrap gap-2 mb-6">
+          {availableCategories.map(cat => (
+             <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-sm flex items-center gap-2 ${selectedCategory === cat ? 'bg-gray-900 text-white border-transparent' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
+             >
+                {cat !== 'All' && <Folder size={16} className={selectedCategory === cat ? 'text-yellow-400' : 'text-gray-400'} />}
+                {cat}
+             </button>
+          ))}
+        </div>
+      )}
+
       {/* Links Grid */}
       {visibleLinks.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pb-12">
@@ -380,9 +429,15 @@ const LinksLibrary = () => {
                     </div>
                     <div>
                       <h3 className="font-bold text-gray-900 text-[15px] leading-tight line-clamp-2">{link.name}</h3>
-                      {isAdmin && !link.isActive && (
-                        <span className="inline-block mt-1 text-[10px] uppercase font-black tracking-widest text-red-500 bg-red-50 px-2 py-0.5 rounded">Inactive</span>
-                      )}
+                      <div className="flex flex-wrap items-center gap-2 mt-1">
+                        <span className="inline-flex items-center gap-1 text-[10px] uppercase font-black tracking-widest text-gray-600 bg-gray-100 px-2 py-0.5 rounded">
+                           <Folder size={10} />
+                           {link.category || 'Other'}
+                        </span>
+                        {isAdmin && !link.isActive && (
+                          <span className="inline-block text-[10px] uppercase font-black tracking-widest text-red-500 bg-red-50 px-2 py-0.5 rounded">Inactive</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                   
@@ -416,8 +471,8 @@ const LinksLibrary = () => {
                       {link.allowedUserIds && link.allowedUserIds.slice(0, 3).map(id => {
                         const u = allUsers.find(user => user.id === id);
                         return u ? (
-                          <span key={id} className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded whitespace-nowrap">
-                            {u.fullName?.split(' ')[0]}
+                          <span key={id} className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded whitespace-nowrap overflow-hidden text-ellipsis max-w-full">
+                            {u.fullName}
                           </span>
                         ) : null;
                       })}
@@ -502,6 +557,29 @@ const LinksLibrary = () => {
                   className="w-full px-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
                   placeholder="Short explanation of what this link is for..."
                 />
+              </div>
+
+              {/* Category */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Category <span className="text-red-500">*</span></label>
+                <select 
+                  name="category"
+                  value={formData.category}
+                  onChange={handleFormChange}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-gray-50 font-bold text-gray-700"
+                >
+                  {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                </select>
+                {formData.category === 'Custom...' && (
+                  <input 
+                    type="text"
+                    name="customCategory"
+                    value={formData.customCategory}
+                    onChange={handleFormChange}
+                    placeholder="Enter custom category name..."
+                    className="w-full mt-2 px-4 py-2 border border-blue-200 bg-blue-50/30 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 font-bold"
+                  />
+                )}
               </div>
 
               {/* URL */}
@@ -718,4 +796,4 @@ const LinksLibrary = () => {
   );
 };
 
-export default LinksLibrary;
+export default Library;

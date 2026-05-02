@@ -22,42 +22,6 @@
       "updatedAt": "2026-05-02T10:00:00Z"
     },
     {
-      "id": "2",
-      "fullName": "Sara Mohamed",
-      "username": "sara_m",
-      "email": "sara@datalens.com",
-      "password": "sara123",
-      "role": "user",
-      "avatar": "SM",
-      "isActive": true,
-      "allowedPages": [
-        "dashboard",
-        "call-detailing",
-        "sales-analyzer",
-        "routing-analyzer",
-        "sales-forecast"
-      ],
-      "createdAt": "2026-05-02T10:00:00Z",
-      "updatedAt": "2026-05-02T10:00:00Z"
-    },
-    {
-      "id": "3",
-      "fullName": "Omar Ali",
-      "username": "omar_a",
-      "email": "omar@datalens.com",
-      "password": "omar123",
-      "role": "user",
-      "avatar": "OA",
-      "isActive": true,
-      "allowedPages": [
-        "dashboard",
-        "call-detailing",
-        "sales-forecast"
-      ],
-      "createdAt": "2026-05-02T10:00:00Z",
-      "updatedAt": "2026-05-02T10:00:00Z"
-    },
-    {
       "id": "4",
       "fullName": "Medical Representative",
       "username": "mr_user",
@@ -71,10 +35,51 @@
         "call-detailing",
         "sales-analyzer",
         "routing-analyzer",
-        "sales-forecast"
+        "sales-forecast",
+        "links-library"
       ],
       "createdAt": "2026-05-02T10:00:00Z",
-      "updatedAt": "2026-05-02T10:00:00Z"
+      "updatedAt": "2026-05-02T13:01:50.123Z"
+    },
+    {
+      "id": "usr_1777727016685",
+      "fullName": "DiaCore MR",
+      "username": "diacore_mr",
+      "email": "diacore_mr@datalens.com",
+      "password": "D@t@2026",
+      "role": "user",
+      "isActive": true,
+      "allowedPages": [
+        "dashboard",
+        "call-detailing",
+        "sales-analyzer",
+        "sales-forecast",
+        "routing-analyzer",
+        "links-library"
+      ],
+      "avatar": "DM",
+      "createdAt": "2026-05-02T13:03:36.685Z",
+      "updatedAt": "2026-05-02T13:03:55.960Z"
+    },
+    {
+      "id": "usr_1777727452369",
+      "fullName": "DiaCore Alex Team",
+      "username": "diacore_mr_alex",
+      "email": "diacore_mr_alex@datalens.com",
+      "password": "D@t@2026",
+      "role": "user",
+      "isActive": true,
+      "allowedPages": [
+        "dashboard",
+        "call-detailing",
+        "sales-analyzer",
+        "sales-forecast",
+        "routing-analyzer",
+        "links-library"
+      ],
+      "avatar": "DA",
+      "createdAt": "2026-05-02T13:10:52.369Z",
+      "updatedAt": "2026-05-02T13:20:26.065Z"
     }
   ]
 }

@@ -4,16 +4,14 @@ import { UserPlus, Edit, Users, X, Search, Settings, Shield, Lock, Power } from 
 import { useAuth } from '../../context/AuthContext';
 import Toast, { useToast } from '../../components/Toast';
 import { getLatestSHA, saveFileToGitHub, getFileFromGitHub } from '../../services/githubService';
+import { ALL_TOOLS } from '../../config/toolsConfig';
 
-const AVAILABLE_PAGES = [
-  { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-  { id: 'call-detailing', label: 'Call Detailing', icon: '📞' },
-  { id: 'sales-analyzer', label: 'ATR Sales Analyzer', icon: '📈' },
-  { id: 'sales-forecast', label: 'Sales Forecast', icon: '📉' },
-  { id: 'routing-analyzer', label: 'Routing Analyzer', icon: '🗺️' },
-  { id: 'links-library', label: 'Links Library', icon: '🔗' },
-  { id: 'user-management', label: 'User Management', icon: '⚙️', adminOnly: true }
-];
+const AVAILABLE_PAGES = ALL_TOOLS.map(tool => ({
+  id: tool.id,
+  label: tool.name,
+  icon: typeof tool.icon === 'string' ? tool.icon : '✨', // fallback for lucide icons if needed
+  adminOnly: tool.adminOnly || false
+}));
 
 const UserManagement = () => {
   const { users, updateUsers, user: currentUser } = useAuth();
@@ -80,10 +78,11 @@ const UserManagement = () => {
   const syncLinksLibrary = async (userId, action = 'remove', commitPrefix = 'Sync') => {
     try {
       const { content, sha } = await getFileFromGitHub('src/data/linksLibrary.json');
-      if (!content || !content.links) return false;
+      if (!content) return false;
+      const currentLinks = Array.isArray(content) ? content : (content.links || []);
       
       let changed = false;
-      const updatedLinks = content.links.map(link => {
+      const updatedLinks = currentLinks.map(link => {
         if (action === 'remove' && link.allowedUserIds?.includes(userId)) {
           changed = true;
           return {
@@ -460,7 +459,7 @@ const UserManagement = () => {
                 <div className="p-5 border-b border-gray-100 flex items-center justify-between shrink-0 bg-gray-50">
                    <h3 className="text-lg font-black text-gray-900 flex items-center gap-2">
                      {editingUser ? <Edit size={20} className="text-accent" /> : <UserPlus size={20} className="text-accent" />}
-                     {editingUser ? 'Edit User Profile' : 'Add New User'}
+                     {editingUser ? `Edit — ${editingUser.fullName}` : 'Add New User'}
                    </h3>
                    <button onClick={() => setIsUserModalOpen(false)} className="p-1 text-gray-400 hover:text-gray-900 rounded bg-white border border-gray-200 shadow-sm"><X size={18}/></button>
                 </div>
@@ -530,12 +529,12 @@ const UserManagement = () => {
                 <div className="p-5 border-b border-gray-100 flex items-center justify-between shrink-0 bg-gray-50">
                    <h3 className="text-lg font-black text-gray-900 flex items-center gap-2">
                      <Settings size={20} className="text-gray-500" />
-                     Page Access
+                     {editingUser ? `Page Access — ${editingUser.fullName}` : 'Page Access'}
                    </h3>
                    <button onClick={() => setIsPagesModalOpen(false)} className="p-1 text-gray-400 hover:text-gray-900 rounded bg-white border border-gray-200 shadow-sm"><X size={18}/></button>
                 </div>
                 <div className="p-4 border-b border-gray-100 bg-white">
-                   <p className="text-xs font-black text-gray-500 uppercase tracking-widest text-center">Configuring for: <span className="text-gray-900">{editingUser?.fullName}</span></p>
+                   <p className="text-xs font-black text-gray-500 uppercase tracking-widest text-center">Configuring access rules</p>
                 </div>
                 <div className="p-4 bg-gray-50 flex gap-2 justify-center border-b border-gray-100">
                    <button onClick={() => setFormData({...formData, allowedPages: AVAILABLE_PAGES.filter(p => !p.adminOnly || formData.role==='admin').map(p=>p.id)})} className="px-4 py-1.5 text-xs font-bold bg-white text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-100">Select All</button>
@@ -584,7 +583,7 @@ const UserManagement = () => {
                 <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100"><X size={32} /></div>
                 <h3 className="text-xl font-black text-gray-900 mb-2">Delete User?</h3>
                 <p className="text-sm font-medium text-gray-500 mb-6 px-4">
-                  Are you sure you want to completely remove <span className="font-black text-gray-900">"{deleteConfirmName}"</span>? This will also remove them from all <span className="font-bold underline">Links Library</span> items permanently.
+                  Are you sure you want to completely remove <span className="font-black text-gray-900">"{deleteConfirmName}"</span>? This will also remove them from all <span className="font-bold underline">Library</span> items permanently.
                 </p>
                 <div className="flex gap-3">
                    <button disabled={isSaving} onClick={() => {setDeleteConfirmId(null); setDeleteConfirmName('')}} className="flex-1 py-3 bg-gray-100 text-gray-600 font-bold rounded-xl active:scale-95 transition-all">Cancel</button>

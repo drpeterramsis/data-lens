@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { ALL_TOOLS } from '../config/toolsConfig';
 
 const ProtectedRoute = ({ children, adminOnly = false }) => {
   const { user } = useAuth();
@@ -15,13 +16,12 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
   }
 
   const getPageIdFromPath = (path) => {
-    if (path === '/dashboard') return 'dashboard';
-    if (path === '/tools/call-detailing') return 'call-detailing';
-    if (path === '/tools/sales-analyzer') return 'sales-analyzer';
-    if (path === '/tools/sales-forecast') return 'sales-forecast';
-    if (path === '/routing-analyzer') return 'routing-analyzer';
-    if (path === '/links-library') return 'links-library';
-    if (path === '/admin/users') return 'user-management';
+    // Exact match
+    const tool = ALL_TOOLS.find(t => t.route === path);
+    if (tool) return tool.id;
+    // Fallback prefix match (for subpaths if any)
+    const prefixTool = ALL_TOOLS.find(t => t.route !== '/' && path.startsWith(t.route));
+    if (prefixTool) return prefixTool.id;
     return null;
   };
 

@@ -1,13 +1,6 @@
 import React, { useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
-  LayoutDashboard, 
-  Settings, 
-  Activity, 
-  BarChart3, 
-  Map, 
-  TrendingUp, 
-  Link as LinkIcon, 
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -15,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSidebar } from '../context/SidebarContext';
+import { ALL_TOOLS } from '../config/toolsConfig';
 
 const Sidebar = () => {
   const { user, logout } = useAuth();
@@ -26,6 +20,14 @@ const Sidebar = () => {
       if (isMobileOpen) closeMobile();
     } else {
       if (isExpanded) toggleExpanded();
+    }
+  };
+
+  const toggleSidebar = () => {
+    if (window.innerWidth < 768) {
+      if (isMobileOpen) closeMobile();
+    } else {
+      toggleExpanded();
     }
   };
 
@@ -65,19 +67,10 @@ const Sidebar = () => {
     return name.split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase().substring(0, 2);
   };
 
-  const menuItems = [
-    { title: 'Dashboard', path: '/dashboard', id: 'dashboard', icon: LayoutDashboard },
-    { title: 'Call Detailing', path: '/tools/call-detailing', id: 'call-detailing', icon: Activity },
-    { title: 'ATR Sales Analyzer', path: '/tools/sales-analyzer', id: 'sales-analyzer', icon: BarChart3 },
-    { title: 'Sales Forecast', path: '/tools/sales-forecast', id: 'sales-forecast', icon: TrendingUp },
-    { title: 'Routing Analyzer', path: '/routing-analyzer', id: 'routing-analyzer', icon: Map },
-    { title: 'Links Library', path: '/links-library', id: 'links-library', icon: LinkIcon },
-    { title: 'User Management', path: '/admin/users', id: 'user-management', icon: Settings },
-  ];
-
-  const visibleItems = menuItems.filter(item => {
-    if (user?.role === 'admin') return true;
-    return user?.allowedPages?.includes(item.id);
+  const visibleItems = ALL_TOOLS.filter(item => {
+    if (item.adminOnly && user?.role !== 'admin') return false;
+    if (user?.role !== 'admin' && !user?.allowedPages?.includes(item.id)) return false;
+    return true;
   });
 
   return (
@@ -101,7 +94,11 @@ const Sidebar = () => {
         `}
       >
         {/* Top Section - Logo */}
-        <div className={`h-14 flex items-center shrink-0 border-b border-gray-800 relative ${isExpanded || isMobileOpen ? 'px-4' : 'px-0 justify-center'}`}>
+        <div 
+          onClick={toggleSidebar}
+          className={`h-14 flex items-center shrink-0 border-b border-gray-800 relative cursor-pointer hover:bg-white/10 transition-colors ${isExpanded || isMobileOpen ? 'px-4' : 'px-0 justify-center'}`}
+          title="Toggle Menu"
+        >
           <div className="flex items-center gap-2 overflow-hidden h-full py-2">
             <span className="text-xl shrink-0">🔍</span>
             <div className={`flex flex-col whitespace-nowrap transition-opacity duration-300 ${isExpanded || isMobileOpen ? 'opacity-100' : 'opacity-0 hidden md:block'}`}>
@@ -113,7 +110,10 @@ const Sidebar = () => {
           {/* Mobile Close Button */}
           <button 
             className="md:hidden absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-white"
-            onClick={closeMobile}
+            onClick={(e) => {
+              e.stopPropagation();
+              closeMobile();
+            }}
           >
             <X size={20} />
           </button>
@@ -123,12 +123,12 @@ const Sidebar = () => {
         <div className="flex-1 overflow-y-auto overflow-x-hidden py-4 px-2 space-y-1 custom-scrollbar">
           {visibleItems.map((item) => (
             <NavLink
-              key={item.path}
-              to={item.path}
+              key={item.route}
+              to={item.route}
               onClick={() => {
                 closeSidebar();
               }}
-              title={(!isExpanded && !isMobileOpen) ? item.title : undefined}
+              title={(!isExpanded && !isMobileOpen) ? item.name : undefined}
               className={({ isActive }) =>
                 `group flex items-center rounded-xl font-bold transition-all whitespace-nowrap overflow-hidden
                 ${isActive 
@@ -139,9 +139,11 @@ const Sidebar = () => {
                 `
               }
             >
-              <item.icon size={20} className="shrink-0" />
+              <div className="w-5 flex items-center justify-center text-lg shrink-0">
+                {typeof item.icon === 'string' ? item.icon : <item.icon size={20} />}
+              </div>
               <span className={`transition-opacity duration-300 ${isExpanded || isMobileOpen ? 'opacity-100' : 'opacity-0 hidden md:block w-0'}`}>
-                {item.title}
+                {item.name}
               </span>
             </NavLink>
           ))}

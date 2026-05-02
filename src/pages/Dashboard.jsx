@@ -1,60 +1,23 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { 
-  LayoutDashboard, 
-  Settings, 
-  ChevronRight, 
-  Activity, 
-  BarChart3,
-  Map,
-  TrendingUp
-} from 'lucide-react';
+import { LayoutDashboard } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { ALL_TOOLS } from '../config/toolsConfig';
 
 const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const allTools = [
-    {
-      id: 'call-detailing',
-      title: 'Call Detailing Analyzer',
-      description: 'Analyze field force activity, coaching effectiveness, and product detailing frequency from supervisor reports.',
-      icon: Activity,
-      path: '/tools/call-detailing',
-      accent: 'border-accent'
-    },
-    {
-      id: 'sales-analyzer',
-      title: 'ATR Sales Analyzer',
-      description: 'Track revenue performance, regional growth, and target achievement across product portfolios.',
-      icon: BarChart3,
-      path: '/tools/sales-analyzer',
-      accent: 'border-blue-400'
-    },
-    {
-      id: 'sales-forecast',
-      title: 'Sales Forecast',
-      description: 'AI-driven pharmaceutical sales forecasting, at-risk analysis, and branch performance predictions.',
-      icon: TrendingUp,
-      path: '/tools/sales-forecast',
-      accent: 'border-green-400'
-    },
-    {
-      id: 'routing-analyzer',
-      title: 'Routing Analyzer',
-      description: 'Optimize field force routing, coverage mapping, and visit frequency analysis for maximum reach.',
-      icon: Map,
-      path: '/tools/routing-analyzer',
-      accent: 'border-accent'
-    }
-  ];
-
-  const visibleTools = allTools.filter(tool => user?.allowedPages?.includes(tool.id));
+  const dashboardCards = ALL_TOOLS.filter(tool => {
+    if (!tool.showOnDashboard) return false;
+    if (tool.adminOnly && user?.role !== 'admin') return false;
+    if (!user?.allowedPages?.includes(tool.id)) return false;
+    return true;
+  });
 
   return (
-    <div className="space-y-10 py-6">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-8 sm:space-y-10">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-black text-gray-900 tracking-tight flex items-center gap-3">
@@ -69,55 +32,49 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {visibleTools.map((tool) => (
-          <motion.div
-            key={tool.id}
-            whileHover={{ y: -5 }}
-            className={`group relative bg-white border border-gray-200 rounded-2xl p-6 shadow-soft hover:shadow-card transition-all cursor-pointer overflow-hidden border-t-4 ${tool.accent}`}
-            onClick={() => navigate(tool.path)}
-          >
-            <div className="flex items-start justify-between mb-8">
-              <div className="p-4 rounded-2xl bg-gray-50 group-hover:bg-accent/10 group-hover:scale-110 transition-all duration-300 shadow-sm text-gray-400 group-hover:text-accent">
-                <tool.icon size={32} />
+      {dashboardCards.length > 0 ? (
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+          {dashboardCards.map((tool) => (
+            <motion.div
+              key={tool.id}
+              whileHover={{ scale: 1.03, y: -2 }}
+              style={{ borderColor: tool.color }}
+              className="group relative bg-white rounded-xl p-4 sm:p-5 shadow-sm transition-all cursor-pointer overflow-hidden flex flex-col justify-between min-h-[140px] md:min-h-[160px] border-[1.5px]"
+              onMouseOver={(e) => e.currentTarget.style.boxShadow = `0 4px 16px ${tool.color}26`}
+              onMouseOut={(e) => e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)'}
+              onClick={() => navigate(tool.route)}
+            >
+              <div>
+                <div 
+                  className="w-11 h-11 rounded-xl flex items-center justify-center mb-3"
+                  style={{ backgroundColor: `${tool.color}1A`, color: tool.color, fontSize: '1.4rem' }}
+                >
+                  {tool.icon}
+                </div>
+                <h3 className="text-[0.9rem] sm:text-base font-bold text-gray-900 tracking-tight line-clamp-1">
+                  {tool.name}
+                </h3>
+                <p className="text-[0.78rem] leading-snug font-medium text-slate-500 mt-1 hidden sm:block line-clamp-2">
+                  {tool.description}
+                </p>
               </div>
-              <div className="p-2 rounded-lg bg-gray-50 group-hover:bg-white text-gray-300 group-hover:text-accent shadow-sm transition-all">
-                <ChevronRight size={20} />
+
+              <div className="mt-4 flex items-center justify-between">
+                <span 
+                  className="text-[0.8rem] font-semibold transition-colors flex items-center gap-1 group-hover:underline"
+                  style={{ color: tool.color }}
+                >
+                   Open &rarr;
+                </span>
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight group-hover:text-accent transition-colors">
-                {tool.title}
-              </h3>
-              <p className="text-gray-400 text-xs leading-relaxed font-medium">
-                {tool.description}
-              </p>
-            </div>
-
-            <div className="mt-6 pt-6 border-t border-gray-100 flex items-center justify-between">
-               <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Status</span>
-               <span className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-success/10 text-success text-[10px] font-black uppercase tracking-tighter">
-                  Ready
-               </span>
-            </div>
-          </motion.div>
-        ))}
-
-        {user?.role === 'admin' && (
-          <motion.div
-            whileHover={{ y: -5 }}
-            className="group bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:border-accent/40 transition-all hover:bg-white"
-            onClick={() => navigate('/admin/users')}
-          >
-            <div className="p-4 rounded-full bg-white mb-4 shadow-sm group-hover:scale-110 transition-all">
-              <Settings className="text-gray-300 group-hover:text-accent" size={32} />
-            </div>
-            <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest group-hover:text-accent transition-all">Administrative Control</h3>
-            <p className="text-[10px] text-gray-400 mt-1 font-bold">Manage node access and permissions</p>
-          </motion.div>
-        )}
-      </div>
+            </motion.div>
+          ))}
+        </div>
+      ) : (
+        <div className="p-8 bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl text-center">
+          <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">No tools available. Contact your admin.</p>
+        </div>
+      )}
 
       <div className="p-8 bg-gray-900 rounded-3xl text-white relative overflow-hidden shadow-2xl flex flex-col md:flex-row items-center gap-8">
          <div className="relative z-10 space-y-4 max-w-xl">
