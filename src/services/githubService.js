@@ -27,13 +27,20 @@ const getBranch = () => import.meta.env.VITE_GITHUB_BRANCH || 'main';
  */
 export const getFileContent = async (filePath) => {
   try {
+    const owner = import.meta.env.VITE_GITHUB_OWNER;
+    const repo = import.meta.env.VITE_GITHUB_REPO;
+    
+    if (!owner || owner === 'your-username' || !repo || repo === 'your-repo-name') {
+      throw new Error('GitHub repository details are not configured.');
+    }
+
     const response = await fetch(`${getBaseUrl()}/${filePath}?ref=${getBranch()}`, {
       method: 'GET',
       headers: getHeaders()
     });
 
     if (!response.ok) {
-      throw new Error(`GitHub API Error: ${response.statusText}`);
+      throw new Error(`GitHub API Error: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
@@ -46,7 +53,7 @@ export const getFileContent = async (filePath) => {
       sha: data.sha
     };
   } catch (error) {
-    console.error('Error fetching file from GitHub:', error);
+    // throw error to be handled by caller
     throw error;
   }
 };
@@ -61,6 +68,13 @@ export const getFileContent = async (filePath) => {
  */
 export const updateFileContent = async (filePath, newContent, sha, commitMessage) => {
   try {
+    const owner = import.meta.env.VITE_GITHUB_OWNER;
+    const repo = import.meta.env.VITE_GITHUB_REPO;
+    
+    if (!owner || owner === 'your-username' || !repo || repo === 'your-repo-name') {
+      throw new Error('GitHub repository details are not configured.');
+    }
+
     // Encode to base64 properly handling unicode characters
     const encodedContent = window.btoa(unescape(encodeURIComponent(newContent)));
 
@@ -78,12 +92,12 @@ export const updateFileContent = async (filePath, newContent, sha, commitMessage
     });
 
     if (!response.ok) {
-      throw new Error(`GitHub API Error: ${response.statusText}`);
+      throw new Error(`GitHub API Error: ${response.status} ${response.statusText}`);
     }
 
     return await response.json();
   } catch (error) {
-    console.error('Error updating file on GitHub:', error);
+    // throw error to be handled by caller
     throw error;
   }
 };
@@ -112,7 +126,11 @@ export const getFileFromGitHub = async (filePath) => {
     const { content, sha } = await getFileContent(filePath);
     return { content: JSON.parse(content), sha };
   } catch (error) {
-    console.error(`Error parsing JSON from GitHub for ${filePath}:`, error);
+    // Only log if it's not a missing config error
+    if (error.message && !error.message.includes('not configured')) {
+       // Silently fail on 404 or when dummy repo fails
+       // console.error(`Error parsing JSON from GitHub for ${filePath}:`, error.message);
+    }
     throw error;
   }
 };
@@ -131,7 +149,9 @@ export const saveFileToGitHub = async (filePath, jsonData, sha, commitMessage) =
     await updateFileContent(filePath, newContent, sha, commitMessage);
     return true;
   } catch (error) {
-    console.error('Error saving JSON file to GitHub:', error);
+    if (error.message && !error.message.includes('not configured')) {
+      // console.error('Error saving JSON file to GitHub:', error.message);
+    }
     return false;
   }
 };
@@ -146,7 +166,7 @@ export const getLatestSHA = async (filePath) => {
     const { sha } = await getFileContent(filePath);
     return sha;
   } catch (error) {
-    console.error('Error getting latest SHA:', error);
+    // throw error instead of logging
     throw error;
   }
 };

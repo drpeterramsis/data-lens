@@ -101,7 +101,7 @@ const UserManagement = () => {
       }
       return true;
     } catch (e) {
-      console.error("Failed to sync links library", e);
+      // Silently swallow sync failures
       return false;
     }
   };

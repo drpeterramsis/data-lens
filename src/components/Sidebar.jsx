@@ -89,7 +89,7 @@ const Sidebar = () => {
       <aside 
         ref={sidebarRef}
         className={`fixed top-0 left-0 bottom-0 h-full bg-gray-900 border-r border-gray-800 text-white z-50 flex flex-col transition-all duration-300 transform 
-          ${isExpanded ? 'md:w-[240px]' : 'md:w-[64px]'} 
+          ${isExpanded ? 'md:w-[240px]' : 'md:w-[80px]'} 
           ${isMobileOpen ? 'w-[280px] translate-x-0' : 'w-[280px] -translate-x-full md:translate-x-0'}
         `}
       >

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Search, ChevronDown, Check, X, Filter } from 'lucide-react';
 
+import { FilterButton } from '../ui/FilterButton';
+
 const FilterBar = ({ options, filters, onFilterChange, onReset, dataCount }) => {
   const [showFilters, setShowFilters] = useState(true);
 
@@ -27,12 +29,7 @@ const FilterBar = ({ options, filters, onFilterChange, onReset, dataCount }) => 
           <div className="text-xs font-bold text-gray-400">
              Showing <span className="text-gray-900">{dataCount.toLocaleString()}</span> interactions
           </div>
-          <button 
-            onClick={onReset}
-            className="text-xs font-bold text-gray-500 hover:text-danger px-3 py-1 rounded-lg border border-gray-200 hover:border-danger/20 transition-all"
-          >
-            Clear All
-          </button>
+          <FilterButton onClick={onReset} label="Clear All" />
         </div>
       </div>
 

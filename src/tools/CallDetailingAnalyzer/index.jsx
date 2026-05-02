@@ -6,6 +6,7 @@ import VirtualTable from '../../components/shared/VirtualTable';
 import { generateInsights } from '../../utils/insightGenerator';
 import { calculateMRStats, calculateKPICards } from '../../utils/mrCalculations';
 import { safeFormatDate, safeGetDayName } from '../../utils/dateHelpers';
+import { FilterButton } from '../../components/ui/FilterButton';
 
 // Sub-components
 import TargetSettingsPanel from './TargetSettingsPanel';
@@ -89,23 +90,16 @@ const StickyToolbar = ({
       <div className="flex items-center justify-between px-3 sm:px-6">
         <div className="flex gap-1 overflow-x-auto scrollbar-none py-2 px-1">
           {tabs.map(tab => (
-            <button
+            <FilterButton
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`
-                flex items-center gap-1 sm:gap-1.5
-                px-2 sm:px-3 py-1.5 rounded-lg
-                text-xs sm:text-sm font-medium
-                whitespace-nowrap flex-shrink-0
-                transition-all
-                ${activeTab === tab.id
-                  ? "bg-yellow-400 text-gray-900 shadow-sm"
-                  : "text-gray-600 hover:bg-gray-100"
-                }`}
+              isActive={activeTab === tab.id}
+              label={tab.label}
+              className="flex-shrink-0"
             >
               <span>{tab.icon}</span>
               <span className="hidden xs:inline sm:inline">{tab.label}</span>
-            </button>
+            </FilterButton>
           ))}
         </div>
 
@@ -984,39 +978,39 @@ const CallDetailingAnalyzer = () => {
               </div>
 
               <div className="flex gap-1.5 flex-wrap sm:flex-nowrap overflow-x-auto scrollbar-none mb-2">
-                <button
+                <FilterButton
                   onClick={selectAllMonths}
-                  className={`flex-shrink-0 text-xs px-2.5 py-1.5 rounded-lg border font-bold transition-all ${
-                    isAllSelected
-                      ? "bg-yellow-400 border-yellow-400 text-gray-900"
-                      : "bg-white border-gray-200 text-gray-500 hover:bg-gray-50 hover:border-gray-300"
-                  }`}>
+                  isActive={isAllSelected}
+                  label="All Months"
+                  className="flex-shrink-0"
+                >
                   <span className="sm:hidden">All</span>
                   <span className="hidden sm:inline">All Months</span>
                   <span className="ml-1 text-[10px] opacity-70">
                     ({rawData.length.toLocaleString()})
                   </span>
-                </button>
+                </FilterButton>
 
                 {availableMonths.map(m => {
                   const active = isMonthSelected(m.yearMonth) && !isAllSelected;
                   return (
-                    <button
+                    <FilterButton
                       key={m.yearMonth}
                       onClick={() => toggleMonth(m.yearMonth)}
-                      className={`flex-shrink-0 text-xs px-2.5 py-1.5 rounded-lg border font-bold transition-all ${
-                        active
-                          ? "bg-yellow-400 border-yellow-400 text-gray-900"
-                          : isAllSelected
-                            ? "bg-gray-50 border-gray-100 text-gray-600 hover:bg-yellow-50 hover:border-yellow-200"
-                            : "bg-white border-gray-200 text-gray-400 hover:bg-gray-50"
-                      }`}>
+                      isActive={active}
+                      label={m.label}
+                      className={`flex-shrink-0 !text-xs !px-2.5 !py-1.5 rounded-lg border font-bold transition-all ${
+                        !active && isAllSelected
+                          ? "bg-gray-50 border-gray-100 text-gray-600 hover:bg-yellow-50 hover:border-yellow-200"
+                          : ""
+                      }`}
+                    >
                       <span className="sm:hidden">{shortLabel(m.yearMonth)}</span>
                       <span className="hidden sm:inline">{m.label}</span>
                       <span className="ml-1 text-[10px] opacity-70">
                         ({m.rowCount})
                       </span>
-                    </button>
+                    </FilterButton>
                   );
                 })}
               </div>
@@ -1097,12 +1091,10 @@ const CallDetailingAnalyzer = () => {
                 </div>
              </div>
              <div className="flex gap-2 ml-auto">
-                <button 
+                <FilterButton 
                    onClick={handleFullPeriod}
-                   className="px-4 py-2 bg-gray-50 text-gray-600 rounded-xl font-black text-[10px] uppercase tracking-widest border border-gray-200 hover:bg-white transition-colors"
-                >
-                   Full Period
-                </button>
+                   label="Full Period"
+                />
              </div>
           </div>
 
@@ -1111,36 +1103,30 @@ const CallDetailingAnalyzer = () => {
               <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest shrink-0">
                 View MR:
               </span>
-              <button
+              <FilterButton
                 onClick={() => setSelectedMR('')}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all shrink-0 ${
-                  !selectedMR
-                    ? 'bg-gray-900 text-white border-gray-900'
-                    : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
-                }`}>
-                👥 All Team
-              </button>
+                isActive={!selectedMR}
+                label="👥 All Team"
+              />
               <div className="w-px h-5 bg-gray-200 shrink-0"/>
-              <div className="flex gap-2 overflow-x-auto flex-1 scrollbar-hide pb-0.5">
-                {mrList.map(mr => (
-                  <button
-                    key={mr}
-                    onClick={() => setSelectedMR(selectedMR === mr ? '' : mr)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all whitespace-nowrap shrink-0 ${
-                      selectedMR === mr
-                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                        : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600'
-                    }`}>
-                    {mr}
-                  </button>
-                ))}
+              <div className="flex-1 overflow-x-auto">
+                <div className="flex gap-2 pb-0.5 no-scrollbar">
+                  {mrList.map(mr => (
+                    <FilterButton
+                      key={mr}
+                      onClick={() => setSelectedMR(selectedMR === mr ? '' : mr)}
+                      isActive={selectedMR === mr}
+                      label={mr}
+                    />
+                  ))}
+                </div>
               </div>
               {selectedMR && (
-                <button
+                <FilterButton
                   onClick={() => setSelectedMR('')}
-                  className="text-xs text-red-400 font-bold hover:text-red-600 shrink-0 flex items-center gap-1">
-                  ✕ Clear
-                </button>
+                  label="Clear"
+                  className="!text-red-500 !bg-red-50 !border-red-100 hover:!bg-red-100"
+                />
               )}
             </div>
             {selectedMR && (
@@ -1287,25 +1273,19 @@ const CallDetailingAnalyzer = () => {
                    <div className="flex flex-wrap items-center gap-3">
                       <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Filters:</span>
                       {['All', 'HCP', 'HCO', 'Pharmacy'].map(f => (
-                        <button
+                        <FilterButton
                           key={f}
                           onClick={() => setSearchFilter(f)}
-                          className={`px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border-2 ${
-                            searchFilter === f ? 'bg-gray-900 text-white border-gray-900 shadow-lg' : 'bg-white text-gray-500 border-gray-100 hover:border-gray-200'
-                          }`}
-                        >
-                          {f}
-                        </button>
+                          isActive={searchFilter === f}
+                          label={f}
+                        />
                       ))}
                       <div className="w-[2px] h-6 bg-gray-100 mx-2"></div>
-                      <button
+                      <FilterButton
                         onClick={() => setOnlyCoached(!onlyCoached)}
-                        className={`px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border-2 ${
-                          onlyCoached ? 'bg-yellow-400 text-black border-yellow-400 shadow-lg' : 'bg-white text-gray-500 border-gray-100 hover:border-gray-200'
-                        }`}
-                      >
-                         🎓 Coached Only
-                      </button>
+                        isActive={onlyCoached}
+                        label="🎓 Coached Only"
+                      />
                    </div>
                 </div>
 
@@ -1313,7 +1293,7 @@ const CallDetailingAnalyzer = () => {
                   <div className="mt-8 border-2 border-gray-50 rounded-[2rem] overflow-hidden">
                      <div className="bg-gray-50 p-4 border-b border-gray-100 flex justify-between items-center">
                         <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{globalSearchResults.length} Results found</span>
-                        <button onClick={() => {setGlobalSearch(""); setOnlyCoached(false); setSearchFilter("All")}} className="text-[10px] font-black text-red-500 uppercase tracking-widest">Reset All</button>
+                        <FilterButton onClick={() => {setGlobalSearch(""); setOnlyCoached(false); setSearchFilter("All")}} label="Reset All" />
                      </div>
                      <div className="overflow-x-auto">
                         <table className="w-full text-left text-xs whitespace-nowrap">

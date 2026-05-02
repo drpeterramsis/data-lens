@@ -17,7 +17,7 @@ export const AuthProvider = ({ children }) => {
         return content.users;
       }
     } catch (e) {
-      console.error("Failed to fetch users from GitHub", e);
+      // Silently swallow github API failures and fallback to local
       if (users.length === 0) setUsers(initialUsers.users);
     }
   };

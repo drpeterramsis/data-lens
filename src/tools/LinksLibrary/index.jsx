@@ -24,7 +24,7 @@ const Library = () => {
       setLinks(Array.isArray(content) ? content : (content.links || []));
       setLinksSHA(sha);
     } catch (e) {
-      console.error("Failed to load links from GitHub", e);
+      // Silently swallow GitHub errors falling back to initial data
       if (links.length === 0) setLinks(Array.isArray(initialLinksData) ? initialLinksData : (initialLinksData.links || []));
     } finally {
       setIsLoadingData(false);

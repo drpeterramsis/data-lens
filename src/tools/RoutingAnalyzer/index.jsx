@@ -13,6 +13,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import Papa from 'papaparse';
 import { saveAs } from 'file-saver';
+import { FilterButton } from '../../components/ui/FilterButton';
 
 // ─── Constants ────────────────────────────────
 const SIDEBAR_W    = 256; // px  (w-64)
@@ -226,20 +227,19 @@ const CustomerTable = ({
             { id: 'partial',   emoji: '🟡', label: 'Partial',   count: stats.partial },
             { id: 'uncovered', emoji: '❌', label: 'Uncovered', count: stats.uncovered },
           ].map(opt => (
-            <button
+            <FilterButton
               key={opt.id}
               onClick={() => { setQuickVisitFilter(opt.id); setCurrentPage(1); }}
-              className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter transition-all
-                ${quickVisitFilter === opt.id
-                  ? 'bg-gray-900 text-white shadow-sm'
-                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200 border border-gray-200'}`}
+              isActive={quickVisitFilter === opt.id}
+              label={opt.label}
+              className="flex items-center gap-1"
             >
               {opt.emoji}
               <span className="hidden sm:inline-block">{opt.label}</span>
               <span className={`text-[9px] px-1 py-0.5 rounded font-black ${quickVisitFilter === opt.id ? 'bg-white/20 text-white' : 'bg-white text-gray-500 border border-gray-200'}`}>
                 {opt.count}
               </span>
-            </button>
+            </FilterButton>
           ))}
         </div>
       </div>
@@ -270,7 +270,7 @@ const CustomerTable = ({
                     switch (col.label) {
                       case 'ID': return <td key={col.label} className="px-2.5 py-1.5 text-[11px] text-gray-500 font-mono whitespace-nowrap border-b border-gray-50">{r.customerId}</td>;
                       case 'Month': return <td key={col.label} className="px-2.5 py-1.5 border-b border-gray-50">
-                        <div className="flex flex-wrap gap-0.5 whitespace-nowrap">{(r.customerMonths || [r.sourceMonth]).map(m => (<span key={m} className="px-1.5 py-0.5 rounded text-[9px] font-black bg-yellow-50 text-yellow-700 border border-yellow-200">{m?.slice(0, 3)}</span>))}</div>
+                        <div className="flex flex-wrap gap-0.5 whitespace-nowrap">{(r.customerMonths || [r.sourceMonth]).map(m => (<span key={m} className="filter-tag">{m?.slice(0, 3)}</span>))}</div>
                         </td>;
                       case 'Name': return <td key={col.label} className="px-2.5 py-1.5 text-[11px] text-gray-800 font-semibold border-b border-gray-50 whitespace-nowrap">{r.customerName}</td>;
                       case 'Grade': return <td key={col.label} className="px-2.5 py-1.5 border-b border-gray-50 text-center"><GradeBadge grade={r.customerGrade} /></td>;
@@ -279,10 +279,10 @@ const CustomerTable = ({
                       case 'Planned': return <td key={col.label} className="px-2.5 py-1.5 text-[11px] text-gray-700 font-bold border-b border-gray-50 text-center">{r.totalPlanned}</td>;
                       case 'Reported': return <td key={col.label} className="px-2.5 py-1.5 text-[11px] text-gray-700 font-bold border-b border-gray-50 text-center">{r.totalReported}</td>;
                       case 'Planned Days': return <td key={col.label} className="px-2.5 py-1.5 border-b border-gray-50">
-                        {r.monthlyData ? (<div className="space-y-0.5">{Object.entries(r.monthlyData).map(([m, d]) => (<div key={m} className="flex items-center gap-1"><span className="text-[8px] font-black text-gray-400 w-7 flex-shrink-0">{m.slice(0, 3)}:</span><div className="flex flex-wrap gap-0.5 whitespace-nowrap">{d.planned.map(day => <span key={day} className="px-1 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-black border border-blue-100">{day}</span>)}</div></div>))}</div>) : (<div className="flex flex-wrap gap-0.5 whitespace-nowrap">{r.monthPlanned.map(d => <span key={d} className="px-1 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-black border border-blue-100">{d}</span>)}</div>)}
+                        {r.monthlyData ? (<div className="space-y-0.5">{Object.entries(r.monthlyData).map(([m, d]) => (<div key={m} className="flex items-center gap-1"><span className="text-[8px] font-black text-gray-400 w-7 flex-shrink-0">{m.slice(0, 3)}:</span><div className="flex flex-wrap gap-0.5 whitespace-nowrap">{d.planned.map(day => <span key={day} className="filter-tag">{day}</span>)}</div></div>))}</div>) : (<div className="flex flex-wrap gap-0.5 whitespace-nowrap">{r.monthPlanned.map(d => <span key={d} className="filter-tag">{d}</span>)}</div>)}
                       </td>;
                       case 'Reported Days': return <td key={col.label} className="px-2.5 py-1.5 border-b border-gray-50">
-                        {r.monthlyData ? (<div className="space-y-0.5">{Object.entries(r.monthlyData).map(([m, d]) => {const mMissed = d.planned.filter(dd => !d.reported.includes(dd)); return (<div key={m} className="flex items-center gap-1"><span className="text-[8px] font-black text-gray-400 w-7 flex-shrink-0">{m.slice(0, 3)}:</span><div className="flex flex-wrap gap-0.5 whitespace-nowrap">{d.reported.map(day => <span key={day} className="px-1 py-0.5 bg-green-50 text-green-600 rounded text-[9px] font-black border border-green-100">{day}</span>)}{mMissed.map(day => <span key={`m${day}`} className="px-1 py-0.5 bg-red-50 text-red-400 rounded text-[9px] font-black border border-red-100 line-through">{day}</span>)}</div></div>);})}</div>) : (<div className="flex flex-wrap gap-0.5 whitespace-nowrap">{r.monthReported.map(d => <span key={d} className="px-1 py-0.5 bg-green-50 text-green-600 rounded text-[9px] font-black border border-green-100">{d}</span>)}{missed.map(d => <span key={`m${d}`} className="px-1 py-0.5 bg-red-50 text-red-400 rounded text-[9px] font-black border border-red-100 line-through">{d}</span>)}</div>)}
+                        {r.monthlyData ? (<div className="space-y-0.5">{Object.entries(r.monthlyData).map(([m, d]) => {const mMissed = d.planned.filter(dd => !d.reported.includes(dd)); return (<div key={m} className="flex items-center gap-1"><span className="text-[8px] font-black text-gray-400 w-7 flex-shrink-0">{m.slice(0, 3)}:</span><div className="flex flex-wrap gap-0.5 whitespace-nowrap">{d.reported.map(day => <span key={day} className="filter-tag !bg-green-100">{day}</span>)}{mMissed.map(day => <span key={`m${day}`} className="filter-tag !bg-red-100 !text-red-600 line-through">{day}</span>)}</div></div>);})}</div>) : (<div className="flex flex-wrap gap-0.5 whitespace-nowrap">{r.monthReported.map(d => <span key={d} className="filter-tag !bg-green-100">{d}</span>)}{missed.map(d => <span key={`m${d}`} className="filter-tag !bg-red-100 !text-red-600 line-through">{d}</span>)}</div>)}
                       </td>;
                       case 'Interval': return <td key={col.label} className="px-2.5 py-1.5 text-[11px] text-gray-500 border-b border-gray-50 text-center whitespace-nowrap">{r.daysInterval}d</td>;
                       case 'Status': return <td key={col.label} className="px-2.5 py-1.5 border-b border-gray-50 whitespace-nowrap text-center">{getStatusBadge(status)}</td>;
@@ -303,13 +303,13 @@ const CustomerTable = ({
           <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest hidden sm:block">Show:</span>
           <div className="flex gap-1">
             {[10, 25, 50, 100, 200].map(n => (
-              <button
+              <FilterButton
                 key={n}
                 onClick={() => { setItemsPerPage(n); setCurrentPage(1); }}
-                className={`w-8 h-6 rounded text-[10px] font-black transition-all border ${itemsPerPage === n ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'}`}
-              >
-                {n}
-              </button>
+                isActive={itemsPerPage === n}
+                label={n.toString()}
+                className="!w-8 !h-6 !p-0"
+              />
             ))}
           </div>
         </div>
@@ -317,36 +317,36 @@ const CustomerTable = ({
         {/* Page buttons */}
         {totalPages > 1 && (
           <div className="flex items-center gap-1">
-            <button
+            <FilterButton
               disabled={currentPage === 1}
               onClick={() => setCurrentPage(p => p - 1)}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-gray-200 text-[10px] font-black text-gray-600 disabled:opacity-40 hover:bg-gray-50"
+              label="Prev"
             >
               <ChevronLeft className="w-3 h-3" /> Prev
-            </button>
+            </FilterButton>
 
             {Array.from({ length: Math.min(5, totalPages) }, (_, idx) => {
               const start = Math.max(1, Math.min(currentPage - 2, totalPages - 4));
               const page  = start + idx;
               if (page > totalPages) return null;
               return (
-                <button
+                <FilterButton
                   key={page}
                   onClick={() => setCurrentPage(page)}
-                  className={`w-7 h-7 rounded-lg text-[10px] font-black transition-all ${currentPage === page ? 'bg-yellow-400 text-black' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-                >
-                  {page}
-                </button>
+                  isActive={currentPage === page}
+                  label={page.toString()}
+                  className="!w-7 !h-7 !p-0"
+                />
               );
             })}
 
-            <button
+            <FilterButton
               disabled={currentPage === totalPages}
               onClick={() => setCurrentPage(p => p + 1)}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-gray-200 text-[10px] font-black text-gray-600 disabled:opacity-40 hover:bg-gray-50"
+              label="Next"
             >
               Next <ChevronRight className="w-3 h-3" />
-            </button>
+            </FilterButton>
           </div>
         )}
 
@@ -409,7 +409,10 @@ const FullTableModal = ({ onClose, ...tableProps }) => {
 // ══════════════════════════════════════════════
 // MAIN COMPONENT
 // ══════════════════════════════════════════════
+import { useSidebar } from '../../context/SidebarContext';
+
 const RoutingAnalyzer = () => {
+  const { isExpanded } = useSidebar();
   // ── State ────────────────────────────────────
   const [rawData,          setRawData]          = useState([]);
   const [reportMonth,      setReportMonth]      = useState('');
@@ -726,7 +729,7 @@ const RoutingAnalyzer = () => {
       style={{
         top:    NAV_H_VAR,
         bottom: `${FOOTER_H}px`,
-        left:   0,
+        left:   isExpanded ? '240px' : '80px',
         transform: isSidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
       }}
     >
@@ -734,7 +737,7 @@ const RoutingAnalyzer = () => {
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-shrink-0">
         <span className="text-[11px] font-black text-gray-800 uppercase tracking-widest">⚙ Filters</span>
         <div className="flex items-center gap-2">
-          <button onClick={clearFilters} className="text-[9px] font-black text-red-400 hover:text-red-600 uppercase tracking-widest">Reset</button>
+          <FilterButton onClick={clearFilters} label="Reset" className="!text-[9px] !px-2 !py-0.5" />
           <button onClick={() => setIsSidebarOpen(false)} className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400">
             <X className="w-3.5 h-3.5" />
           </button>
@@ -802,11 +805,13 @@ const RoutingAnalyzer = () => {
                 { val: 'Extra Visits',      label: '⭐ Extra Visits' },
                 { val: 'Not Planned',       label: '🆕 Not Planned' },
               ].map(opt => (
-                <button key={opt.val}
+                <FilterButton
+                  key={opt.val}
                   onClick={() => { setFilters(p => ({ ...p, visitStatus: opt.val })); setCurrentPage(1); }}
-                  className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${filters.visitStatus === opt.val ? 'bg-yellow-400 text-black' : 'hover:bg-gray-50 text-gray-600'}`}>
-                  {opt.label}
-                </button>
+                  isActive={filters.visitStatus === opt.val}
+                  label={opt.label}
+                  className="w-full text-left justify-start px-2.5 py-1.5 !text-xs !font-bold"
+                />
               ))}
             </div>
           )}
@@ -837,11 +842,15 @@ const RoutingAnalyzer = () => {
                 <div className="flex items-center gap-1">
                   {expandedSections[section.key] && (
                     <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                      <button onClick={() => setFilters(p => ({ ...p, [section.key]: [...section.options] }))}
-                        className="text-[9px] font-black text-yellow-600 hover:text-yellow-700 px-1">All</button>
+                      <FilterButton onClick={() => setFilters(p => ({ ...p, [section.key]: [...section.options] }))}
+                        label="All"
+                        className="!text-[9px] !px-1.5 !py-0.5"
+                      />
                       <span className="text-gray-200 text-xs">|</span>
-                      <button onClick={() => setFilters(p => ({ ...p, [section.key]: [] }))}
-                        className="text-[9px] font-black text-gray-400 hover:text-gray-600 px-1">None</button>
+                      <FilterButton onClick={() => setFilters(p => ({ ...p, [section.key]: [] }))}
+                        label="None"
+                        className="!text-[9px] !px-1.5 !py-0.5 !bg-gray-100 !text-gray-400"
+                      />
                     </div>
                   )}
                   <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${expandedSections[section.key] ? 'rotate-180' : ''}`} />
@@ -1231,25 +1240,22 @@ const RoutingAnalyzer = () => {
 
       {/* ── Main wrapper ── */}
       <div
-        className="fixed overflow-hidden transition-all duration-300 min-h-0 bg-gray-50 flex flex-col w-full"
-        style={{
-          top: NAV_H_VAR,
-          bottom: `${FOOTER_H}px`,
-          left: '0px',
-          right: '0px'
-        }}
+        className="flex-1 flex flex-col min-w-0 bg-gray-50 overflow-hidden relative"
       >
         {/* ══ FIXED TOP HEADER ══ */}
       <div className="flex-shrink-0 bg-white shadow-sm z-20 w-full overflow-x-hidden">
           {/* Header bar */}
-          <div className="flex items-center justify-between px-4 h-[52px] border-b border-gray-100">
+          <div className="flex items-center justify-between px-4 h-[56px] border-b border-gray-100">
             <div className="flex items-center gap-2">
-              <button
+              <FilterButton
                 onClick={() => setIsSidebarOpen(p => !p)}
-                className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-all ${isSidebarOpen ? 'bg-yellow-50 border-yellow-200 text-yellow-600' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}`}
+                isActive={isSidebarOpen}
+                label="Filters"
+                className="!py-1.5 !px-3 shadow-none"
               >
                 <Filter className="w-3.5 h-3.5" />
-              </button>
+                <span className="hidden sm:inline">Filters</span>
+              </FilterButton>
               <div className="min-w-0">
                 <span className="block text-xs font-black text-gray-900 tracking-tight truncate">
                   ROUTING <span className="text-yellow-500">ANALYZER</span>
@@ -1278,7 +1284,7 @@ const RoutingAnalyzer = () => {
               )}
               {/* Upload */}
               <button onClick={() => setShowUploadModal(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-400 hover:bg-yellow-500 text-black text-[10px] font-black uppercase tracking-widest rounded-lg transition-all shadow-sm shadow-yellow-200">
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 hover:bg-black text-white text-[10px] font-black uppercase tracking-widest rounded-lg transition-all shadow-sm">
                 <Plus className="w-3.5 h-3.5" /> Upload
               </button>
             </div>
@@ -1289,15 +1295,15 @@ const RoutingAnalyzer = () => {
             <div className="flex items-center gap-3 px-4 h-[40px] border-b border-gray-100 overflow-x-auto">
               <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest flex-shrink-0">Period:</span>
               <div className="flex items-center gap-1">
-                <button onClick={() => { setSelectedMonth('All'); setCurrentPage(1); }}
-                  className={`px-2.5 py-1 rounded-lg text-[10px] font-black whitespace-nowrap transition-all border ${selectedMonth === 'All' ? 'bg-yellow-400 text-black border-yellow-400' : 'bg-white text-gray-500 border-gray-200 hover:border-yellow-200'}`}>
-                  All
-                </button>
+                <FilterButton onClick={() => { setSelectedMonth('All'); setCurrentPage(1); }}
+                  isActive={selectedMonth === 'All'}
+                  label="All"
+                />
                 {availableMonths.map(m => (
-                  <button key={m} onClick={() => { setSelectedMonth(m); setCurrentPage(1); }}
-                    className={`px-2.5 py-1 rounded-lg text-[10px] font-black whitespace-nowrap transition-all border ${selectedMonth === m ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'}`}>
-                    {m}
-                  </button>
+                  <FilterButton key={m} onClick={() => { setSelectedMonth(m); setCurrentPage(1); }}
+                    isActive={selectedMonth === m}
+                    label={m}
+                  />
                 ))}
               </div>
               <div className="ml-auto flex-shrink-0">
@@ -1381,12 +1387,15 @@ const RoutingAnalyzer = () => {
               { id: 'by-spec',  label: 'Specialty',    icon: Stethoscope },
               { id: 'map',      label: 'Coverage Map', icon: MapPin },
             ].map(tab => (
-              <button key={tab.id}
+              <FilterButton key={tab.id}
                 onClick={() => { setActiveTab(tab.id); setCurrentPage(1); }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap h-[32px] flex-shrink-0 ${activeTab === tab.id ? 'bg-yellow-400 text-black shadow-sm' : 'text-gray-400 hover:text-gray-700 hover:bg-gray-50'}`}>
+                isActive={activeTab === tab.id}
+                label={tab.label}
+                className="h-[32px] !p-1 !px-3"
+              >
                 <tab.icon className="w-3.5 h-3.5 flex-shrink-0" />
                 <span className="hidden sm:inline">{tab.label}</span>
-              </button>
+              </FilterButton>
             ))}
 
             {/* ── Full Table Button ── */}

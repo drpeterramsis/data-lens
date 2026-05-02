@@ -14,6 +14,7 @@ import {
   ScatterChart, Scatter, ZAxis, Cell
 } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
+import { FilterButton } from '../../components/ui/FilterButton';
 
 // Utilities
 import { 
@@ -292,17 +293,13 @@ const SalesForecastTool = () => {
             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Achievement Range</label>
             <div className="grid grid-cols-1 gap-1">
               {['all', '<50%', '50-75%', '75-100%', '>100%'].map(range => (
-                <button
+                <FilterButton
                   key={range}
+                  isActive={filters.achievementRange === range}
                   onClick={() => setFilters(prev => ({ ...prev, achievementRange: range }))}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-xs font-bold transition-all ${
-                    filters.achievementRange === range 
-                    ? 'bg-blue-600 text-white shadow-sm' 
-                    : 'text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  {range === 'all' ? 'All ranges' : range}
-                </button>
+                  label={range === 'all' ? 'All ranges' : range}
+                  className="w-full text-left"
+                />
               ))}
             </div>
           </div>
@@ -317,12 +314,11 @@ const SalesForecastTool = () => {
             <span className="text-xs font-bold text-gray-700 group-hover:text-gray-900 transition-colors">At Risk Only</span>
           </label>
 
-          <button 
+          <FilterButton 
             onClick={() => setFilters({ lines: [], dms: [], mrs: [], products: [], achievementRange: 'all', atRiskOnly: false })}
-            className="w-full py-2 bg-gray-50 text-gray-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-50 hover:text-red-600 transition-all border border-gray-200"
-          >
-            Clear All
-          </button>
+            label="Clear All"
+            className="w-full"
+          />
         </div>
       </div>
 
@@ -464,18 +460,16 @@ const FilterGroup = ({ label, options, selected, onChange }) => {
                   <div className="py-4 text-center text-[10px] text-gray-400 uppercase font-black">No results</div>
                 ) : (
                   filteredOptions.map(opt => (
-                    <label key={opt} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-blue-50 cursor-pointer group transition-colors">
-                      <input 
-                        type="checkbox" 
-                        className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-0" 
-                        checked={selected.includes(opt)}
-                        onChange={(e) => {
-                          if (e.target.checked) onChange([...selected, opt]);
-                          else onChange(selected.filter(s => s !== opt));
-                        }}
-                      />
-                      <span className="text-xs text-gray-600 group-hover:text-gray-900 transition-colors truncate">{opt}</span>
-                    </label>
+                    <FilterButton
+                      key={opt}
+                      isActive={selected.includes(opt)}
+                      onClick={() => {
+                        if (selected.includes(opt)) onChange(selected.filter(s => s !== opt));
+                        else onChange([...selected, opt]);
+                      }}
+                      label={opt}
+                      className="w-full text-left truncate justify-start"
+                    />
                   ))
                 )}
               </div>

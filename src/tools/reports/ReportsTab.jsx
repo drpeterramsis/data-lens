@@ -12,6 +12,7 @@ import {
 import Papa from 'papaparse';
 import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
+import { FilterButton } from '../../components/ui/FilterButton';
 
 // ─────────────────────────────────────────────
 // HELPERS
@@ -906,13 +907,13 @@ const Report1 = ({ data, filterOptions }) => {
                 { id: 'value', label: 'Value' },
                 { id: 'both',  label: 'Both' },
               ].map(m => (
-                <button
+                <FilterButton
                   key={m.id}
                   onClick={() => setMetric(m.id)}
-                  className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase transition-all border ${metric === m.id ? 'bg-amber-400 text-black border-amber-400' : 'bg-white text-gray-500 border-gray-200 hover:border-amber-200'}`}
-                >
-                  {m.label}
-                </button>
+                  isActive={metric === m.id}
+                  label={m.label}
+                  className="flex-1"
+                />
               ))}
             </div>
           </div>
@@ -925,13 +926,13 @@ const Report1 = ({ data, filterOptions }) => {
                 { id: 'month',   label: '📅 Monthly' },
                 { id: 'quarter', label: '📆 Quarterly' },
               ].map(g => (
-                <button
+                <FilterButton
                   key={g.id}
                   onClick={() => setGroupBy(g.id)}
-                  className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase transition-all border ${groupBy === g.id ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-gray-500 border-gray-200 hover:border-blue-200'}`}
-                >
-                  {g.label}
-                </button>
+                  isActive={groupBy === g.id}
+                  label={g.label}
+                  className="flex-1"
+                />
               ))}
             </div>
           </div>
@@ -1035,13 +1036,12 @@ const Report1 = ({ data, filterOptions }) => {
             { id: 'chart', label: '📊 Chart',  icon: BarChart3 },
             { id: 'both',  label: '🔀 Both' },
           ].map(v => (
-            <button
+            <FilterButton
               key={v.id}
               onClick={() => setActiveView(v.id)}
-              className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all border ${activeView === v.id ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'}`}
-            >
-              {v.label}
-            </button>
+              isActive={activeView === v.id}
+              label={v.label}
+            />
           ))}
         </div>
 
@@ -1056,21 +1056,21 @@ const Report1 = ({ data, filterOptions }) => {
             </button>
           )}
           <div className="flex items-center gap-1.5 p-1 bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-            <button
+            <FilterButton
               onClick={handleExportCSV}
-              title="Export CSV"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase text-gray-700 hover:bg-gray-50 hover:text-emerald-600 transition-all"
+              label="CSV"
+              className="!bg-transparent !border-none !px-3 !py-1.5 !text-gray-700 hover:!text-emerald-600"
             >
               <Download className="w-3.5 h-3.5" /> CSV
-            </button>
+            </FilterButton>
             <div className="w-px h-4 bg-gray-100" />
-            <button
+            <FilterButton
               onClick={handleExportXLSX}
-              title="Export XLSX"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase text-emerald-600 hover:bg-emerald-50 transition-all"
+              label="XLSX"
+              className="!bg-transparent !border-none !px-3 !py-1.5 !text-emerald-600 hover:!bg-emerald-50"
             >
               <Download className="w-3.5 h-3.5" /> XLSX
-            </button>
+            </FilterButton>
           </div>
         </div>
       </div>

@@ -15,9 +15,10 @@ import {
 } from 'recharts';
 
 import ReportsTab from '../reports/ReportsTab';
+import { FilterButton } from '../../components/ui/FilterButton';
 
 const APP_VERSION = {
-  version: '1.0.482',
+  version: '1.0.483',
   releaseDate: 'May 2026',
   label: 'Dynamic Matrix & Multi-Period Perf Hub'
 };
@@ -294,35 +295,30 @@ const SideFilterSection = ({ label, options, selected, onChange }) => {
             )}
 
             <div className="flex gap-3 py-1">
-                <button
-                onClick={() => onChange(options)}
-                className="text-[10px] text-blue-600 font-semibold hover:underline">
-                All
-                </button>
-                <button
-                onClick={() => onChange([])}
-                className="text-[10px] text-gray-400 font-semibold hover:underline">
-                None
-                </button>
+                <FilterButton
+                  onClick={() => onChange(options)}
+                  label="All"
+                  className="!px-2 !py-0.5 !text-[10px]"
+                />
+                <FilterButton
+                  onClick={() => onChange([])}
+                  label="None"
+                  className="!px-2 !py-0.5 !text-[10px]"
+                />
             </div>
 
-            <div className="max-h-[180px] overflow-y-auto">
+            <div className="max-h-[180px] overflow-y-auto space-y-1 mt-1">
                 {(visibleOptions || []).length === 0 ? (
                     <p className="text-[11px] text-gray-300 py-2 text-center">No results</p>
                 ) : (
                     visibleOptions.map(opt => (
-                        <label key={opt}
-                            className="flex items-center gap-2.5 py-1.5 hover:bg-blue-50 cursor-pointer transition-colors rounded-lg px-1">
-                            <input
-                                type="checkbox"
-                                checked={selected.includes(opt)}
-                                onChange={() => toggle(opt)}
-                                className="accent-blue-600 w-3.5 h-3.5 shrink-0"
-                            />
-                            <span className="text-xs text-gray-700 truncate leading-tight" title={opt}>
-                                {opt}
-                            </span>
-                        </label>
+                        <FilterButton
+                            key={opt}
+                            isActive={selected.includes(opt)}
+                            onClick={() => toggle(opt)}
+                            label={opt}
+                            className="w-full text-left truncate justify-start !py-1 px-2 !text-xs !font-medium"
+                        />
                     ))
                 )}
             </div>
@@ -401,7 +397,7 @@ const ActiveFiltersBar = ({ filters, setFilters }) => {
 
       {/* Clear All */}
       {tags.length > 1 && (
-        <button
+        <FilterButton
           onClick={() => setFilters({
             branch:[], supervisor:[],
             mrName:[], line:[],
@@ -409,9 +405,8 @@ const ActiveFiltersBar = ({ filters, setFilters }) => {
             customer:[], 
             fromDate:'', toDate:''
           })}
-          className="text-[10px] text-red-500 font-bold hover:underline uppercase tracking-wide shrink-0 ml-auto">
-          Clear All
-        </button>
+          label="Clear All"
+        />
       )}
     </div>
   );
@@ -749,7 +744,7 @@ const SideFiltersPanel = ({ isOpen, onClose, filters, setFilters, filterOptions,
                 <History size={16} />
               </button>
               {activeFilterCount > 0 && (
-                <button
+                <FilterButton
                   onClick={() => setFilters({
                     branch:       [],
                     supervisor:   [],
@@ -761,9 +756,8 @@ const SideFiltersPanel = ({ isOpen, onClose, filters, setFilters, filterOptions,
                     fromDate:     '',
                     toDate:       ''
                   })}
-                  className="text-[10px] text-red-500 font-bold hover:text-red-700 uppercase tracking-wide">
-                  Clear
-                </button>
+                  label="Clear"
+                />
               )}
               <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
                 <X size={16}/>
@@ -774,19 +768,22 @@ const SideFiltersPanel = ({ isOpen, onClose, filters, setFilters, filterOptions,
         
         {/* Quick Load Profiles Chips */}
         {profiles.length > 0 && (
-          <div className="px-4 pb-3 flex overflow-x-auto gap-2 no-scrollbar scroll-smooth">
+          <div className="flex overflow-x-auto gap-2 no-scrollbar scroll-smooth">
             {profiles.map(p => {
               const colorObj = PRESET_COLORS.find(c => c.id === p.color) || PRESET_COLORS[0];
               const isActive = JSON.stringify(p.filters) === JSON.stringify(filters);
               return (
-                <button
+                <FilterButton
                   key={p.id}
                   onClick={() => setFilters(p.filters)}
-                  className={`shrink-0 text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border transition-all flex items-center gap-1.5 ${isActive ? 'bg-gray-900 border-gray-900 text-white shadow-md scale-105' : `${colorObj.bg} ${colorObj.text} ${colorObj.border} hover:scale-105 shadow-sm`}`}>
+                  isActive={isActive}
+                  label={p.name}
+                  className={`shrink-0 !text-[9px] !px-2.5 !py-1 rounded-full border transition-all flex items-center gap-1.5 ${!isActive ? `${colorObj.bg} ${colorObj.text} ${colorObj.border} hover:scale-105 shadow-sm` : ''}`}
+                >
                   {!isActive && <div className={`w-1.5 h-1.5 rounded-full ${colorObj.dot}`} />}
-                  {isActive && <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />}
+                  {isActive && <div className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />}
                   {p.name}
-                </button>
+                </FilterButton>
               );
             })}
           </div>
@@ -2431,13 +2428,15 @@ const SalesAnalyzer = () => {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <button
+          <FilterButton
             onClick={() => setIsSidebarOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-black uppercase tracking-widest hover:border-blue-500 hover:text-blue-600 transition-all shadow-sm shrink-0"
+            isActive={isSidebarOpen}
+            label="Filters"
+            className="shrink-0"
           >
             <Filter size={14} />
             Filters
-          </button>
+          </FilterButton>
           {/* Always visible upload button */}
           <button
             onClick={handleUploadClick}
@@ -2461,8 +2460,10 @@ const SalesAnalyzer = () => {
                 : 'Upload File'
             }
           </button>
-          <button onClick={() => setFilters(f=>({...f, fromDate:'', toDate:''}))} className="text-[10px] sm:text-xs px-2 sm:px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:border-blue-400 hover:text-blue-600 transition-all font-semibold">📅 Full Period</button>
-          <button onClick={handleReset} className="text-[10px] sm:text-xs font-black uppercase tracking-widest bg-gray-100 hover:bg-gray-200 px-3 sm:px-4 py-2 rounded-lg transition-all shadow-sm flex items-center gap-1.5"><RefreshCw size={12}/> Reset</button>
+          <FilterButton onClick={() => setFilters(f=>({...f, fromDate:'', toDate:''}))} label="📅 Full Period" />
+          <FilterButton onClick={handleReset} label="Reset">
+            <RefreshCw size={12}/> Reset
+          </FilterButton>
         </div>
       </div>
 
@@ -2552,7 +2553,12 @@ const SalesAnalyzer = () => {
 
               <div className="flex gap-2 pb-3 shrink-0 flex-wrap">
                 {['Overview','By Product','By MR','By Customer','By Branch','Trend', 'Compare', 'Reports'].map(tab => (
-                  <button key={tab} onClick={() => setActiveTab(tab)} className={`px-5 py-2 rounded-full text-sm font-semibold transition-all border ${activeTab === tab ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-400 hover:text-blue-600'}`}>{tab}</button>
+                  <FilterButton 
+                    key={tab} 
+                    onClick={() => setActiveTab(tab)} 
+                    isActive={activeTab === tab}
+                    label={tab}
+                  />
                 ))}
               </div>
             </div>

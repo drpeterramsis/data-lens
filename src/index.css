@@ -92,6 +92,98 @@
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
 }
 
+@layer components {
+  .btn-filters,
+  .filter-btn {
+    background-color: #FFC300 !important;
+    color: #7B0000 !important;
+    border: 2px solid #FFC300 !important;
+    border-radius: 8px !important;
+    font-weight: 700 !important;
+    padding: 6px 16px !important;
+    font-size: 0.85rem !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.5rem !important;
+    outline: none !important;
+  }
+  
+  .btn-filters:hover:not(:disabled):not(.active),
+  .filter-btn:hover:not(:disabled):not(.active) {
+    background-color: #FFD60A !important;
+    color: #5C0000 !important;
+    border-color: #5C0000 !important;
+    box-shadow: 0 2px 8px rgba(255, 195, 0, 0.4) !important;
+  }
+  
+  .btn-filters.active,
+  .filter-btn-active,
+  .filter-btn.active,
+  button.filter-btn-active {
+    background-color: #FFD60A !important;
+    color: #5C0000 !important;
+    border: 2px solid #5C0000 !important;
+    box-shadow: 0 2px 8px rgba(255, 195, 0, 0.5) !important;
+  }
+
+  .tab-btn {
+    background: #F1F5F9 !important;
+    color: #475569 !important;
+    border: 1.5px solid #E2E8F0 !important;
+    border-radius: 8px !important;
+    font-weight: 500 !important;
+    padding: 6px 16px !important;
+    font-size: 0.85rem !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.5rem !important;
+    outline: none !important;
+  }
+
+  .tab-btn:hover:not(:disabled):not(.active) {
+    background: #E2E8F0 !important;
+    color: #1E293B !important;
+  }
+
+  .tab-btn.active {
+    background: #1E293B !important;
+    color: white !important;
+    border: 1.5px solid #1E293B !important;
+    font-weight: 600 !important;
+  }
+  
+  .filter-btn:disabled,
+  .filter-btn-disabled,
+  button.filter-btn:disabled {
+    background-color: #FFF3B0 !important;
+    color: #999999 !important;
+    border-color: #FFF3B0 !important;
+    cursor: not-allowed !important;
+    opacity: 0.6 !important;
+    transform: none !important;
+    box-shadow: none !important;
+  }
+
+  .filter-tag {
+    background-color: #FFC300 !important;
+    color: #7B0000 !important;
+    border: 1px solid #7B0000 !important;
+    border-radius: 4px !important;
+    font-weight: 700 !important;
+    padding: 1px 6px !important;
+    font-size: 0.7rem !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+}
+
 /* Footer overrides */
 footer {
   background-color: #000000 !important;
