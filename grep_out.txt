@@ -1,0 +1,67 @@
+  filteredRowCount,
+  const monthFilterLabel = useMemo(() => {
+              <span className="text-xs font-semibold text-yellow-800">{monthFilterLabel}</span>
+                {filteredRowCount.toLocaleString()} rows
+            <span className="text-[10px] font-semibold text-yellow-800">{monthFilterLabel}</span>
+            {filteredRowCount.toLocaleString()} rows
+  const [searchFilter, setSearchFilter] = useState("All");
+    return [...new Set(rawData.map(r => r.MrName))].filter(Boolean).sort();
+            const newRows = cleaned.filter(r => !existingKeys.has(String(r.InteractionId)));
+            .filter(d => Boolean(d))
+            .filter(t => !isNaN(t));
+      .filter(d => d && /^\d{4}-\d{2}-\d{2}$/.test(d))
+      localStorage.removeItem("datalens_month_filter");
+      localStorage.setItem("datalens_month_filter", JSON.stringify([...selectedMonths]));
+      const saved = localStorage.getItem("datalens_month_filter");
+    localStorage.removeItem("datalens_month_filter");
+    localStorage.removeItem("datalens_month_filter");
+  const monthFilteredRows = useMemo(() => {
+    return rawData.filter(row => {
+  const dateFilteredData = useMemo(() => {
+    const base = monthFilteredRows || [];
+    return base.filter(d => {
+  }, [monthFilteredRows, dateFrom, dateTo, minDate, maxDate]);
+  const filteredData = useMemo(() => {
+    const base = dateFilteredData || [];
+    return base.filter(
+  }, [dateFilteredData, selectedMR]);
+  const mrStats = useMemo(() => calculateMRStats(filteredData), [filteredData]);
+    // Step 1: Filter HCP Coaching rows only
+    const rows = filteredData || [];
+      .filter(r =>
+      .filter(count => count >= 4)
+  }, [filteredData]);
+  const insights = useMemo(() => generateInsights(filteredData, targets), [filteredData, targets]);
+    if (!globalSearch.trim() && searchFilter === 'All' && !onlyCoached) return [];
+    return filteredData.filter(d => {
+      if (searchFilter !== 'All' && d.InteractionType !== searchFilter) return false;
+  }, [filteredData, globalSearch, searchFilter, onlyCoached]);
+  }, [filteredData?.length ?? 0]);
+    const rows = filteredData || [];
+    const dates = rows.map(r => r.ReportDate).filter(d => d && /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
+  }, [filteredData]);
+    const rows = filteredData || [];
+    const dates = rows.map(r => r.ReportDate).filter(d => d && /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
+  }, [filteredData]);
+                  📅 Month Filter
+                    {(filteredData?.length ?? 0).toLocaleString()} rows
+                        const rows = filteredData || [];
+                        const sDates = rows.map(r => r.ReportDate).filter(d => d && /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
+                        const rows = filteredData || [];
+                        const sDates = rows.map(r => r.ReportDate).filter(d => d && /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
+                      {(filteredData?.length ?? 0).toLocaleString()} Interactions
+          {/* 4. DATE RANGE FILTER BAR */}
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Filter:</span>
+                  All charts & tables filtered
+            filteredRowCount={filteredData?.length ?? 0}
+             <ForecastTool data={filteredData} targets={targets} mrStats={mrStats} />
+                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Filters:</span>
+                          onClick={() => setSearchFilter(f)}
+                            searchFilter === f ? 'bg-gray-900 text-white border-gray-900 shadow-lg' : 'bg-white text-gray-500 border-gray-100 hover:border-gray-200'
+                        <button onClick={() => {setGlobalSearch(""); setOnlyCoached(false); setSearchFilter("All")}} className="text-[10px] font-black text-red-500 uppercase tracking-widest">Reset All</button>
+             <TeamOverviewTable data={filteredData} targets={targets} mrStats={mrStats} />
+             <InteractionAnalysis data={filteredData} />
+             <CoachingAnalysis data={filteredData} />
+             <CoachingSection data={filteredData} />
+                        <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mt-1">High-performance virtualized rendering ({(filteredData?.length ?? 0).toLocaleString()} rows)</p>
+                    data={filteredData} 

@@ -7,7 +7,8 @@ import {
   ChevronRight, 
   Activity, 
   BarChart3,
-  Map
+  Map,
+  TrendingUp
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -31,6 +32,14 @@ const Dashboard = () => {
       icon: BarChart3,
       path: '/tools/sales-analyzer',
       accent: 'border-blue-400'
+    },
+    {
+      id: 'sales-forecast',
+      title: 'Sales Forecast',
+      description: 'AI-driven pharmaceutical sales forecasting, at-risk analysis, and branch performance predictions.',
+      icon: TrendingUp,
+      path: '/tools/sales-forecast',
+      accent: 'border-green-400'
     },
     {
       id: 'routing-analyzer',

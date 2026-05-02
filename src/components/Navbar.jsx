@@ -46,44 +46,44 @@ const Navbar = () => {
     <>
       <nav ref={navRef} className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-3 sm:px-6 py-3 bg-gray-900 text-white shadow-md">
         {/* Logo */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <span className="text-xl">🔍</span>
           <div>
-            <div className="font-bold text-sm sm:text-base text-white">
+            <div className="font-bold text-[15px] sm:text-base text-white whitespace-nowrap">
               Data Lens
             </div>
-            <div className="text-[9px] sm:text-[11px] text-yellow-400 leading-tight hidden sm:block">
+            <div className="text-[10px] sm:text-[11px] text-yellow-400 leading-tight hidden lg:block whitespace-nowrap">
               Pharma Analytics Portal
             </div>
           </div>
         </div>
 
         {/* Desktop nav */}
-        <div className="hidden md:flex items-center gap-4 text-sm">
+        <div className="hidden md:flex flex-1 justify-center items-center gap-1 lg:gap-2 text-sm whitespace-nowrap overflow-hidden px-2">
           {visibleItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
               className={({ isActive }) =>
-                `flex items-center gap-2 px-3 py-2 rounded-lg font-bold transition-all ${
+                `flex items-center gap-1 lg:gap-1.5 px-1.5 lg:px-2 py-1.5 rounded-lg font-bold transition-all text-[11px] lg:text-[12px] xl:text-[13px] whitespace-nowrap ${
                   isActive
                     ? 'bg-yellow-400 text-gray-900 shadow-sm'
                     : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                 }`
               }
             >
-              <item.icon size={16} />
-              <span>{item.title}</span>
+              <item.icon size={14} className="shrink-0" />
+              <span className="whitespace-nowrap">{item.title}</span>
             </NavLink>
           ))}
         </div>
 
         {/* User + hamburger */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {/* User info hidden on very small mobile, visible on sm+ */}
-          <div className="hidden sm:flex flex-col items-end mr-2">
-            <span className="text-xs font-bold leading-tight">{user?.name}</span>
-            <span className="text-[9px] text-gray-400 font-medium uppercase tracking-wider">{user?.role}</span>
+          <div className="hidden sm:flex flex-col items-end mr-1 lg:mr-2 whitespace-nowrap">
+            <span className="text-xs font-bold leading-tight whitespace-nowrap">{user?.name}</span>
+            <span className="text-[9px] text-gray-400 font-medium uppercase tracking-wider whitespace-nowrap">{user?.role}</span>
           </div>
           
           <div 

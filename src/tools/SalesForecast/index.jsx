@@ -249,42 +249,47 @@ const SalesForecastTool = () => {
   return (
     <div className="flex flex-1 overflow-hidden h-full min-w-0">
       {/* SIDEBAR FILTERS */}
-      <div className="w-64 flex flex-col bg-white border-r border-gray-200 shrink-0 overflow-hidden shadow-sm z-10 hidden md:flex">
-        <div className="p-4 border-b border-gray-100">
-          <div className="flex items-center gap-2 text-gray-900 font-black uppercase tracking-widest text-xs mb-4">
+      <div className="absolute top-0 bottom-0 left-0 w-64 flex flex-col bg-white border-r border-gray-200 overflow-hidden shadow-2xl z-50 transform -translate-x-full transition-transform duration-300 md:translate-x-0">
+        <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-gray-900 font-black uppercase tracking-widest text-xs">
             <Filter size={14} className="text-blue-600" />
             Filters
           </div>
-          
-          <div className="space-y-1">
-            <FilterGroup 
-              label="Line Name" 
-              options={uniqueDimensions.lines} 
-              selected={filters.lines} 
-              onChange={(val) => setFilters(prev => ({ ...prev, lines: val }))} 
-            />
-            <FilterGroup 
-              label="DM / District" 
-              options={uniqueDimensions.dms} 
-              selected={filters.dms} 
-              onChange={(val) => setFilters(prev => ({ ...prev, dms: val }))} 
-            />
-            <FilterGroup 
-              label="MR" 
-              options={uniqueDimensions.mrs} 
-              selected={filters.mrs} 
-              onChange={(val) => setFilters(prev => ({ ...prev, mrs: val }))} 
-            />
-            <FilterGroup 
-              label="Product" 
-              options={uniqueDimensions.products} 
-              selected={filters.products} 
-              onChange={(val) => setFilters(prev => ({ ...prev, products: val }))} 
-            />
-          </div>
+          <button className="md:hidden p-1 text-gray-400">
+            <X size={16} />
+          </button>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto p-4 space-y-1">
+          <FilterGroup 
+            label="Line Name" 
+            options={uniqueDimensions.lines} 
+            selected={filters.lines} 
+            onChange={(val) => setFilters(prev => ({ ...prev, lines: val }))} 
+          />
+          <FilterGroup 
+            label="DM / District" 
+            options={uniqueDimensions.dms} 
+            selected={filters.dms} 
+            onChange={(val) => setFilters(prev => ({ ...prev, dms: val }))} 
+          />
+          <FilterGroup 
+            label="MR" 
+            options={uniqueDimensions.mrs} 
+            selected={filters.mrs} 
+            onChange={(val) => setFilters(prev => ({ ...prev, mrs: val }))} 
+          />
+          <FilterGroup 
+            label="Product" 
+            options={uniqueDimensions.products} 
+            selected={filters.products} 
+            onChange={(val) => setFilters(prev => ({ ...prev, products: val }))} 
+          />
+        </div>
 
-          <div className="mt-6 pt-6 border-t border-gray-100">
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 block">Achievement Range</label>
+        <div className="p-4 border-t border-gray-100 space-y-4">
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Achievement Range</label>
             <div className="grid grid-cols-1 gap-1">
               {['all', '<50%', '50-75%', '75-100%', '>100%'].map(range => (
                 <button
@@ -302,25 +307,21 @@ const SalesForecastTool = () => {
             </div>
           </div>
 
-          <div className="mt-6">
-            <label className="flex items-center gap-2 cursor-pointer group">
-              <div 
-                onClick={() => setFilters(prev => ({ ...prev, atRiskOnly: !prev.atRiskOnly }))}
-                className={`w-10 h-6 rounded-full transition-all relative ${filters.atRiskOnly ? 'bg-red-500' : 'bg-gray-200'}`}
-              >
-                <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${filters.atRiskOnly ? 'translate-x-4' : ''}`} />
-              </div>
-              <span className="text-xs font-bold text-gray-700 group-hover:text-gray-900 transition-colors">At Risk Only</span>
-            </label>
-          </div>
-        </div>
-        
-        <div className="mt-auto p-4 border-t border-gray-100">
+          <label className="flex items-center gap-2 cursor-pointer group">
+            <div 
+              onClick={() => setFilters(prev => ({ ...prev, atRiskOnly: !prev.atRiskOnly }))}
+              className={`w-10 h-6 rounded-full transition-all relative ${filters.atRiskOnly ? 'bg-red-500' : 'bg-gray-200'}`}
+            >
+              <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${filters.atRiskOnly ? 'translate-x-4' : ''}`} />
+            </div>
+            <span className="text-xs font-bold text-gray-700 group-hover:text-gray-900 transition-colors">At Risk Only</span>
+          </label>
+
           <button 
             onClick={() => setFilters({ lines: [], dms: [], mrs: [], products: [], achievementRange: 'all', atRiskOnly: false })}
             className="w-full py-2 bg-gray-50 text-gray-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-50 hover:text-red-600 transition-all border border-gray-200"
           >
-            Clear All Filters
+            Clear All
           </button>
         </div>
       </div>

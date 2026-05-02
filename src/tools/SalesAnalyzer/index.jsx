@@ -723,72 +723,55 @@ const FilterProfilesManager = ({
   );
 };
 
-const SideFiltersPanel = ({ filters, setFilters, filterOptions, activeFilterCount, onManageProfiles, profiles }) => {
-  const [collapsed, setCollapsed] = useState(true);
+const SideFiltersPanel = ({ isOpen, onClose, filters, setFilters, filterOptions, activeFilterCount, onManageProfiles, profiles }) => {
   const [search, setSearch] = useState('');
 
-  const activeProfile = useMemo(() => {
-    return profiles.find(p => JSON.stringify(p.filters) === JSON.stringify(filters));
-  }, [filters, profiles]);
-
-  if (collapsed) {
-    return (
-      <div className="flex flex-col items-center w-10 bg-white border-r border-gray-200 py-4 shrink-0 gap-3">
-        <button 
-          onClick={() => setCollapsed(false)}
-          className="text-gray-400 hover:text-blue-600 transition-colors"
-          title="Expand Filters">
-          <ChevronRight size={18}/>
-        </button>
-        {activeFilterCount > 0 && <div className="w-2 h-2 rounded-full bg-blue-600"/>}
-        <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest [writing-mode:vertical-rl] rotate-180 mt-2">
-          Filters
-        </span>
-      </div>
-    );
-  }
+  if (!isOpen) return null;
 
   return (
-    <div className="flex flex-col w-64 bg-white border-r border-gray-200 overflow-y-auto shrink-0 pb-[200px]">
-      <div className="flex flex-col border-b border-gray-100 bg-white z-10">
-        <div className="flex items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2">
-            <Filter size={14} className="text-gray-500"/>
-            <span className="text-sm font-bold text-gray-700 uppercase tracking-wider">Filters</span>
-            {activeFilterCount > 0 && (
-              <span className="bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{activeFilterCount}</span>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={onManageProfiles}
-              className="text-gray-400 hover:text-blue-600 transition-colors"
-              title="Saved Filters">
-              <History size={16} />
-            </button>
-            {activeFilterCount > 0 && (
-              <button
-                onClick={() => setFilters({
-                  branch:       [],
-                  supervisor:   [],
-                  mrName:       [],
-                  line:         [],
-                  customerType: [],
-                  product:      [],
-                  customer:     [],
-                  fromDate:     '',
-                  toDate:       ''
-                })}
-                className="text-[10px] text-red-500 font-bold hover:text-red-700 uppercase tracking-wide">
-                Clear
+    <>
+      <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
+      <div className="fixed left-0 top-0 bottom-0 bg-white border-r border-gray-200 overflow-y-auto w-80 z-50 shadow-2xl transition-all">
+        <div className="flex flex-col border-b border-gray-100 bg-white z-10 sticky top-0">
+          <div className="flex items-center justify-between px-4 py-3">
+            <div className="flex items-center gap-2">
+              <Filter size={14} className="text-gray-500"/>
+              <span className="text-sm font-bold text-gray-700 uppercase tracking-wider">Filters</span>
+              {activeFilterCount > 0 && (
+                <span className="bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{activeFilterCount}</span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={onManageProfiles}
+                className="text-gray-400 hover:text-blue-600 transition-colors"
+                title="Saved Filters">
+                <History size={16} />
               </button>
-            )}
-            <button onClick={() => setCollapsed(true)} className="text-gray-400 hover:text-gray-600">
-              <ChevronLeft size={16}/>
-            </button>
+              {activeFilterCount > 0 && (
+                <button
+                  onClick={() => setFilters({
+                    branch:       [],
+                    supervisor:   [],
+                    mrName:       [],
+                    line:         [],
+                    customerType: [],
+                    product:      [],
+                    customer:     [],
+                    fromDate:     '',
+                    toDate:       ''
+                  })}
+                  className="text-[10px] text-red-500 font-bold hover:text-red-700 uppercase tracking-wide">
+                  Clear
+                </button>
+              )}
+              <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+                <X size={16}/>
+              </button>
+            </div>
           </div>
         </div>
-
+        
         {/* Quick Load Profiles Chips */}
         {profiles.length > 0 && (
           <div className="px-4 pb-3 flex overflow-x-auto gap-2 no-scrollbar scroll-smooth">
@@ -808,34 +791,28 @@ const SideFiltersPanel = ({ filters, setFilters, filterOptions, activeFilterCoun
             })}
           </div>
         )}
-      </div>
-
-      <div className="px-4 py-3 border-b border-gray-100">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Date Range</p>
-          {activeProfile && (
-            <span className="text-[9px] font-black text-emerald-600 uppercase tracking-tighter flex items-center gap-1">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              Saved
-            </span>
-          )}
-        </div>
-        <div className="flex flex-col gap-2">
-          <div>
-            <label className="text-[10px] text-gray-400 mb-1 block">From</label>
-            <input type="date" value={filters.fromDate} onChange={e => setFilters(f => ({...f, fromDate: e.target.value}))} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 outline-none"/>
+      
+        <div className="px-4 py-3 border-b border-gray-100">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Date Range</p>
           </div>
-          <div>
-            <label className="text-[10px] text-gray-400 mb-1 block">To</label>
-            <input type="date" value={filters.toDate} onChange={e => setFilters(f => ({...f, toDate: e.target.value}))} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 outline-none"/>
+          <div className="flex flex-col gap-2">
+            <div>
+              <label className="text-[10px] text-gray-400 mb-1 block">From</label>
+              <input type="date" value={filters.fromDate} onChange={e => setFilters(f => ({...f, fromDate: e.target.value}))} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 outline-none"/>
+            </div>
+            <div>
+              <label className="text-[10px] text-gray-400 mb-1 block">To</label>
+              <input type="date" value={filters.toDate} onChange={e => setFilters(f => ({...f, toDate: e.target.value}))} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 outline-none"/>
+            </div>
           </div>
         </div>
-      </div>
 
-      {[ { label: 'Branch', key: 'branch', options: filterOptions.branches }, { label: 'Supervisor', key: 'supervisor', options: filterOptions.supervisors }, { label: 'MR', key: 'mrName', options: filterOptions.mrNames }, { label: 'Line', key: 'line', options: filterOptions.lines }, { label: 'Customer Type', key: 'customerType', options: filterOptions.customerTypes }, { label: 'Customer', key: 'customer', options: filterOptions.customers }, { label: 'Product', key: 'product', options: filterOptions.products } ].map(({ label, key, options }) => (
-        <SideFilterSection key={key} label={label} options={options} selected={filters[key]} onChange={v => setFilters(f => ({...f, [key]: v}))} />
-      ))}
-    </div>
+        {[ { label: 'Branch', key: 'branch', options: filterOptions.branches }, { label: 'Supervisor', key: 'supervisor', options: filterOptions.supervisors }, { label: 'MR', key: 'mrName', options: filterOptions.mrNames }, { label: 'Line', key: 'line', options: filterOptions.lines }, { label: 'Customer Type', key: 'customerType', options: filterOptions.customerTypes }, { label: 'Customer', key: 'customer', options: filterOptions.customers }, { label: 'Product', key: 'product', options: filterOptions.products } ].map(({ label, key, options }) => (
+          <SideFilterSection key={key} label={label} options={options} selected={filters[key]} onChange={v => setFilters(f => ({...f, [key]: v}))} />
+        ))}
+      </div>
+    </>
   );
 };
 
@@ -916,6 +893,8 @@ const SalesAnalyzer = () => {
   const uploadModeRef = useRef('replace');
   const [filterProfiles, setFilterProfiles] = useState([]);
   const [showProfileManager, setShowProfileManager] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
   const [smartLoadAlert, setSmartLoadAlert] = useState(null);
   const PROFILES_KEY = 'salesAnalyzer_filterProfiles';
 
@@ -2452,6 +2431,13 @@ const SalesAnalyzer = () => {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => setIsSidebarOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-black uppercase tracking-widest hover:border-blue-500 hover:text-blue-600 transition-all shadow-sm shrink-0"
+          >
+            <Filter size={14} />
+            Filters
+          </button>
           {/* Always visible upload button */}
           <button
             onClick={handleUploadClick}
@@ -2482,6 +2468,13 @@ const SalesAnalyzer = () => {
 
       {dataSources.length > 0 && (
         <div className="flex items-center gap-2 px-6 py-2 bg-gray-50 border-b border-gray-100 shrink-0 overflow-x-auto rounded-3xl mt-4">
+          <button 
+            onClick={() => setIsSidebarOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-[10px] font-black uppercase tracking-widest hover:border-blue-500 hover:text-blue-600 transition-all shadow-sm shrink-0"
+          >
+            <Filter size={12} />
+            Filters
+          </button>
           <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest shrink-0">
             Files:
           </span>
@@ -2509,6 +2502,8 @@ const SalesAnalyzer = () => {
 
       <div className="flex flex-1 overflow-hidden h-[calc(100vh-theme(spacing.24))]">
         <SideFiltersPanel 
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
           filters={filters} 
           setFilters={setFilters} 
           filterOptions={filterOptions} 
@@ -2528,29 +2523,41 @@ const SalesAnalyzer = () => {
             onLoad={loadProfile}
             currentFilters={filters}
           />
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 px-4 pt-3 pb-2 shrink-0">
-            {[
-              { label: 'Net Quantity', value: kpis.netQty.toLocaleString(), suffix: 'units', icon: Package, color: 'text-emerald-600', bg: 'bg-emerald-50', negative: kpis.netQty < 0 },
-              { label: 'Net Value', value: kpis.netValue.toLocaleString(), suffix: 'EGP', icon: DollarSign, color: 'text-blue-600', bg: 'bg-blue-50', negative: kpis.netValue < 0 },
-              { label: 'Total Returns', value: Math.abs(kpis.returnsQty).toLocaleString(), suffix: 'units', sub: Math.abs(kpis.returnsValue).toLocaleString() + ' EGP', icon: RotateCcw, color: 'text-red-500', bg: 'bg-red-50', negative: false },
-              { label: 'Unique Products', value: kpis.uniqueProducts, suffix: 'products', sub: filteredData.length.toLocaleString() + ' rows', icon: Grid, color: 'text-purple-600', bg: 'bg-purple-50', negative: false },
-            ].map((card, i) => (
-              <div key={i} className="bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3 flex items-center gap-3">
-                <div className={`${card.bg} p-2 rounded-lg shrink-0`}><card.icon size={16} className={card.color}/></div>
-                <div className="min-w-0">
-                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1 truncate">{card.label}</p>
-                    <p className={`text-lg font-black leading-none truncate ${card.negative ? 'text-red-600' : 'text-gray-900'}`}>{card.value}<span className="text-xs font-semibold text-gray-400 ml-1">{card.suffix}</span></p>
-                    {card.sub && <p className="text-[10px] text-gray-400 mt-0.5 truncate">{card.sub}</p>}
-                </div>
+          <div className="px-4 py-2">
+            <button 
+              onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}
+              className="md:hidden w-full flex items-center justify-between text-[10px] font-black uppercase text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              {isSummaryExpanded ? 'Hide Summary & Tools' : 'Show Summary & Tools'}
+              <ChevronDown size={14} className={`transition-transform ${isSummaryExpanded ? 'rotate-180' : ''}`} />
+            </button>
+            <div className={`space-y-3 ${isSummaryExpanded ? 'block' : 'hidden md:block'}`}>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-3">
+                {[
+                  { label: 'Net Quantity', value: kpis.netQty.toLocaleString(), suffix: 'units', icon: Package, color: 'text-emerald-600', bg: 'bg-emerald-50', negative: kpis.netQty < 0 },
+                  { label: 'Net Value', value: kpis.netValue.toLocaleString(), suffix: 'EGP', icon: DollarSign, color: 'text-blue-600', bg: 'bg-blue-50', negative: kpis.netValue < 0 },
+                  { label: 'Total Returns', value: Math.abs(kpis.returnsQty).toLocaleString(), suffix: 'units', sub: Math.abs(kpis.returnsValue).toLocaleString() + ' EGP', icon: RotateCcw, color: 'text-red-500', bg: 'bg-red-50', negative: false },
+                  { label: 'Unique Products', value: kpis.uniqueProducts, suffix: 'products', sub: filteredData.length.toLocaleString() + ' rows', icon: Grid, color: 'text-purple-600', bg: 'bg-purple-50', negative: false },
+                ].map((card, i) => (
+                  <div key={i} className="bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3 flex items-center gap-3">
+                    <div className={`${card.bg} p-2 rounded-lg shrink-0`}><card.icon size={16} className={card.color}/></div>
+                    <div className="min-w-0">
+                        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1 truncate">{card.label}</p>
+                        <p className={`text-lg font-black leading-none truncate ${card.negative ? 'text-red-600' : 'text-gray-900'}`}>{card.value}<span className="text-xs font-semibold text-gray-400 ml-1">{card.suffix}</span></p>
+                        {card.sub && <p className="text-[10px] text-gray-400 mt-0.5 truncate">{card.sub}</p>}
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+
+              <div className="flex gap-2 pb-3 shrink-0 flex-wrap">
+                {['Overview','By Product','By MR','By Customer','By Branch','Trend', 'Compare', 'Reports'].map(tab => (
+                  <button key={tab} onClick={() => setActiveTab(tab)} className={`px-5 py-2 rounded-full text-sm font-semibold transition-all border ${activeTab === tab ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-400 hover:text-blue-600'}`}>{tab}</button>
+                ))}
+              </div>
+            </div>
           </div>
 
-          <div className="flex gap-2 px-6 pb-3 shrink-0 flex-wrap">
-            {['Overview','By Product','By MR','By Customer','By Branch','Trend', 'Compare', 'Reports'].map(tab => (
-              <button key={tab} onClick={() => setActiveTab(tab)} className={`px-5 py-2 rounded-full text-sm font-semibold transition-all border ${activeTab === tab ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-400 hover:text-blue-600'}`}>{tab}</button>
-            ))}
-          </div>
 
           <div className="flex-1 overflow-y-auto px-6 pb-[200px]">
             <div className="bg-white p-6 rounded-3xl border border-gray-200">
@@ -2829,33 +2836,33 @@ const SalesAnalyzer = () => {
                       )}
                       
                       {/* Quick Month Picker Section */}
-                    <div className="bg-white rounded-[24px] p-3 border border-amber-100 shadow-sm bg-gradient-to-br from-white to-amber-50/20">
-                      <div className="flex items-center justify-between mb-6">
-                        <div>
-                          <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter flex items-center gap-2">
-                             <Calendar size={20} className="text-amber-500" />
-                             Quick Month Picker
+                    <div className="bg-white rounded-[24px] p-3 md:p-4 border border-amber-100 shadow-sm bg-gradient-to-br from-white to-amber-50/20 max-w-full overflow-hidden">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 md:mb-6">
+                        <div className="min-w-0">
+                          <h3 className="text-base md:text-xl font-black text-gray-900 uppercase tracking-tighter flex items-center gap-2 truncate">
+                             <Calendar size={18} className="text-amber-500 shrink-0" />
+                             <span className="truncate">Quick Month Picker</span>
                           </h3>
-                          <p className="text-[10px] text-gray-400 font-bold uppercase mt-1">Select months to add as comparison periods instantly</p>
+                          <p className="text-[9px] md:text-[10px] text-gray-400 font-bold uppercase mt-1 leading-tight break-words pr-2">Select months to add as comparison periods instantly</p>
                         </div>
-                        <div className="flex items-center gap-3 bg-white p-1.5 rounded-2xl border border-gray-100 shadow-sm">
+                        <div className="flex items-center gap-2 bg-white p-1 rounded-2xl border border-gray-100 shadow-sm self-start sm:self-auto shrink-0 max-w-full">
                            <button 
                              onClick={() => setSelectedYear(prev => Math.max(2020, prev - 1))}
                              disabled={selectedYear <= 2020}
-                             className="p-2 hover:bg-gray-50 rounded-xl transition-colors text-gray-400 hover:text-gray-900 disabled:opacity-20">
+                             className="p-1 md:p-2 hover:bg-gray-50 rounded-xl transition-colors text-gray-400 hover:text-gray-900 disabled:opacity-20 shrink-0">
                              <ChevronLeft size={16} />
                            </button>
-                           <span className="text-[10px] font-black text-gray-900 w-16 text-center tabular-nums">{selectedYear}</span>
+                           <span className="text-[10px] sm:text-xs font-black text-gray-900 w-12 sm:w-16 text-center tabular-nums shrink-0">{selectedYear}</span>
                            <button 
                              onClick={() => setSelectedYear(prev => Math.min(2030, prev + 1))}
                              disabled={selectedYear >= 2030}
-                             className="p-2 hover:bg-gray-50 rounded-xl transition-colors text-gray-400 hover:text-gray-900 disabled:opacity-20">
+                             className="p-1 md:p-2 hover:bg-gray-50 rounded-xl transition-colors text-gray-400 hover:text-gray-900 disabled:opacity-20 shrink-0">
                              <ChevronRight size={16} />
                            </button>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-12 gap-1 mb-6">
+                      <div className="w-full mb-4 md:mb-6">
                         {(() => {
                           const monthsArray = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                           const renderedCards = [];
@@ -2898,7 +2905,7 @@ const SalesAnalyzer = () => {
                                   saveComparePreset(newPeriods);
                                 }}
                                 className={`
-                                  w-full h-10 rounded uppercase text-[10px] font-black border transition-all flex items-center justify-center
+                                  flex-1 min-w-[36px] sm:min-w-[42px] max-w-[60px] h-8 sm:h-10 rounded uppercase text-[9px] sm:text-[10px] font-black border transition-all flex items-center justify-center shrink-0
                                   ${!isAvailable 
                                     ? 'bg-gray-100 border-gray-100 text-gray-300 cursor-not-allowed' 
                                     : 'bg-white border-gray-200 text-gray-500 hover:border-blue-500 hover:text-blue-600 cursor-pointer'}
@@ -2910,35 +2917,35 @@ const SalesAnalyzer = () => {
                           });
 
                           return renderedCards.length === 0 ? (
-                            <div className="col-span-12 py-4 text-center bg-gray-50 rounded-xl border border-gray-100 text-[10px] font-black uppercase text-gray-500 tracking-widest">
+                            <div className="w-full py-4 text-center bg-gray-50 rounded-xl border border-gray-100 text-[10px] font-black uppercase text-gray-500 tracking-widest">
                                ✅ All months of {selectedYear} already added
                             </div>
                           ) : (
-                            <>
-                              <div className="col-span-12 flex gap-1">{renderedCards}</div>
-                              <div className="col-span-12 text-[9px] font-semibold text-gray-400 uppercase mt-1 text-right">
+                            <div className="w-full">
+                              <div className="flex flex-wrap gap-1 sm:gap-1.5 w-full">{renderedCards}</div>
+                              <div className="w-full text-[8px] sm:text-[9px] font-semibold text-gray-400 uppercase mt-2 text-right">
                                 * Inactive months have no data
                               </div>
-                            </>
+                            </div>
                           );
                         })()}
                       </div>
                     </div>
 
                     {/* Period Management Card */}
-                    <div className="bg-white rounded-[24px] p-3 border border-gray-100 shadow-sm">
-                      <div className="flex items-center justify-between mb-8">
-                        <div>
-                          <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">Period Management</h3>
-                          <p className="text-[10px] text-gray-400 font-medium mt-1">Manage up to 12 date ranges for deep comparative analysis</p>
+                    <div className="bg-white rounded-[24px] p-3 md:p-4 border border-gray-100 shadow-sm max-w-full overflow-hidden">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 md:mb-8">
+                        <div className="min-w-0 mb-2 sm:mb-0">
+                          <h3 className="text-base md:text-2xl font-black text-gray-900 uppercase tracking-tighter truncate">Period Management</h3>
+                          <p className="text-[9px] md:text-[10px] text-gray-400 font-medium mt-1 leading-tight break-words pr-2">Manage up to 12 date ranges for deep comparative analysis</p>
                         </div>
-                        <div className="flex gap-2 relative items-center">
-                          <div className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-xl px-2 py-1.5 shadow-sm">
+                        <div className="flex flex-wrap gap-2 relative items-center self-start sm:self-auto shrink-0 max-w-full pb-1 sm:pb-0">
+                          <div className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-xl px-1.5 md:px-2 py-1 md:py-1.5 shadow-sm shrink-0">
                             <Type size={14} className="text-gray-400 ml-1" />
                             <select 
                               value={compareFontSize} 
                               onChange={(e) => setCompareFontSize(e.target.value)}
-                              className="bg-transparent text-gray-700 text-[10px] font-bold uppercase outline-none cursor-pointer"
+                              className="bg-transparent text-gray-700 text-[9px] md:text-[10px] font-bold uppercase outline-none cursor-pointer"
                             >
                               {FONT_OPTIONS.map(opt => (
                                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -2960,15 +2967,15 @@ const SalesAnalyzer = () => {
                               });
                             }}
                             title={Object.values(compareCollapsed).some(v => v === false) ? "Collapse All" : "Expand All"}
-                            className="bg-gray-50 border border-gray-200 text-gray-700 p-2 rounded-xl hover:bg-gray-100 transition-colors shadow-sm flex items-center justify-center"
+                            className="bg-gray-50 border border-gray-200 text-gray-700 p-1.5 md:p-2 rounded-xl hover:bg-gray-100 transition-colors shadow-sm flex items-center justify-center shrink-0"
                           >
                             <ChevronsUpDown size={16} />
                           </button>
 
-                          <div className="w-[1px] h-6 bg-gray-200 mx-1"></div>
+                          <div className="w-[1px] h-6 bg-gray-200 mx-0.5 md:mx-1 shrink-0"></div>
                           <button
                             onClick={() => setShowLoadModal(!showLoadModal)}
-                            className="flex items-center gap-2 bg-white text-gray-700 border border-gray-200 px-3 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-gray-50 transition-colors shadow-sm"
+                            className="flex items-center gap-1 md:gap-2 bg-white text-gray-700 border border-gray-200 px-2 md:px-3 py-1.5 md:py-2 rounded-xl text-[9px] md:text-[10px] font-black uppercase hover:bg-gray-50 transition-colors shadow-sm shrink-0"
                           >
                             <Download size={14} /> Load
                           </button>
@@ -2993,7 +3000,7 @@ const SalesAnalyzer = () => {
                           )}
                           <button
                             onClick={() => setShowSaveModal(!showSaveModal)}
-                            className="flex items-center gap-2 bg-white text-gray-700 border border-gray-200 px-3 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-gray-50 transition-colors shadow-sm"
+                            className="flex items-center gap-1 md:gap-2 bg-white text-gray-700 border border-gray-200 px-2 md:px-3 py-1.5 md:py-2 rounded-xl text-[9px] md:text-[10px] font-black uppercase hover:bg-gray-50 transition-colors shadow-sm shrink-0"
                           >
                             <Save size={14} /> Save
                           </button>
@@ -3022,7 +3029,7 @@ const SalesAnalyzer = () => {
                                setSelectedMonths([]);
                              }}
                              disabled={periods.length === 0}
-                             className="flex items-center gap-2 bg-red-50 text-red-600 px-3 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-red-100 transition-colors shadow-sm disabled:opacity-30">
+                             className="flex items-center gap-1 md:gap-2 bg-red-50 text-red-600 px-2 md:px-3 py-1.5 md:py-2 rounded-xl text-[9px] md:text-[10px] font-black uppercase hover:bg-red-100 transition-colors shadow-sm disabled:opacity-30 shrink-0">
                             <Trash2 size={14} /> Clear All
                           </button>
                           <button 
@@ -3049,7 +3056,7 @@ const SalesAnalyzer = () => {
                         </div>
                       </div>
 
-                      <div className="flex gap-2 overflow-x-auto pb-4 no-scrollbar">
+                      <div className="flex flex-wrap gap-2 pb-4 justify-center">
                         {periods.map((p, idx) => {
                           const isMonth = p.type === 'month';
                           const hasNoDates = !p.from || !p.to;
@@ -3064,7 +3071,7 @@ const SalesAnalyzer = () => {
                             <div key={p.id} className={`
                               rounded-[24px] border relative group animate-in zoom-in-95 duration-200 transition-all
                               ${!hasData && !hasNoDates ? 'bg-gray-100 border-gray-200 border-dashed opacity-80' : 'bg-gray-50/50 border-gray-100'}
-                              ${isCompact ? 'min-w-[140px] p-2' : 'min-w-[220px] p-2.5'}
+                              w-full sm:w-[220px] p-2.5
                             `}>
                                <div className="flex items-center justify-between mb-2">
                                  <div className="flex items-center gap-2 relative">

@@ -71,7 +71,7 @@ const OverviewTab = ({ data }) => {
   return (
     <div className="space-y-6 pb-20">
       {/* SUMMARY CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 md:gap-4">
         <SummaryCard label="Total Sales Units" value={stats.totalSalesUnits.toLocaleString()} />
         <SummaryCard label="Total Sales Value" value={`$${stats.totalSalesValue.toLocaleString()}`} />
         <SummaryCard label="Total Target Units" value={stats.totalTargetUnits.toLocaleString()} />

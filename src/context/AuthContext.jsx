@@ -11,15 +11,35 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     // Load users and prioritize localStorage overrides
     const storedUsers = localStorage.getItem('datalens_users_override');
-    const mergedUsers = storedUsers 
-      ? JSON.parse(storedUsers) 
-      : initialUsers.users;
+    const parsedStored = storedUsers ? JSON.parse(storedUsers) : [];
+    
+    // Merge stored users with initial users to ensure new tools/fields are added
+    const mergedUsers = initialUsers.users.map(initialU => {
+      const storedU = parsedStored.find(u => u.id === initialU.id);
+      if (storedU) {
+        // Ensure sales-forecast and other new tools from initial users are merged
+        const mergedTools = Array.from(new Set([...(storedU.tools || []), ...(initialU.tools || [])]));
+        return { ...storedU, tools: mergedTools };
+      }
+      return initialU;
+    });
+
+    // Add any completely new users that were in localstorage but not initial
+    parsedStored.forEach(su => {
+      if (!mergedUsers.find(mu => mu.id === su.id)) {
+        mergedUsers.push(su);
+      }
+    });
+
     setUsers(mergedUsers);
 
     // Check for existing session
-    const savedUser = localStorage.getItem('pharma_current_user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
+    const savedUserStr = localStorage.getItem('pharma_current_user');
+    if (savedUserStr) {
+      const savedUser = JSON.parse(savedUserStr);
+      // Refresh user fields from actual users source (in case tools were updated in users.json)
+      const freshUser = mergedUsers.find(u => u.id === savedUser.id) || savedUser;
+      setUser(freshUser);
     }
     
     setLoading(false);

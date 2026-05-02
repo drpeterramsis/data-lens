@@ -9,7 +9,7 @@
       "password": "dlDL2@26",
       "role": "admin",
       "active": true,
-      "tools": ["call-detailing", "sales-analyzer", "routing-analyzer"]
+      "tools": ["call-detailing", "sales-analyzer", "routing-analyzer", "sales-forecast"]
     },
     {
       "id": "2",
@@ -20,7 +20,7 @@
       "password": "sara123",
       "role": "manager",
       "active": true,
-      "tools": ["call-detailing", "sales-analyzer", "routing-analyzer"]
+      "tools": ["call-detailing", "sales-analyzer", "routing-analyzer", "sales-forecast"]
     },
     {
       "id": "3",
@@ -31,7 +31,7 @@
       "password": "omar123",
       "role": "viewer",
       "active": true,
-      "tools": ["call-detailing"]
+      "tools": ["call-detailing", "sales-forecast"]
     },
     {
       "id": "4",
@@ -42,7 +42,7 @@
       "password": "datalens2026",
       "role": "manager",
       "active": true,
-      "tools": ["call-detailing", "sales-analyzer", "routing-analyzer"]
+      "tools": ["call-detailing", "sales-analyzer", "routing-analyzer", "sales-forecast"]
     }
   ]
 }
