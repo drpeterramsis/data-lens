@@ -170,3 +170,89 @@ export const getLatestSHA = async (filePath) => {
     throw error;
   }
 };
+
+/**
+ * Uploads a binary file to GitHub using base64 encoding
+ * @param {string} filePath - destination path (e.g., 'public/skillzaty/thumbs/img.png')
+ * @param {File} file - the file object from input[type="file"]
+ * @param {string} commitMessage - descriptive commit message
+ * @returns {Promise<{success: boolean, rawUrl: string}>}
+ */
+export const uploadFileToGitHub = async (filePath, file, commitMessage) => {
+  try {
+    const reader = new FileReader();
+    const base64Promise = new Promise((resolve) => {
+      reader.onload = () => {
+        const base64 = reader.result.split(',')[1];
+        resolve(base64);
+      };
+      reader.readAsDataURL(file);
+    });
+
+    const base64Content = await base64Promise;
+    let sha = null;
+
+    // Check if file exists to get SHA for update
+    try {
+      const existing = await getFileContent(filePath);
+      sha = existing.sha;
+    } catch (e) {
+      // File doesn't exist, sha remains null
+    }
+
+    const body = {
+      message: commitMessage,
+      content: base64Content,
+      branch: getBranch()
+    };
+    if (sha) body.sha = sha;
+
+    const response = await fetch(`${getBaseUrl()}/${filePath}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      throw new Error(`GitHub API Error: ${response.status} ${response.statusText}`);
+    }
+
+    const owner = import.meta.env.VITE_GITHUB_OWNER;
+    const repo = import.meta.env.VITE_GITHUB_REPO;
+    const branch = getBranch();
+    const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${filePath}`;
+
+    return { success: true, rawUrl };
+  } catch (error) {
+    console.error('Error uploading file to GitHub:', error);
+    throw error;
+  }
+};
+
+/**
+ * Gets the SkillZaty data and SHA
+ * @returns {Promise<{content: object, sha: string}>}
+ */
+export const getSkillZaty = async () => {
+  const filePath = 'src/data/skillzaty.json';
+  try {
+    return await getFileFromGitHub(filePath);
+  } catch (error) {
+    if (error.message && error.message.includes('404')) {
+      return { content: { categories: [] }, sha: '' };
+    }
+    throw error;
+  }
+};
+
+/**
+ * Saves SkillZaty data to GitHub
+ * @param {object} data - the JSON data
+ * @param {string} sha - current SHA
+ * @param {string} commitMessage 
+ * @returns {Promise<boolean>}
+ */
+export const saveSkillZaty = async (data, sha, commitMessage) => {
+  const filePath = 'src/data/skillzaty.json';
+  return await saveFileToGitHub(filePath, data, sha, commitMessage);
+};

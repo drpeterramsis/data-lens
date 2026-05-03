@@ -16,7 +16,8 @@
         "sales-forecast",
         "routing-analyzer",
         "links-library",
-        "user-management"
+        "user-management",
+        "skill-zaty"
       ],
       "createdAt": "2026-05-02T10:00:00Z",
       "updatedAt": "2026-05-02T10:00:00Z"
@@ -55,7 +56,8 @@
         "sales-analyzer",
         "sales-forecast",
         "routing-analyzer",
-        "links-library"
+        "links-library",
+        "skill-zaty"
       ],
       "avatar": "DM",
       "createdAt": "2026-05-02T13:03:36.685Z",
@@ -75,7 +77,8 @@
         "sales-analyzer",
         "sales-forecast",
         "routing-analyzer",
-        "links-library"
+        "links-library",
+        "skill-zaty"
       ],
       "avatar": "DA",
       "createdAt": "2026-05-02T13:10:52.369Z",

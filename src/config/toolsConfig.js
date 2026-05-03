@@ -70,4 +70,14 @@ export const ALL_TOOLS = [
     showOnDashboard: true,
     adminOnly: true,
   },
+  {
+    id: "skill-zaty",
+    name: "Skill-Zaty",
+    description: "Training Center",
+    icon: "🎓",
+    route: "/skill-zaty",
+    color: "#f97316",
+    gradient: "from-orange-500 to-orange-700",
+    showOnDashboard: true,
+  },
 ];

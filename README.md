@@ -42,6 +42,9 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 
 ## Version History
 
+- **v1.0.505:** Resolved critical React Hooks violation in Skill-Zaty portal caused by conditional useMemo calls. Fixed GitHub API 404 error during initial startup by implementing a graceful fallback for the missing `skillzaty.json` data file. Refined data fetching logic to ensure high reliability across project environments.
+- **v1.0.504:** Launched **Skill-Zaty Training Center**, a comprehensive learning management tool with full GitHub synchronization. Features include a multi-category course portal, global cross-meta search, and a diverse range of interactive content blocks: Rich Text (Quill integration), Inline PDF (Viewer), Custom Audio, Video (YouTube/Vimeo), and Collapsible Active Cards. Implemented a robust **Admin Course Builder** with drag-and-drop section management, automated folder-based media uploads (thumbs/pdfs/audio/images), and granular user-specific course access controls. Updated global versioning and refined footer labels.
+- **v1.0.503:** Implemented Smart Auto-Icon Detection for Library links...
 - **v1.0.502:** Fixed Vite build error by refactoring CSS to avoid `@apply` with custom utility classes. Optimized CSS selector structure for better maintainability.
 - **v1.0.501:** Standardized button styles across all tool modules (Sales Analyzer, Call Detailing, Routing, Forecast). Implemented strict yellow theme (#FFC300) ONLY for specific "Filters" buttons. Reverted navigation tabs to a clean slate/dark theme (tab-btn) for better visual hierarchy. Updated FilterButton component with robust label detection and refined CSS transitions. Fixed non-conforming yellow "Upload" buttons to match action button standards.
 - **v1.0.500:** Fixed global layout overlap issue where sidebar would cover page content; updated main content wrapper to dynamically adjust left margin (80px collapsed / 240px expanded). Fixed "Filters" button styling in Routing Analyzer to match the new global filter style. Refined tab navigation button appearance in index.css with cleaner active borders and removed scale transitions for a more polished UI across all analyzer tools.
@@ -124,4 +127,4 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 - **v1.0.001:** Initial release. Authentication, CSV parsing, Analysis tools, and Admin panel implemented.
 
 ---
-© 2026 Data Lens Analytics | version 1.0.502
+© 2026 Data Lens Analytics | version 1.0.505

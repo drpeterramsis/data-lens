@@ -12,6 +12,8 @@ import SalesAnalyzer from './tools/SalesAnalyzer';
 import RoutingAnalyzer from './tools/RoutingAnalyzer';
 import SalesForecastTool from './tools/SalesForecast';
 import Library from './tools/LinksLibrary';
+import SkillZaty from './tools/SkillZaty';
+import CourseView from './tools/SkillZaty/CourseView';
 import UserManagement from './pages/admin/UserManagement';
 import ScrollToTopButton from './components/ScrollToTopButton';
 import { Menu } from 'lucide-react';
@@ -153,6 +155,28 @@ const AppRoutes = () => {
           <ProtectedRoute>
             <AppLayout>
               <Library />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/skill-zaty"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <SkillZaty />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/skill-zaty/:courseId"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <CourseView />
             </AppLayout>
           </ProtectedRoute>
         }

@@ -6,7 +6,7 @@ import { APP_VERSION } from '../config/version';
 const APP_VERSION_DATA = {
   version: APP_VERSION,
   releaseDate: 'May 2026',
-  label: 'Sales Forecast & Advanced Multi-Period Hub'
+  label: 'Skill-Zaty Training Center & Sales Analytics Portal'
 };
 
 export default function Footer() {
