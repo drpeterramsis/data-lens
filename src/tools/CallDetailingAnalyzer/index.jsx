@@ -23,9 +23,9 @@ import InlineCalendar from './InlineCalendar';
 import MrDropdown from '../../components/MrDropdown';
 
 const APP_VERSION = {
-  version: '1.0.510',
+  version: '1.0.511',
   releaseDate: 'May 2026',
-  label: 'Consistent Number Formatting Update'
+  label: 'Admin Settings & Dashboard Categories'
 };
 
 const StickyToolbar = ({

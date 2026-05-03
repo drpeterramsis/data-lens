@@ -1,0 +1,32 @@
+import React, { useState } from 'react';
+import AdminSettingsLayout from '../components/adminSettings/AdminSettingsLayout';
+import UserManagementTab from '../components/adminSettings/tabs/UserManagementTab';
+import DashboardSettingsTab from '../components/adminSettings/tabs/DashboardSettingsTab';
+import SystemSettingsTab from '../components/adminSettings/tabs/SystemSettingsTab';
+
+const AdminSettings = () => {
+  const [activeTab, setActiveTab] = useState('users');
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'users':
+        return <UserManagementTab />;
+      case 'dashboard':
+        return <DashboardSettingsTab />;
+      case 'system':
+        return <SystemSettingsTab />;
+      default:
+        return <UserManagementTab />;
+    }
+  };
+
+  return (
+    <AdminSettingsLayout activeTab={activeTab} setActiveTab={setActiveTab}>
+      <div className="h-full">
+        {renderTabContent()}
+      </div>
+    </AdminSettingsLayout>
+  );
+};
+
+export default AdminSettings;

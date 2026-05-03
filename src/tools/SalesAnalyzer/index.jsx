@@ -22,9 +22,9 @@ import ReportsTab from '../reports/ReportsTab';
 import { FilterButton } from '../../components/ui/FilterButton';
 
 const APP_VERSION = {
-  version: '1.0.510',
+  version: '1.0.511',
   releaseDate: 'May 2026',
-  label: 'Consistent Number Formatting Update'
+  label: 'Admin Settings & Dashboard Categories'
 };
 
 const CACHE_KEY = 'atr_sales_v1';

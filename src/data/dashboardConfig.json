@@ -1,0 +1,131 @@
+{
+  "categories": [
+    {
+      "id": "cat_analytics",
+      "name": "Analytics",
+      "icon": "📊",
+      "color": "#3B82F6",
+      "order": 1,
+      "visible": true,
+      "modules": [
+        "call-detailing",
+        "atr-sales-analyzer",
+        "sales-forecast",
+        "routing-analyzer"
+      ]
+    },
+    {
+      "id": "cat_resources",
+      "name": "Resources",
+      "icon": "📚",
+      "color": "#EC4899",
+      "order": 2,
+      "visible": true,
+      "modules": [
+        "library",
+        "skill-zaty"
+      ]
+    },
+    {
+      "id": "cat_admin",
+      "name": "Administration",
+      "icon": "⚙️",
+      "color": "#8B5CF6",
+      "order": 3,
+      "visible": true,
+      "adminOnly": true,
+      "modules": [
+        "user-management"
+      ]
+    }
+  ],
+  "modules": [
+    {
+      "id": "call-detailing",
+      "name": "Call Detailing",
+      "description": "Track and analyze field calls",
+      "icon": "📞",
+      "color": "#06B6D4",
+      "route": "/call-detailing",
+      "visible": true,
+      "adminOnly": false,
+      "order": 1
+    },
+    {
+      "id": "atr-sales-analyzer",
+      "name": "ATR Sales Analyzer",
+      "description": "Analyze ATR and sales performance",
+      "icon": "📊",
+      "color": "#10B981",
+      "route": "/sales-analyzer",
+      "visible": true,
+      "adminOnly": false,
+      "order": 2
+    },
+    {
+      "id": "sales-forecast",
+      "name": "Sales Forecast",
+      "description": "Predict and plan future sales",
+      "icon": "📈",
+      "color": "#F59E0B",
+      "route": "/sales-forecast",
+      "visible": true,
+      "adminOnly": false,
+      "order": 3
+    },
+    {
+      "id": "routing-analyzer",
+      "name": "Routing Analyzer",
+      "description": "Optimize field team routes",
+      "icon": "🗺️",
+      "color": "#8B5CF6",
+      "route": "/routing-analyzer",
+      "visible": true,
+      "adminOnly": false,
+      "order": 4
+    },
+    {
+      "id": "library",
+      "name": "Library",
+      "description": "Quick access to resources and links",
+      "icon": "🔗",
+      "color": "#EC4899",
+      "route": "/library",
+      "visible": true,
+      "adminOnly": false,
+      "order": 5
+    },
+    {
+      "id": "skill-zaty",
+      "name": "Skill-Zaty",
+      "description": "Training Center",
+      "icon": "🎓",
+      "color": "#F59E0B",
+      "route": "/skill-zaty",
+      "visible": true,
+      "adminOnly": false,
+      "order": 6
+    },
+    {
+      "id": "user-management",
+      "name": "User Management",
+      "description": "Manage users and permissions",
+      "icon": "⚙️",
+      "color": "#6B7280",
+      "route": "/admin-settings",
+      "visible": true,
+      "adminOnly": true,
+      "order": 7
+    }
+  ],
+  "dashboardSettings": {
+    "showCategories": true,
+    "defaultView": "categories",
+    "showModuleDescriptions": true,
+    "showOpenLink": true,
+    "gridColumns": 4,
+    "categorySeparator": true
+  },
+  "lastUpdated": "",
+  "updatedBy": ""
+}

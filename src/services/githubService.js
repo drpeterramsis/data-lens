@@ -256,3 +256,32 @@ export const saveSkillZaty = async (data, sha, commitMessage) => {
   const filePath = 'src/data/skillzaty.json';
   return await saveFileToGitHub(filePath, data, sha, commitMessage);
 };
+
+/**
+ * Gets the dashboard configuration from GitHub
+ * @returns {Promise<{content: object, sha: string}>}
+ */
+export const getDashboardConfig = async () => {
+  const filePath = 'src/data/dashboardConfig.json';
+  try {
+    return await getFileFromGitHub(filePath);
+  } catch (error) {
+    if (error.message && error.message.includes('404')) {
+      // Fallback if not found yet
+      return { content: null, sha: '' };
+    }
+    throw error;
+  }
+};
+
+/**
+ * Saves dashboard configuration to GitHub
+ * @param {object} data 
+ * @param {string} sha 
+ * @param {string} commitMessage 
+ * @returns {Promise<boolean>}
+ */
+export const saveDashboardConfig = async (data, sha, commitMessage) => {
+  const filePath = 'src/data/dashboardConfig.json';
+  return await saveFileToGitHub(filePath, data, sha, commitMessage);
+};

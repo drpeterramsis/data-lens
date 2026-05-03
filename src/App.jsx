@@ -14,6 +14,7 @@ import SalesForecastTool from './tools/SalesForecast';
 import Library from './tools/LinksLibrary';
 import SkillZaty from './tools/SkillZaty';
 import CourseView from './tools/SkillZaty/CourseView';
+import AdminSettings from './pages/AdminSettings';
 import UserManagement from './pages/admin/UserManagement';
 import ScrollToTopButton from './components/ScrollToTopButton';
 import { Menu } from 'lucide-react';
@@ -184,10 +185,15 @@ const AppRoutes = () => {
 
       <Route
         path="/admin/users"
+        element={<Navigate to="/admin-settings" replace />}
+      />
+
+      <Route
+        path="/admin-settings"
         element={
           <ProtectedRoute adminOnly>
             <AppLayout>
-              <UserManagement />
+              <AdminSettings />
             </AppLayout>
           </ProtectedRoute>
         }
