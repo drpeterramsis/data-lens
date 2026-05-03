@@ -42,6 +42,7 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 
 ## Version History
 
+- **v1.0.506:** Resolved Vercel deployment failure by migrating from `react-quill` to `react-quill-new`, ensuring full compatibility with React 19. Fixed peer dependency conflicts in the build pipeline.
 - **v1.0.505:** Resolved critical React Hooks violation in Skill-Zaty portal caused by conditional useMemo calls. Fixed GitHub API 404 error during initial startup by implementing a graceful fallback for the missing `skillzaty.json` data file. Refined data fetching logic to ensure high reliability across project environments.
 - **v1.0.504:** Launched **Skill-Zaty Training Center**, a comprehensive learning management tool with full GitHub synchronization. Features include a multi-category course portal, global cross-meta search, and a diverse range of interactive content blocks: Rich Text (Quill integration), Inline PDF (Viewer), Custom Audio, Video (YouTube/Vimeo), and Collapsible Active Cards. Implemented a robust **Admin Course Builder** with drag-and-drop section management, automated folder-based media uploads (thumbs/pdfs/audio/images), and granular user-specific course access controls. Updated global versioning and refined footer labels.
 - **v1.0.503:** Implemented Smart Auto-Icon Detection for Library links...
@@ -127,4 +128,4 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 - **v1.0.001:** Initial release. Authentication, CSV parsing, Analysis tools, and Admin panel implemented.
 
 ---
-© 2026 Data Lens Analytics | version 1.0.505
+© 2026 Data Lens Analytics | version 1.0.506

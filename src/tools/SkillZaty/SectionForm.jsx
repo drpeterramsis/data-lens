@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, FileText, Music, Image as ImageIcon, Globe, Video, FileStack, Loader2 } from 'lucide-react';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
 import { uploadFileToGitHub } from '../../services/githubService';
 
 const QuillModules = {

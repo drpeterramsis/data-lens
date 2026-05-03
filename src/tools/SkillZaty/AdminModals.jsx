@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Plus, Trash2, Edit, GripVertical, FileText, Music, Image as ImageIcon, Globe, FileStack, Video, Save, Loader2, Search } from 'lucide-react';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
 import { uploadFileToGitHub } from '../../services/githubService';
 
 export const CategoryModal = ({ isOpen, onClose, onSave, initialData, isSaving }) => {
