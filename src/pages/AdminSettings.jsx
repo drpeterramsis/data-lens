@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import AdminSettingsLayout from '../components/adminSettings/AdminSettingsLayout';
 import UserManagementTab from '../components/adminSettings/tabs/UserManagementTab';
 import DashboardSettingsTab from '../components/adminSettings/tabs/DashboardSettingsTab';
+import SidebarMenuTab from '../components/adminSettings/tabs/SidebarMenuTab';
 import SystemSettingsTab from '../components/adminSettings/tabs/SystemSettingsTab';
 
 const AdminSettings = () => {
@@ -13,8 +14,8 @@ const AdminSettings = () => {
         return <UserManagementTab />;
       case 'dashboard':
         return <DashboardSettingsTab />;
-      case 'system':
-        return <SystemSettingsTab />;
+      case 'sidebar':
+        return <SidebarMenuTab />;
       default:
         return <UserManagementTab />;
     }

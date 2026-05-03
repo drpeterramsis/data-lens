@@ -7,6 +7,7 @@ import {
 import { getDashboardConfig, saveDashboardConfig, getLatestSHA } from '../../../services/githubService';
 import CategoryEditor from '../dashboard/CategoryEditor';
 import { useAuth } from '../../../context/AuthContext';
+import { useDashboardConfig } from '../../../context/DashboardConfigContext';
 import {
   DndContext,
   closestCenter,
@@ -29,9 +30,7 @@ import {
 import SortableCategoryItem from '../dashboard/SortableCategoryItem';
 
 const DashboardSettingsTab = () => {
-  const [config, setConfig] = useState(null);
-  const [sha, setSha] = useState('');
-  const [loading, setLoading] = useState(true);
+  const { config, setConfig, loading, sha } = useDashboardConfig();
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [editingCategory, setEditingCategory] = useState(null);
@@ -52,23 +51,6 @@ const DashboardSettingsTab = () => {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
-
-  useEffect(() => {
-    loadConfig();
-  }, []);
-
-  const loadConfig = async () => {
-    try {
-      setLoading(true);
-      const { content, sha: latestSha } = await getDashboardConfig();
-      setConfig(content);
-      setSha(latestSha);
-    } catch (error) {
-      console.error('Error loading config:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleSave = async () => {
     try {

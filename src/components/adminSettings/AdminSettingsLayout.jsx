@@ -1,11 +1,11 @@
 import React from 'react';
-import { Shield, Settings, Layout, Users, ChevronRight } from 'lucide-react';
+import { Shield, Settings, Layout, Users, ChevronRight, Compass, Palette } from 'lucide-react';
 
 const AdminSettingsLayout = ({ children, activeTab, setActiveTab }) => {
   const tabs = [
     { id: 'users', label: 'User Management', icon: <Users size={18} /> },
     { id: 'dashboard', label: 'Dashboard View', icon: <Layout size={18} /> },
-    { id: 'system', label: 'System Settings', icon: <Settings size={18} /> },
+    { id: 'sidebar', label: 'Sidebar Menu', icon: <Compass size={18} /> },
   ];
 
   return (

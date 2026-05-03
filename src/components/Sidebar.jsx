@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
   LogOut,
@@ -8,12 +8,60 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSidebar } from '../context/SidebarContext';
-import { ALL_TOOLS } from '../config/toolsConfig';
+import { useDashboardConfig } from '../context/DashboardConfigContext';
+import { 
+  LayoutDashboard, 
+  Phone, 
+  BarChart2, 
+  TrendingUp, 
+  Map as MapIcon, 
+  Link as LinkIcon, 
+  GraduationCap, 
+  Settings as SettingsIcon,
+  Shield
+} from 'lucide-react';
+
+const DEFAULT_GROUPS = [
+  { id: 'grp_main', label: 'Main', icon: '📊', color: '#3B82F6', order: 1, visible: true, collapsible: false, defaultCollapsed: false },
+  { id: 'grp_analytics', label: 'Analytics', icon: '📈', color: '#10B981', order: 2, visible: true, collapsible: true, defaultCollapsed: false },
+  { id: 'grp_resources', label: 'Resources', icon: '📚', color: '#EC4899', order: 3, visible: true, collapsible: true, defaultCollapsed: false },
+  { id: 'grp_admin', label: 'Administration', icon: '⚙️', color: '#8B5CF6', order: 4, visible: true, collapsible: false, defaultCollapsed: false, adminOnly: true }
+];
+
+const DEFAULT_MENU_ITEMS = [
+  { id: 'menu_dashboard', label: 'Dashboard', icon: 'dashboard', route: '/', order: 1, visible: true, adminOnly: false, groupId: 'grp_main' },
+  { id: 'menu_call_detailing', label: 'Call Detailing', icon: 'phone', route: '/call-detailing', order: 2, visible: true, adminOnly: false, groupId: 'grp_analytics' },
+  { id: 'menu_sales_analyzer', label: 'ATR Sales Analyzer', icon: 'bar_chart', route: '/sales-analyzer', order: 3, visible: true, adminOnly: false, groupId: 'grp_analytics' },
+  { id: 'menu_sales_forecast', label: 'Sales Forecast', icon: 'trending_up', route: '/sales-forecast', order: 4, visible: true, adminOnly: false, groupId: 'grp_analytics' },
+  { id: 'menu_routing', label: 'Routing Analyzer', icon: 'map', route: '/routing-analyzer', order: 5, visible: true, adminOnly: false, groupId: 'grp_analytics' },
+  { id: 'menu_library', label: 'Library', icon: 'link', route: '/library', order: 6, visible: true, adminOnly: false, groupId: 'grp_resources' },
+  { id: 'menu_skillzaty', label: 'Skill-Zaty', icon: 'school', route: '/skill-zaty', order: 7, visible: true, adminOnly: false, groupId: 'grp_resources' },
+  { id: 'menu_admin_settings', label: 'Admin Settings', icon: 'shield', route: '/admin-settings', order: 8, visible: true, adminOnly: true, groupId: 'grp_admin' }
+];
 
 const Sidebar = () => {
   const { user, logout } = useAuth();
   const { isExpanded, isMobileOpen, toggleExpanded, closeMobile } = useSidebar();
+  const { config } = useDashboardConfig();
   const sidebarRef = React.useRef(null);
+  const isAdmin = user?.role === 'admin';
+  const [collapsedGroups, setCollapsedGroups] = useState({});
+
+  // Helper to get Icon
+  const getIcon = (iconName) => {
+    switch (iconName) {
+      case 'dashboard': return <LayoutDashboard size={20} />;
+      case 'phone': return <Phone size={20} />;
+      case 'bar_chart': return <BarChart2 size={20} />;
+      case 'trending_up': return <TrendingUp size={20} />;
+      case 'map': return <MapIcon size={20} />;
+      case 'link': return <LinkIcon size={20} />;
+      case 'school': return <GraduationCap size={20} />;
+      case 'settings': return <SettingsIcon size={20} />;
+      case 'shield': return <Shield size={20} />;
+      default: return '🔍';
+    }
+  };
 
   const closeSidebar = () => {
     if (window.innerWidth < 768) {
@@ -62,16 +110,45 @@ const Sidebar = () => {
     return () => document.removeEventListener('keydown', handleEsc);
   }, [isMobileOpen, isExpanded, closeMobile, toggleExpanded]);
 
+  useEffect(() => {
+    if (config?.sidebarGroups) {
+      const initialCollapsed = {};
+      config.sidebarGroups.forEach(g => {
+        if (g.defaultCollapsed) {
+          initialCollapsed[g.id] = true;
+        }
+      });
+      setCollapsedGroups(prev => ({ ...initialCollapsed, ...prev }));
+    }
+  }, [config]);
+
   const getInitials = (name) => {
     if (!name || typeof name !== 'string') return '??';
     return name.split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase().substring(0, 2);
   };
 
-  const visibleItems = ALL_TOOLS.filter(item => {
-    if (item.adminOnly && user?.role !== 'admin') return false;
-    if (user?.role !== 'admin' && !user?.allowedPages?.includes(item.id)) return false;
-    return true;
-  });
+  const groups = (config?.sidebarGroups || DEFAULT_GROUPS)
+    .filter(g => g.visible)
+    .filter(g => !g.adminOnly || isAdmin)
+    .sort((a, b) => a.order - b.order);
+
+  const menuItems = config?.sidebarMenu || DEFAULT_MENU_ITEMS;
+
+  const getGroupItems = (groupId) =>
+    menuItems
+      .filter(item =>
+        item.groupId === groupId &&
+        item.visible &&
+        (!item.adminOnly || isAdmin)
+      )
+      .sort((a, b) => a.order - b.order);
+
+  const toggleGroup = (groupId) => {
+    setCollapsedGroups(prev => ({
+      ...prev,
+      [groupId]: !prev[groupId]
+    }));
+  };
 
   return (
     <>
@@ -120,33 +197,68 @@ const Sidebar = () => {
         </div>
 
         {/* Navigation Items */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden py-4 px-2 space-y-1 custom-scrollbar">
-          {visibleItems.map((item) => (
-            <NavLink
-              key={item.route}
-              to={item.route}
-              onClick={() => {
-                closeSidebar();
-              }}
-              title={(!isExpanded && !isMobileOpen) ? item.name : undefined}
-              className={({ isActive }) =>
-                `group flex items-center rounded-xl font-bold transition-all whitespace-nowrap overflow-hidden
-                ${isActive 
-                  ? 'bg-yellow-400 text-gray-900 shadow-sm' 
-                  : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                }
-                ${isExpanded || isMobileOpen ? 'px-3 py-2.5 gap-3' : 'justify-center p-2.5'}
-                `
-              }
-            >
-              <div className="w-5 flex items-center justify-center text-lg shrink-0">
-                {typeof item.icon === 'string' ? item.icon : <item.icon size={20} />}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden py-4 space-y-1 custom-scrollbar">
+          {groups.map(group => {
+            const items = getGroupItems(group.id);
+            if (items.length === 0) return null;
+
+            const isCollapsed = collapsedGroups[group.id];
+
+            return (
+              <div key={group.id} className="mb-2">
+                {/* Group Header */}
+                {group.id !== 'grp_main' && (
+                  <div
+                    className={`flex items-center gap-2 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-gray-500 select-none
+                      ${group.collapsible ? 'cursor-pointer hover:text-gray-300 transition-colors' : ''}
+                      ${(!isExpanded && !isMobileOpen) ? 'justify-center mx-2 px-0 bg-gray-800/50 rounded-lg text-[8px] whitespace-nowrap overflow-hidden' : ''}
+                    `}
+                    onClick={() => group.collapsible && toggleGroup(group.id)}
+                  >
+                    <span className="text-xs">{group.icon}</span>
+                    <span className={`transition-opacity duration-300 ${isExpanded || isMobileOpen ? 'opacity-100 flex-1' : 'opacity-0 hidden md:block w-0'}`}>
+                      {group.label}
+                    </span>
+                    {group.collapsible && (isExpanded || isMobileOpen) && (
+                      <span className={`transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`}>
+                        ▾
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Group Items */}
+                {!isCollapsed && (
+                  <div className="flex flex-col gap-1 px-2">
+                    {items.map(item => (
+                      <NavLink
+                        key={item.id}
+                        to={item.route}
+                        onClick={() => closeSidebar()}
+                        title={(!isExpanded && !isMobileOpen) ? item.label : undefined}
+                        className={({ isActive }) =>
+                          `group flex items-center rounded-xl font-bold transition-all whitespace-nowrap overflow-hidden
+                          ${isActive 
+                            ? 'bg-yellow-400 text-gray-900 shadow-sm' 
+                            : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                          }
+                          ${isExpanded || isMobileOpen ? 'px-3 py-2.5 gap-3' : 'justify-center p-2.5'}
+                          `
+                        }
+                      >
+                        <div className="w-5 flex items-center justify-center text-lg shrink-0">
+                          {getIcon(item.icon)}
+                        </div>
+                        <span className={`transition-opacity duration-300 ${isExpanded || isMobileOpen ? 'opacity-100' : 'opacity-0 hidden md:block w-0'}`}>
+                          {item.label}
+                        </span>
+                      </NavLink>
+                    ))}
+                  </div>
+                )}
               </div>
-              <span className={`transition-opacity duration-300 ${isExpanded || isMobileOpen ? 'opacity-100' : 'opacity-0 hidden md:block w-0'}`}>
-                {item.name}
-              </span>
-            </NavLink>
-          ))}
+            );
+          })}
         </div>
 
         {/* Bottom Section - User Info */}

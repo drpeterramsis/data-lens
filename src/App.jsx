@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SidebarProvider, useSidebar } from './context/SidebarContext';
+import { DashboardConfigProvider } from './context/DashboardConfigContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Sidebar from './components/Sidebar';
 import Footer from './components/Footer';
@@ -213,9 +214,11 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <SidebarProvider>
-          <AppRoutes />
-        </SidebarProvider>
+        <DashboardConfigProvider>
+          <SidebarProvider>
+            <AppRoutes />
+          </SidebarProvider>
+        </DashboardConfigProvider>
       </AuthProvider>
     </BrowserRouter>
   );
