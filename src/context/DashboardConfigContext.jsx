@@ -40,7 +40,7 @@ export const DashboardConfigProvider = ({ children }) => {
   };
 
   return (
-    <DashboardConfigContext.Provider value={{ config, setConfig: refreshConfig, sha, loading, reloadConfig: loadConfig }}>
+    <DashboardConfigContext.Provider value={{ config, setConfig: refreshConfig, sha, loading, reloadConfig: loadConfig, setSha }}>
       {children}
     </DashboardConfigContext.Provider>
   );

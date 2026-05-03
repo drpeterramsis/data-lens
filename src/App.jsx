@@ -114,9 +114,13 @@ const AppRoutes = () => {
         }
       />
 
+      {/* Aliases for migrated old routes */}
+      <Route path="/tools/sales-analyzer" element={<Navigate to="/sales-analyzer" replace />} />
+      <Route path="/links-library" element={<Navigate to="/library" replace />} />
+
       {/* Sales Analyzer */}
       <Route
-        path="/tools/sales-analyzer"
+        path="/sales-analyzer"
         element={
           <ProtectedRoute>
             <AppLayout>
@@ -150,9 +154,9 @@ const AppRoutes = () => {
         }
       />
 
-      {/* User Management — Admin only */}
+      {/* Library */}
       <Route
-        path="/links-library"
+        path="/library"
         element={
           <ProtectedRoute>
             <AppLayout>

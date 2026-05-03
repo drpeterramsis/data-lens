@@ -25,6 +25,34 @@
     color-scheme: light;
   }
   
+  /* Base font size — medium */
+  html {
+    font-size: 15px;
+  }
+
+  body {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    background-color: #F8F9FA !important;
+    color: #212529 !important;
+  }
+
+  /* Headings scale */
+  h1 { font-size: 1.6rem;  }
+  h2 { font-size: 1.35rem; }
+  h3 { font-size: 1.15rem; }
+  h4 { font-size: 1rem;    }
+  h5 { font-size: 0.9rem;  }
+
+  /* Body text */
+  p, span, div, td, th, label, input, select, textarea {
+    font-size: 0.9rem;
+  }
+
+  button {
+    font-size: 0.87rem;
+  }
+
   /* All anchor target sections get scroll margin */
   #section-performance,
   #section-forecast,
@@ -41,11 +69,6 @@
     color-scheme: light;
   }
 
-  html, body {
-    background-color: #F8F9FA !important;
-    color: #212529 !important;
-  }
-
   /* Style all inputs, selects for light mode */
   input, select, textarea {
     background-color: #FFFFFF !important;
@@ -57,6 +80,12 @@
     color: #ADB5BD !important;
   }
 }
+
+/* Small labels (Typography Utils) */
+.text-xs  { font-size: 0.75rem !important; }
+.text-sm  { font-size: 0.82rem !important; }
+.text-md  { font-size: 0.9rem !important;  }
+.text-lg  { font-size: 1rem !important;    }
 
 /* Custom Scrollbar for light theme */
 ::-webkit-scrollbar {

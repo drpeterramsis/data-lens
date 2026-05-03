@@ -55,17 +55,17 @@ const getMenuIcon = (iconName) => {
 };
 
 const DEFAULT_GROUPS = [
-  { id: 'grp_main', label: 'Main', icon: '📊', color: '#3B82F6', order: 1, visible: true, collapsible: false, defaultCollapsed: false },
-  { id: 'grp_analytics', label: 'Analytics', icon: '📈', color: '#10B981', order: 2, visible: true, collapsible: true, defaultCollapsed: false },
-  { id: 'grp_resources', label: 'Resources', icon: '📚', color: '#EC4899', order: 3, visible: true, collapsible: true, defaultCollapsed: false },
-  { id: 'grp_admin', label: 'Administration', icon: '⚙️', color: '#8B5CF6', order: 4, visible: true, collapsible: false, defaultCollapsed: false, adminOnly: true }
+  { id: 'grp_main', label: 'Main', color: '#3B82F6', order: 1, visible: true, collapsible: false, defaultCollapsed: false },
+  { id: 'grp_analytics', label: 'Analytics', color: '#10B981', order: 2, visible: true, collapsible: true, defaultCollapsed: false },
+  { id: 'grp_resources', label: 'Resources', color: '#EC4899', order: 3, visible: true, collapsible: true, defaultCollapsed: false },
+  { id: 'grp_admin', label: 'Administration', color: '#8B5CF6', order: 4, visible: true, collapsible: false, defaultCollapsed: false, adminOnly: true }
 ];
 
 const DEFAULT_MENU_ITEMS = [
-  { id: 'menu_dashboard', label: 'Dashboard', icon: 'dashboard', route: '/', order: 1, visible: true, adminOnly: false, groupId: 'grp_main' },
-  { id: 'menu_call_detailing', label: 'Call Detailing', icon: 'phone', route: '/call-detailing', order: 2, visible: true, adminOnly: false, groupId: 'grp_analytics' },
+  { id: 'menu_dashboard', label: 'Dashboard', icon: 'dashboard', route: '/dashboard', order: 1, visible: true, adminOnly: false, groupId: 'grp_main' },
+  { id: 'menu_call_detailing', label: 'Call Detailing', icon: 'phone', route: '/tools/call-detailing', order: 2, visible: true, adminOnly: false, groupId: 'grp_analytics' },
   { id: 'menu_sales_analyzer', label: 'ATR Sales Analyzer', icon: 'bar_chart', route: '/sales-analyzer', order: 3, visible: true, adminOnly: false, groupId: 'grp_analytics' },
-  { id: 'menu_sales_forecast', label: 'Sales Forecast', icon: 'trending_up', route: '/sales-forecast', order: 4, visible: true, adminOnly: false, groupId: 'grp_analytics' },
+  { id: 'menu_sales_forecast', label: 'Sales Forecast', icon: 'trending_up', route: '/tools/sales-forecast', order: 4, visible: true, adminOnly: false, groupId: 'grp_analytics' },
   { id: 'menu_routing', label: 'Routing Analyzer', icon: 'map', route: '/routing-analyzer', order: 5, visible: true, adminOnly: false, groupId: 'grp_analytics' },
   { id: 'menu_library', label: 'Library', icon: 'link', route: '/library', order: 6, visible: true, adminOnly: false, groupId: 'grp_resources' },
   { id: 'menu_skillzaty', label: 'Skill-Zaty', icon: 'school', route: '/skill-zaty', order: 7, visible: true, adminOnly: false, groupId: 'grp_resources' },

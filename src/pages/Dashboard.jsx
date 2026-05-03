@@ -1,10 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { LayoutDashboard, ArrowRight, ShieldAlert } from 'lucide-react';
+import { 
+  LayoutDashboard, 
+  ArrowRight, 
+  ShieldAlert,
+  Phone,
+  BarChart2,
+  TrendingUp,
+  Map as MapIcon,
+  Link as LinkIcon,
+  GraduationCap,
+  Settings as SettingsIcon,
+  Shield
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ALL_TOOLS } from '../config/toolsConfig';
 import { getDashboardConfig } from '../services/githubService';
+import { ModuleIcon } from '../components/dashboard/ModuleIcon';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -59,6 +72,12 @@ const Dashboard = () => {
 
   const { categories, modules, dashboardSettings } = dashboardConfig;
 
+  const getGridClass = (count) => {
+    if (count === 1) return 'grid-cols-1';
+    if (count === 2) return 'grid-cols-1 sm:grid-cols-2';
+    return 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3';
+  };
+
   const renderModuleCard = (module) => {
     // Find color and other details from config
     const toolInfo = ALL_TOOLS.find(t => t.id === module.id) || module;
@@ -68,49 +87,82 @@ const Dashboard = () => {
       <motion.div
         key={module.id}
         whileHover={{ scale: 1.03, y: -2 }}
-        onClick={() => navigate(toolInfo.route || module.route)}
-        className="group relative bg-white rounded-xl p-5 shadow-sm transition-all cursor-pointer overflow-hidden flex flex-col justify-between min-h-[160px] border-[1.5px] hover:shadow-md"
-        style={{ 
-          borderColor: `${color}30`,
-          boxShadow: `0 4px 12px ${color}08`
+        onClick={() => {
+          const route = toolInfo.route || module.route;
+          const externalUrl = toolInfo.externalUrl || module.externalUrl;
+          if (externalUrl) {
+            window.open(externalUrl, '_blank');
+            return;
+          }
+          if (route) {
+            navigate(route);
+            return;
+          }
+          console.warn('No route for module:', module.name);
         }}
-        onMouseOver={(e) => e.currentTarget.style.borderColor = color}
-        onMouseOut={(e) => e.currentTarget.style.borderColor = `${color}30`}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            const route = toolInfo.route || module.route;
+            const externalUrl = toolInfo.externalUrl || module.externalUrl;
+            if (externalUrl) {
+              window.open(externalUrl, '_blank');
+              return;
+            }
+            if (route) {
+              navigate(route);
+            }
+          }
+        }}
+        className="w-full min-w-0 box-border bg-white border-[1.5px] border-slate-200 rounded-[14px] p-[18px_20px] cursor-pointer transition-all duration-200 ease-in-out flex flex-col gap-[14px] relative group hover:border-slate-300 hover:shadow-[0_4px_20px_rgba(0,0,0,0.08)] hover:-translate-y-[2px]"
       >
-        <div>
-          <div 
-            className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 text-2xl shadow-inner"
-            style={{ backgroundColor: `${color}15`, color }}
-          >
-            {module.icon || toolInfo.icon}
-          </div>
-          <h3 className="text-base font-bold text-gray-900 tracking-tight">
+        <div className="flex items-start justify-between gap-2">
+          <ModuleIcon 
+            icon={module.icon || toolInfo.icon}
+            color={color}
+            bgColor={`${color}15`}
+            size={24}
+          />
+          {dashboardSettings.showOpenLink && (
+            <button 
+              className="bg-transparent border-none p-0 cursor-pointer text-[0.78rem] font-bold tracking-[0.04em] uppercase flex items-center gap-1 mt-1 opacity-80 transition-all duration-150 whitespace-nowrap group-hover:opacity-100 group-hover:gap-[6px]"
+              style={{ color: toolInfo.accentColor || color }}
+              onClick={(e) => {
+                e.stopPropagation();
+                const route = toolInfo.route || module.route;
+                const externalUrl = toolInfo.externalUrl || module.externalUrl;
+                if (externalUrl) {
+                  window.open(externalUrl, '_blank');
+                  return;
+                }
+                if (route) {
+                  navigate(route);
+                }
+              }}
+            >
+              OPEN <ArrowRight size={14} />
+            </button>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-[5px]">
+          <h3 className="text-[0.95rem] font-bold text-slate-900 leading-[1.3] m-0">
             {module.name || toolInfo.name}
           </h3>
           {dashboardSettings.showModuleDescriptions && (
-            <p className="text-[11px] leading-relaxed font-medium text-slate-400 mt-1 line-clamp-2">
+            <p className="text-[0.8rem] leading-[1.5] text-slate-400 m-0">
               {module.description || toolInfo.description}
             </p>
           )}
         </div>
-
-        {dashboardSettings.showOpenLink && (
-          <div className="mt-4 flex items-center justify-between">
-            <span 
-              className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1 group-hover:gap-2 transition-all"
-              style={{ color }}
-            >
-               Open <ArrowRight size={12} />
-            </span>
-          </div>
-        )}
       </motion.div>
     );
   };
 
   return (
-    <div className="p-6 md:p-8 space-y-12 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between">
+    <div className="p-6 md:p-8 space-y-12 max-w-7xl mx-auto flex-1 w-full min-w-0 box-border overflow-x-hidden">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <h2 className="text-4xl font-black text-gray-900 tracking-tight flex items-center gap-4">
             <div className="w-12 h-12 bg-accent/10 rounded-2xl flex items-center justify-center">
@@ -142,10 +194,12 @@ const Dashboard = () => {
               if (categoryModules.length === 0) return null;
 
               return (
-                <div key={category.id} className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div key={category.id} className="animate-in fade-in slide-in-from-bottom-4 duration-500 w-full mb-8">
                   <div className="flex items-center gap-3 mb-6 group">
                      <div className="w-1 h-6 rounded-full" style={{ backgroundColor: category.color }} />
-                     <span className="text-lg">{category.icon}</span>
+                     <span className="text-lg" style={{ color: category.color }}>
+                       <ModuleIcon icon={category.icon || 'folder'} color={category.color} bgColor={`${category.color}15`} size={16} />
+                     </span>
                      <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-500 flex items-center gap-3">
                        {category.name}
                        {category.adminOnly && (
@@ -156,24 +210,18 @@ const Dashboard = () => {
                      </h3>
                   </div>
                   <div 
-                    className="grid gap-6"
-                    style={{ 
-                      gridTemplateColumns: `repeat(${dashboardSettings.gridColumns || 4}, minmax(0, 1fr))` 
-                    }}
+                    className={`grid gap-4 w-full ${getGridClass(categoryModules.length)}`}
                   >
                     {categoryModules.sort((a,b) => a.order - b.order).map(mod => renderModuleCard(mod))}
                   </div>
-                  {dashboardSettings.categorySeparator && <div className="mt-12 h-px bg-gray-100" />}
+                  {dashboardSettings.categorySeparator && <div className="mt-12 h-px bg-gray-100 w-full" />}
                 </div>
               );
             })}
         </div>
       ) : (
         <div 
-          className="grid gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500"
-          style={{ 
-            gridTemplateColumns: `repeat(${dashboardSettings.gridColumns || 4}, minmax(0, 1fr))` 
-          }}
+          className={`grid gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full ${getGridClass(modules.filter(m => m.visible && (!m.adminOnly || isAdmin) && (isAdmin || user?.allowedPages?.includes(m.id))).length)}`}
         >
           {modules
             .filter(m => m.visible && (!m.adminOnly || isAdmin) && (isAdmin || user?.allowedPages?.includes(m.id)))

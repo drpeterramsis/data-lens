@@ -4,12 +4,8 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  X
-} from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
-import { useSidebar } from '../context/SidebarContext';
-import { useDashboardConfig } from '../context/DashboardConfigContext';
-import { 
+  X,
+  Search,
   LayoutDashboard, 
   Phone, 
   BarChart2, 
@@ -18,21 +14,27 @@ import {
   Link as LinkIcon, 
   GraduationCap, 
   Settings as SettingsIcon,
-  Shield
+  Shield,
+  FolderOpen
 } from 'lucide-react';
 
+import { SidebarIcon } from './sidebar/SidebarIcon';
+import { useAuth } from '../context/AuthContext';
+import { useSidebar } from '../context/SidebarContext';
+import { useDashboardConfig } from '../context/DashboardConfigContext';
+
 const DEFAULT_GROUPS = [
-  { id: 'grp_main', label: 'Main', icon: '📊', color: '#3B82F6', order: 1, visible: true, collapsible: false, defaultCollapsed: false },
-  { id: 'grp_analytics', label: 'Analytics', icon: '📈', color: '#10B981', order: 2, visible: true, collapsible: true, defaultCollapsed: false },
-  { id: 'grp_resources', label: 'Resources', icon: '📚', color: '#EC4899', order: 3, visible: true, collapsible: true, defaultCollapsed: false },
-  { id: 'grp_admin', label: 'Administration', icon: '⚙️', color: '#8B5CF6', order: 4, visible: true, collapsible: false, defaultCollapsed: false, adminOnly: true }
+  { id: 'grp_main', label: 'Main', icon: 'dashboard', order: 1, visible: true, collapsible: false, defaultCollapsed: false },
+  { id: 'grp_analytics', label: 'Analytics', icon: 'bar_chart', order: 2, visible: true, collapsible: true, defaultCollapsed: true },
+  { id: 'grp_resources', label: 'Resources', icon: 'folder', order: 3, visible: true, collapsible: true, defaultCollapsed: true },
+  { id: 'grp_admin', label: 'Administration', icon: 'settings', order: 4, visible: true, collapsible: false, defaultCollapsed: false, adminOnly: true }
 ];
 
 const DEFAULT_MENU_ITEMS = [
-  { id: 'menu_dashboard', label: 'Dashboard', icon: 'dashboard', route: '/', order: 1, visible: true, adminOnly: false, groupId: 'grp_main' },
-  { id: 'menu_call_detailing', label: 'Call Detailing', icon: 'phone', route: '/call-detailing', order: 2, visible: true, adminOnly: false, groupId: 'grp_analytics' },
+  { id: 'menu_dashboard', label: 'Dashboard', icon: 'dashboard', route: '/dashboard', order: 1, visible: true, adminOnly: false, groupId: 'grp_main' },
+  { id: 'menu_call_detailing', label: 'Call Detailing', icon: 'phone', route: '/tools/call-detailing', order: 2, visible: true, adminOnly: false, groupId: 'grp_analytics' },
   { id: 'menu_sales_analyzer', label: 'ATR Sales Analyzer', icon: 'bar_chart', route: '/sales-analyzer', order: 3, visible: true, adminOnly: false, groupId: 'grp_analytics' },
-  { id: 'menu_sales_forecast', label: 'Sales Forecast', icon: 'trending_up', route: '/sales-forecast', order: 4, visible: true, adminOnly: false, groupId: 'grp_analytics' },
+  { id: 'menu_sales_forecast', label: 'Sales Forecast', icon: 'trending_up', route: '/tools/sales-forecast', order: 4, visible: true, adminOnly: false, groupId: 'grp_analytics' },
   { id: 'menu_routing', label: 'Routing Analyzer', icon: 'map', route: '/routing-analyzer', order: 5, visible: true, adminOnly: false, groupId: 'grp_analytics' },
   { id: 'menu_library', label: 'Library', icon: 'link', route: '/library', order: 6, visible: true, adminOnly: false, groupId: 'grp_resources' },
   { id: 'menu_skillzaty', label: 'Skill-Zaty', icon: 'school', route: '/skill-zaty', order: 7, visible: true, adminOnly: false, groupId: 'grp_resources' },
@@ -45,23 +47,18 @@ const Sidebar = () => {
   const { config } = useDashboardConfig();
   const sidebarRef = React.useRef(null);
   const isAdmin = user?.role === 'admin';
-  const [collapsedGroups, setCollapsedGroups] = useState({});
+  const [collapsedGroups, setCollapsedGroups] = useState(() => {
+    const initial = {};
+    // Only use default groups as standard config might not be loaded yet synchronously here
+    DEFAULT_GROUPS.forEach(g => {
+      if (g.id !== 'grp_main' && g.collapsible !== false) {
+        initial[g.id] = true;
+      }
+    });
+    return initial;
+  });
 
-  // Helper to get Icon
-  const getIcon = (iconName) => {
-    switch (iconName) {
-      case 'dashboard': return <LayoutDashboard size={20} />;
-      case 'phone': return <Phone size={20} />;
-      case 'bar_chart': return <BarChart2 size={20} />;
-      case 'trending_up': return <TrendingUp size={20} />;
-      case 'map': return <MapIcon size={20} />;
-      case 'link': return <LinkIcon size={20} />;
-      case 'school': return <GraduationCap size={20} />;
-      case 'settings': return <SettingsIcon size={20} />;
-      case 'shield': return <Shield size={20} />;
-      default: return '🔍';
-    }
-  };
+  // Removed getIcon handler
 
   const closeSidebar = () => {
     if (window.innerWidth < 768) {
@@ -114,11 +111,18 @@ const Sidebar = () => {
     if (config?.sidebarGroups) {
       const initialCollapsed = {};
       config.sidebarGroups.forEach(g => {
-        if (g.defaultCollapsed) {
+        if (g.collapsible !== false && g.id !== 'grp_main') {
           initialCollapsed[g.id] = true;
         }
       });
-      setCollapsedGroups(prev => ({ ...initialCollapsed, ...prev }));
+      setCollapsedGroups(prev => {
+        // Only set the ones that haven't been manually toggled during this session, 
+        // actually just trust the currently loaded config on first pass
+        if (Object.keys(prev).length <= DEFAULT_GROUPS.length) {
+          return { ...initialCollapsed, ...prev };
+        }
+        return prev;
+      });
     }
   }, [config]);
 
@@ -132,7 +136,15 @@ const Sidebar = () => {
     .filter(g => !g.adminOnly || isAdmin)
     .sort((a, b) => a.order - b.order);
 
-  const menuItems = config?.sidebarMenu || DEFAULT_MENU_ITEMS;
+  const menuItems = (config?.sidebarMenu || DEFAULT_MENU_ITEMS).map(item => {
+    let route = item.route;
+    if (route === '/tools/sales-analyzer') route = '/sales-analyzer';
+    if (route === '/links-library') route = '/library';
+    // Clean up dashboard old route if present
+    if (route === '/') route = '/dashboard';
+    
+    return { ...item, route };
+  });
 
   const getGroupItems = (groupId) =>
     menuItems
@@ -177,7 +189,7 @@ const Sidebar = () => {
           title="Toggle Menu"
         >
           <div className="flex items-center gap-2 overflow-hidden h-full py-2">
-            <span className="text-xl shrink-0">🔍</span>
+            <span className="text-xl shrink-0"><Search size={22} className="text-white" /></span>
             <div className={`flex flex-col whitespace-nowrap transition-opacity duration-300 ${isExpanded || isMobileOpen ? 'opacity-100' : 'opacity-0 hidden md:block'}`}>
               <div className="font-bold text-base text-white leading-tight">Data Lens</div>
               <div className="text-[10px] text-yellow-400 leading-tight">Pharma Analytics Portal</div>
@@ -209,20 +221,36 @@ const Sidebar = () => {
                 {/* Group Header */}
                 {group.id !== 'grp_main' && (
                   <div
-                    className={`flex items-center gap-2 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-gray-500 select-none
-                      ${group.collapsible ? 'cursor-pointer hover:text-gray-300 transition-colors' : ''}
-                      ${(!isExpanded && !isMobileOpen) ? 'justify-center mx-2 px-0 bg-gray-800/50 rounded-lg text-[8px] whitespace-nowrap overflow-hidden' : ''}
+                    className={`flex items-center justify-between px-4 select-none
+                      ${group.collapsible ? 'cursor-pointer hover:bg-white/5 transition-colors' : ''}
+                      ${(!isExpanded && !isMobileOpen) ? 'py-3' : 'py-2'}
                     `}
                     onClick={() => group.collapsible && toggleGroup(group.id)}
                   >
-                    <span className="text-xs">{group.icon}</span>
-                    <span className={`transition-opacity duration-300 ${isExpanded || isMobileOpen ? 'opacity-100 flex-1' : 'opacity-0 hidden md:block w-0'}`}>
-                      {group.label}
-                    </span>
-                    {group.collapsible && (isExpanded || isMobileOpen) && (
-                      <span className={`transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`}>
-                        ▾
-                      </span>
+                    {(!isExpanded && !isMobileOpen) ? (
+                      <div 
+                        className="w-full flex justify-center text-slate-500 hover:text-slate-300 transition-colors"
+                        title={group.label}
+                      >
+                        <SidebarIcon name={group.icon || 'folder'} size={18} />
+                      </div>
+                    ) : (
+                      <>
+                        <span 
+                          className="text-[0.65rem] font-bold uppercase tracking-[0.1em]"
+                          style={{ color: '#FFC300' }}
+                        >
+                          {group.label.toUpperCase()}
+                        </span>
+                        {group.collapsible && (
+                          <span 
+                            className={`transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`}
+                            style={{ color: '#FFC300', fontSize: '0.6rem' }}
+                          >
+                            ▾
+                          </span>
+                        )}
+                      </>
                     )}
                   </div>
                 )}
@@ -237,21 +265,30 @@ const Sidebar = () => {
                         onClick={() => closeSidebar()}
                         title={(!isExpanded && !isMobileOpen) ? item.label : undefined}
                         className={({ isActive }) =>
-                          `group flex items-center rounded-xl font-bold transition-all whitespace-nowrap overflow-hidden
+                          `group flex items-center rounded-xl font-bold transition-all whitespace-nowrap overflow-hidden relative
                           ${isActive 
-                            ? 'bg-yellow-400 text-gray-900 shadow-sm' 
-                            : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                            ? 'bg-transparent text-[#FFC300]' 
+                            : 'text-white/85 hover:text-white hover:bg-white/5'
                           }
                           ${isExpanded || isMobileOpen ? 'px-3 py-2.5 gap-3' : 'justify-center p-2.5'}
                           `
                         }
                       >
-                        <div className="w-5 flex items-center justify-center text-lg shrink-0">
-                          {getIcon(item.icon)}
-                        </div>
-                        <span className={`transition-opacity duration-300 ${isExpanded || isMobileOpen ? 'opacity-100' : 'opacity-0 hidden md:block w-0'}`}>
-                          {item.label}
-                        </span>
+                        {({ isActive }) => (
+                          <>
+                            <div className="w-5 flex items-center justify-center text-lg shrink-0">
+                              <SidebarIcon name={item.icon} size={18} strokeWidth={1.8} />
+                            </div>
+                            <span className={`text-[0.82rem] transition-opacity duration-300 ${isExpanded || isMobileOpen ? 'opacity-100' : 'opacity-0 hidden md:block w-0'}`}>
+                              {item.label}
+                            </span>
+                            
+                            {/* Active dot */}
+                            {(isExpanded || isMobileOpen) && isActive && (
+                               <div className="absolute right-3 w-1.5 h-1.5 rounded-full bg-[#FFC300]" />
+                            )}
+                          </>
+                        )}
                       </NavLink>
                     ))}
                   </div>

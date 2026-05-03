@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { getDashboardConfig, saveDashboardConfig, getLatestSHA } from '../../../services/githubService';
 import CategoryEditor from '../dashboard/CategoryEditor';
+import ModuleEditor from '../dashboard/ModuleEditor';
 import { useAuth } from '../../../context/AuthContext';
 import { useDashboardConfig } from '../../../context/DashboardConfigContext';
 import {
@@ -30,11 +31,13 @@ import {
 import SortableCategoryItem from '../dashboard/SortableCategoryItem';
 
 const DashboardSettingsTab = () => {
-  const { config, setConfig, loading, sha } = useDashboardConfig();
+  const { config, setConfig, loading, sha, setSha } = useDashboardConfig();
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [editingCategory, setEditingCategory] = useState(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [editingModule, setEditingModule] = useState(null);
+  const [isModuleModalOpen, setIsModuleModalOpen] = useState(false);
   const { user: currentUser } = useAuth();
   
   // Dnd State
@@ -148,6 +151,28 @@ const DashboardSettingsTab = () => {
     setConfig(updatedConfig);
     setIsCategoryModalOpen(false);
     setEditingCategory(null);
+    setIsOrderDirty(true);
+  };
+
+  const handleEditModule = (mod) => {
+    setEditingModule(mod);
+    setIsModuleModalOpen(true);
+  };
+
+  const handleSaveModule = (moduleData) => {
+    const updatedModules = config.modules.map(m => 
+      m.id === moduleData.id ? { ...m, ...moduleData } : m
+    );
+
+    setConfig(prev => ({
+      ...prev,
+      modules: updatedModules,
+      lastUpdated: new Date().toISOString(),
+      updatedBy: currentUser?.fullName || 'Admin'
+    }));
+    
+    setIsModuleModalOpen(false);
+    setEditingModule(null);
     setIsOrderDirty(true);
   };
 
@@ -367,12 +392,20 @@ const DashboardSettingsTab = () => {
                       )}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button 
-                        onClick={() => toggleModuleVisibility(mod.id)}
-                        className={`p-1.5 rounded-lg transition-colors ${mod.visible ? 'text-emerald-500 hover:bg-emerald-50' : 'text-slate-300 hover:bg-slate-50'}`}
-                      >
-                        {mod.visible ? <Eye size={16} /> : <EyeOff size={16} />}
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button 
+                          onClick={() => handleEditModule(mod)}
+                          className="p-1.5 rounded-lg transition-colors text-slate-400 hover:text-amber-500 hover:bg-amber-50"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        <button 
+                          onClick={() => toggleModuleVisibility(mod.id)}
+                          className={`p-1.5 rounded-lg transition-colors ${mod.visible ? 'text-emerald-500 hover:bg-emerald-50' : 'text-slate-300 hover:bg-slate-50'}`}
+                        >
+                          {mod.visible ? <Eye size={16} /> : <EyeOff size={16} />}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                  );
@@ -383,7 +416,7 @@ const DashboardSettingsTab = () => {
       </section>
 
       {/* Floating Save Footer */}
-      <div className="sticky bottom-0 bg-white/80 backdrop-blur-md border-t border-slate-100 p-4 -mx-8 -mb-8 flex items-center justify-between">
+      <div className="sticky bottom-0 bg-white/80 backdrop-blur-md border-t border-slate-100 p-4 -mx-8 -mb-8 flex items-center justify-between z-10">
         <div className="flex items-center gap-2">
           {message && (
             <div className="flex items-center gap-1.5 text-emerald-600 text-sm font-bold animate-in fade-in slide-in-from-bottom-2">
@@ -411,6 +444,16 @@ const DashboardSettingsTab = () => {
         onSave={handleSaveCategory}
         category={editingCategory}
         existingModules={config.modules || []}
+      />
+
+      <ModuleEditor 
+        isOpen={isModuleModalOpen}
+        onClose={() => {
+          setIsModuleModalOpen(false);
+          setEditingModule(null);
+        }}
+        onSave={handleSaveModule}
+        moduleItem={editingModule}
       />
     </div>
   );
