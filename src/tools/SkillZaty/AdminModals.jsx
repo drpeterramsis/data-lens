@@ -94,7 +94,7 @@ export const CategoryModal = ({ isOpen, onClose, onSave, initialData, isSaving }
   );
 };
 
-export const CourseModal = ({ isOpen, onClose, onSave, initialData, categories, users, isSaving }) => {
+export const CourseModal = ({ isOpen, onClose, onSave, onSaveCategory, initialData, categories, users, isSaving }) => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -105,6 +105,13 @@ export const CourseModal = ({ isOpen, onClose, onSave, initialData, categories, 
   });
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
+
+  // Inline Category Creator state
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryIcon, setNewCategoryIcon] = useState('📁');
+  const [newCategoryColor, setNewCategoryColor] = useState('#3B82F6');
+  const [savingCategory, setSavingCategory] = useState(false);
 
   useEffect(() => {
     if (initialData) {
@@ -122,6 +129,9 @@ export const CourseModal = ({ isOpen, onClose, onSave, initialData, categories, 
         thumbnail: ''
       });
     }
+    // Deep reset inline form
+    setIsCreatingCategory(false);
+    setNewCategoryName('');
   }, [initialData, isOpen, categories]);
 
   const handleThumbnailUpload = async (e) => {
@@ -144,6 +154,34 @@ export const CourseModal = ({ isOpen, onClose, onSave, initialData, categories, 
       alert("Upload failed");
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleCreateCategoryInline = async () => {
+    if (!newCategoryName.trim() || !onSaveCategory) return;
+    
+    setSavingCategory(true);
+    try {
+      const newCatData = {
+        name: newCategoryName.trim(),
+        icon: newCategoryIcon || '📁',
+        color: newCategoryColor || '#3B82F6'
+      };
+      
+      const savedCat = await onSaveCategory(newCatData);
+      
+      if (savedCat) {
+        setFormData(prev => ({ ...prev, categoryId: savedCat.id }));
+      }
+      
+      // Reset inline form
+      setIsCreatingCategory(false);
+      setNewCategoryName('');
+      
+    } catch (err) {
+      alert('Failed to create category: ' + err.message);
+    } finally {
+      setSavingCategory(false);
     }
   };
 
@@ -184,17 +222,83 @@ export const CourseModal = ({ isOpen, onClose, onSave, initialData, categories, 
                 />
               </div>
 
-              <div>
+              <div className="space-y-2">
                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Category *</label>
-                <select
-                  value={formData.categoryId}
-                  onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
-                  className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                >
-                  {categories.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
-                  ))}
-                </select>
+                
+                {!isCreatingCategory ? (
+                  <select
+                    value={formData.categoryId}
+                    onChange={(e) => {
+                      if (e.target.value === '__create_new__') {
+                        setIsCreatingCategory(true);
+                      } else {
+                        setFormData({ ...formData, categoryId: e.target.value });
+                      }
+                    }}
+                    className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  >
+                    <option value="">Select category...</option>
+                    {categories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
+                    ))}
+                    <option disabled>────────────────</option>
+                    <option value="__create_new__" className="text-blue-600 font-bold">✚ Create New Category</option>
+                  </select>
+                ) : (
+                  <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-xl p-4 space-y-3 animate-in slide-in-from-top-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">New Category</span>
+                      <button 
+                        type="button"
+                        onClick={() => setIsCreatingCategory(false)}
+                        className="text-slate-400 hover:text-red-500 transition-colors"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                    
+                    <input 
+                      type="text"
+                      placeholder="Category name..."
+                      value={newCategoryName}
+                      onChange={e => setNewCategoryName(e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                      autoFocus
+                    />
+                    
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <span className="text-[9px] font-bold text-slate-400 block mb-1 uppercase">Icon</span>
+                        <input 
+                          type="text"
+                          value={newCategoryIcon}
+                          onChange={e => setNewCategoryIcon(e.target.value)}
+                          maxLength={2}
+                          className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-center"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <span className="text-[9px] font-bold text-slate-400 block mb-1 uppercase">Color</span>
+                        <input 
+                          type="color"
+                          value={newCategoryColor}
+                          onChange={e => setNewCategoryColor(e.target.value)}
+                          className="w-full h-9 p-1 bg-white border border-slate-200 rounded-lg cursor-pointer"
+                        />
+                      </div>
+                    </div>
+
+                    <button 
+                      type="button"
+                      disabled={!newCategoryName.trim() || savingCategory}
+                      onClick={handleCreateCategoryInline}
+                      className="w-full py-2 bg-slate-900 text-white text-xs font-bold rounded-lg hover:bg-black disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                    >
+                      {savingCategory ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                      Create & Select Category
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 

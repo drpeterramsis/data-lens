@@ -22,7 +22,7 @@ import ReportsTab from '../reports/ReportsTab';
 import { FilterButton } from '../../components/ui/FilterButton';
 
 const APP_VERSION = {
-  version: '1.0.512',
+  version: '1.0.513',
   releaseDate: 'May 2026',
   label: 'Admin Settings & Dashboard Categories'
 };

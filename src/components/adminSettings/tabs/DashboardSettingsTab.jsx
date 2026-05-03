@@ -5,6 +5,8 @@ import {
   CheckCircle2, AlertCircle
 } from 'lucide-react';
 import { getDashboardConfig, saveDashboardConfig, getLatestSHA } from '../../../services/githubService';
+import CategoryEditor from '../dashboard/CategoryEditor';
+import { useAuth } from '../../../context/AuthContext';
 
 const DashboardSettingsTab = () => {
   const [config, setConfig] = useState(null);
@@ -13,6 +15,8 @@ const DashboardSettingsTab = () => {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [editingCategory, setEditingCategory] = useState(null);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const { user: currentUser } = useAuth();
 
   useEffect(() => {
     loadConfig();
@@ -83,6 +87,51 @@ const DashboardSettingsTab = () => {
     }));
   };
 
+  const handleAddCategory = () => {
+    setEditingCategory(null);
+    setIsCategoryModalOpen(true);
+  };
+
+  const handleEditCategory = (category) => {
+    setEditingCategory(category);
+    setIsCategoryModalOpen(true);
+  };
+
+  const handleSaveCategory = async (categoryData) => {
+    let updatedCategories;
+
+    if (editingCategory) {
+      // UPDATE existing
+      updatedCategories = config.categories.map(cat =>
+        cat.id === editingCategory.id
+          ? { ...cat, ...categoryData }
+          : cat
+      );
+    } else {
+      // ADD new
+      const newCategory = {
+        id: 'cat_' + Date.now(),
+        order: config.categories.length + 1,
+        visible: true,
+        modules: [],
+        ...categoryData
+      };
+      updatedCategories = [...config.categories, newCategory];
+    }
+
+    const updatedConfig = {
+      ...config,
+      categories: updatedCategories,
+      lastUpdated: new Date().toISOString(),
+      updatedBy: currentUser?.fullName || 'Admin'
+    };
+
+    // Update local state first for immediate UI response
+    setConfig(updatedConfig);
+    setIsCategoryModalOpen(false);
+    setEditingCategory(null);
+  };
+
   if (loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div></div>;
   if (!config) return <div className="p-4 bg-red-50 text-red-600 rounded-lg">Error loading configuration.</div>;
 
@@ -142,7 +191,10 @@ const DashboardSettingsTab = () => {
             <Layout size={18} className="text-purple-500" />
             <h3 className="text-xs font-black uppercase text-slate-400 tracking-[0.2em]">Category Manager</h3>
           </div>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-bold transition-colors">
+          <button 
+            onClick={handleAddCategory}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-bold transition-colors"
+          >
             <Plus size={14} />
             Add Category
           </button>
@@ -172,7 +224,10 @@ const DashboardSettingsTab = () => {
                 >
                   {cat.visible ? <Eye size={18} /> : <EyeOff size={18} />}
                 </button>
-                <button className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg">
+                <button 
+                  onClick={() => handleEditCategory(cat)}
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+                >
                   <Edit2 size={18} />
                 </button>
               </div>
@@ -258,6 +313,17 @@ const DashboardSettingsTab = () => {
           {saving ? 'Saving...' : 'Save Configuration'}
         </button>
       </div>
+
+      <CategoryEditor 
+        isOpen={isCategoryModalOpen}
+        onClose={() => {
+          setIsCategoryModalOpen(false);
+          setEditingCategory(null);
+        }}
+        onSave={handleSaveCategory}
+        category={editingCategory}
+        existingModules={config.modules || []}
+      />
     </div>
   );
 };

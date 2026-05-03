@@ -136,12 +136,17 @@ const SkillZaty = () => {
       setIsSaving(true);
       const currentData = { ...data };
       const freshSha = await getLatestSHA('src/data/skillzaty.json');
+      let savedCat = null;
       
       if (catModal.data) {
         // Update
-        currentData.categories = currentData.categories.map(c => 
-          c.id === catModal.data.id ? { ...c, ...catData } : c
-        );
+        currentData.categories = currentData.categories.map(c => {
+          if (c.id === catModal.data.id) {
+            savedCat = { ...c, ...catData };
+            return savedCat;
+          }
+          return c;
+        });
       } else {
         // Add
         const newCat = {
@@ -152,13 +157,16 @@ const SkillZaty = () => {
           courses: []
         };
         currentData.categories.push(newCat);
+        savedCat = newCat;
       }
       
       await saveSkillZaty(currentData, freshSha, `Update categories: ${catData.name}`);
       setData(currentData);
       setCatModal({ open: false, data: null });
+      return savedCat;
     } catch (error) {
       alert("Error saving category. Please check GitHub config.");
+      throw error;
     } finally {
       setIsSaving(false);
     }
@@ -495,6 +503,7 @@ const SkillZaty = () => {
         onClose={() => setCourseModal({ open: false, data: null })}
         initialData={courseModal.data}
         onSave={handleSaveCourse}
+        onSaveCategory={handleSaveCategory}
         categories={data.categories}
         users={memoizedUsers}
         isSaving={isSaving}
