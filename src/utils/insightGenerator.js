@@ -1,5 +1,6 @@
 import { safeStr } from "./safeCSV";
 import { safeParseDate } from "./dateHelpers";
+import { formatKpi, formatKpiPercent } from "./formatNumber";
 
 export const generateInsights = (rows, targets) => {
   const insights = [];
@@ -39,42 +40,42 @@ export const generateInsights = (rows, targets) => {
   const mrArray = Object.values(mrDataMap).sort((a,b) => b.total - a.total);
   const dateArray = Object.values(dateDataMap).sort((a,b) => b.count - a.count);
 
-  const avgTeamCalls = mrArray.length > 0 ? (total / mrArray.length).toFixed(0) : 0;
+  const avgTeamCalls = mrArray.length > 0 ? (total / mrArray.length) : 0;
 
   // 1. TOP PERFORMER
   if (mrArray.length > 0) {
     const top = mrArray[0];
-    const aboveAvg = (((top.total - avgTeamCalls)/avgTeamCalls)*100).toFixed(0);
-    insights.push({ id: 1, color: "border-l-green-500", icon: "🏆", title: "TOP PERFORMER", text: `${top.name} leads with ${top.total} calls — ${aboveAvg}% above team average of ${avgTeamCalls}`, metric: `${top.total}` });
+    const aboveAvg = avgTeamCalls > 0 ? (((top.total - avgTeamCalls)/avgTeamCalls)*100) : 0;
+    insights.push({ id: 1, color: "border-l-green-500", icon: "🏆", title: "TOP PERFORMER", text: `${top.name} leads with ${formatKpi(top.total)} calls — ${formatKpiPercent(aboveAvg)} above team average of ${formatKpi(avgTeamCalls)}`, metric: `${formatKpi(top.total)}` });
   }
 
   // 2. NEEDS ATTENTION
   if (mrArray.length > 1) {
     const low = mrArray[mrArray.length - 1];
-    insights.push({ id: 2, color: "border-l-red-500", icon: "⚠️", title: "NEEDS ATTENTION", text: `${low.name} recorded only ${low.total} calls — lowest in team. Requires follow-up.`, metric: `${low.total}` });
+    insights.push({ id: 2, color: "border-l-red-500", icon: "⚠️", title: "NEEDS ATTENTION", text: `${low.name} recorded only ${formatKpi(low.total)} calls — lowest in team. Requires follow-up.`, metric: `${formatKpi(low.total)}` });
   }
 
   // 3. BUSIEST DAY
   if (dateArray.length > 0) {
     const busiest = dateArray[0];
-    insights.push({ id: 3, color: "border-l-blue-500", icon: "📅", title: "BUSIEST DAY", text: `${busiest.date} was peak activity with ${busiest.count} interactions from ${busiest.mrs.size} MRs`, metric: `${busiest.count}` });
+    insights.push({ id: 3, color: "border-l-blue-500", icon: "📅", title: "BUSIEST DAY", text: `${busiest.date} was peak activity with ${formatKpi(busiest.count)} interactions from ${busiest.mrs.size} MRs`, metric: `${formatKpi(busiest.count)}` });
   }
 
   // 4. COACHING ALERT
   const zeroCoachCount = mrArray.filter(m => m.coached === 0).length;
   const coachedRows = rows.filter(r => safeStr(r.IsMRCoachingSubmitted) === 'True').length;
-  const teamCoachPct = ((coachedRows/total)*100).toFixed(1);
-  insights.push({ id: 4, color: "border-l-purple-500", icon: "🎓", title: "COACHING ALERT", text: `${zeroCoachCount} MRs have ZERO coaching sessions. Team coaching rate: ${teamCoachPct}%`, metric: `${teamCoachPct}%` });
+  const teamCoachPct = total > 0 ? ((coachedRows/total)*100) : 0;
+  insights.push({ id: 4, color: "border-l-purple-500", icon: "🎓", title: "COACHING ALERT", text: `${zeroCoachCount} MRs have ZERO coaching sessions. Team coaching rate: ${formatKpiPercent(teamCoachPct)}`, metric: `${formatKpiPercent(teamCoachPct)}` });
 
   // 5. CUSTOMER MIX
   const hcpCount = rows.filter(r => safeStr(r.InteractionType) === 'HCP').length;
   const hcoCount = rows.filter(r => safeStr(r.InteractionType) === 'HCO').length;
   const phCount = rows.filter(r => safeStr(r.InteractionType) === 'Pharmacy').length;
-  insights.push({ id: 5, color: "border-l-teal-500", icon: "👥", title: "CUSTOMER MIX", text: `HCP: ${((hcpCount/total)*100).toFixed(1)}% · HCO: ${((hcoCount/total)*100).toFixed(1)}% · PH: ${((phCount/total)*100).toFixed(1)}% of ${total} total interactions`, metric: `${hcpCount} HCP` });
+  insights.push({ id: 5, color: "border-l-teal-500", icon: "👥", title: "CUSTOMER MIX", text: `HCP: ${formatKpiPercent((hcpCount/total)*100)} · HCO: ${formatKpiPercent((hcoCount/total)*100)} · PH: ${formatKpiPercent((phCount/total)*100)} of ${formatKpi(total)} total interactions`, metric: `${formatKpi(hcpCount)} HCP` });
 
   // 6. HIGH VALUE COVERAGE
   const highValue = rows.filter(r => ['A+', 'A'].includes(safeStr(r.CustomerGrade))).length;
-  insights.push({ id: 6, color: "border-l-yellow-500", icon: "⭐", title: "HIGH VALUE COVERAGE", text: `Grade A+ and A customers = ${((highValue/total)*100).toFixed(1)}% of all visits (${highValue} interactions)`, metric: `${((highValue/total)*100).toFixed(1)}%` });
+  insights.push({ id: 6, color: "border-l-yellow-500", icon: "⭐", title: "HIGH VALUE COVERAGE", text: `Grade A+ and A customers = ${formatKpiPercent((highValue/total)*100)} of all visits (${formatKpi(highValue)} interactions)`, metric: `${formatKpiPercent((highValue/total)*100)}` });
 
   // 7. FIELD COVERAGE
   if (dateArray.length > 0) {
@@ -87,14 +88,14 @@ export const generateInsights = (rows, targets) => {
     }
     
     const activeDays = dateArray.length;
-    const callsPerActive = (total / activeDays).toFixed(1);
-    insights.push({ id: 7, color: "border-l-blue-500", icon: "📆", title: "FIELD COVERAGE", text: `Team active ${activeDays} of ${calendarDays || 1} calendar days. Average ${callsPerActive} calls per active day.`, metric: `${activeDays}/${calendarDays}` });
+    const callsPerActive = (total / activeDays);
+    insights.push({ id: 7, color: "border-l-blue-500", icon: "📆", title: "FIELD COVERAGE", text: `Team active ${activeDays} of ${calendarDays || 1} calendar days. Average ${formatKpi(callsPerActive)} calls per active day.`, metric: `${activeDays}/${calendarDays}` });
   }
 
   // 8. UNIQUE CUSTOMERS
   const uq = uniqueCust.size;
-  const avgV = uq > 0 ? (total / uq).toFixed(1) : 0;
-  insights.push({ id: 8, color: "border-l-green-500", icon: "🏥", title: "UNIQUE CUSTOMERS", text: `${uq} unique customers visited. Average ${avgV} visits per customer.`, metric: `${uq}` });
+  const avgV = uq > 0 ? (total / uq) : 0;
+  insights.push({ id: 8, color: "border-l-green-500", icon: "🏥", title: "UNIQUE CUSTOMERS", text: `${uq} unique customers visited. Average ${formatKpi(avgV)} visits per customer.`, metric: `${uq}` });
 
   // 9. BELOW TARGET ALERT
   if (targets && targets.hcpPerDay > 0) {
@@ -113,8 +114,8 @@ export const generateInsights = (rows, targets) => {
   
   if (mrWithRates.length > 0) {
     const best = mrWithRates[0];
-    const teamAvg = (mrWithRates.reduce((s, m) => s + m.rate, 0) / mrWithRates.length).toFixed(1);
-    insights.push({ id: 10, color: "border-l-indigo-500", icon: "📊", title: "CALL RATE INSIGHT", text: `Best HCP rate: ${best.name} at ${best.rate.toFixed(1)}/day. Team average: ${teamAvg} calls/day.`, metric: `${best.rate.toFixed(1)}` });
+    const teamAvg = (mrWithRates.reduce((s, m) => s + m.rate, 0) / mrWithRates.length);
+    insights.push({ id: 10, color: "border-l-indigo-500", icon: "📊", title: "CALL RATE INSIGHT", text: `Best HCP rate: ${best.name} at ${formatKpi(best.rate)}/day. Team average: ${formatKpi(teamAvg)} calls/day.`, metric: `${formatKpi(best.rate)}` });
   }
 
   return insights;

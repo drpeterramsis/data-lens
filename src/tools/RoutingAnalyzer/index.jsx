@@ -13,6 +13,9 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import Papa from 'papaparse';
 import { saveAs } from 'file-saver';
+import { 
+  toNumberSafe, formatKpi, formatKpiGrouped, formatKpiPercent 
+} from '../../utils/formatNumber';
 import { FilterButton } from '../../components/ui/FilterButton';
 
 // ─── Constants ────────────────────────────────
@@ -21,8 +24,8 @@ const NAV_H_VAR    = 'var(--nav-height, 64px)';
 const FOOTER_H     = 48;  // px  must match Footer.jsx
 
 const ROUTING_VERSION = {
-  version: '1.0.445',
-  releaseDate: 'Apr 2026',
+  version: '1.0.508',
+  releaseDate: 'May 2026',
   label: 'Advanced Routing Analysis Engine',
 };
 
@@ -276,8 +279,9 @@ const CustomerTable = ({
                       case 'Grade': return <td key={col.label} className="px-2.5 py-1.5 border-b border-gray-50 text-center"><GradeBadge grade={r.customerGrade} /></td>;
                       case 'Specialty': return <td key={col.label} className="px-2.5 py-1.5 text-[11px] text-yellow-600 border-b border-gray-50 whitespace-nowrap">{r.specialty}</td>;
                       case 'MR Name': return <td key={col.label} className="px-2.5 py-1.5 text-[11px] text-gray-600 border-b border-gray-50 whitespace-nowrap">{r.mrName}</td>;
-                      case 'Planned': return <td key={col.label} className="px-2.5 py-1.5 text-[11px] text-gray-700 font-bold border-b border-gray-50 text-center">{r.totalPlanned}</td>;
-                      case 'Reported': return <td key={col.label} className="px-2.5 py-1.5 text-[11px] text-gray-700 font-bold border-b border-gray-50 text-center">{r.totalReported}</td>;
+                      case 'Planned': return <td key={col.label} className="px-2.5 py-1.5 text-[11px] text-gray-700 font-bold border-b border-gray-50 text-center">{formatKpiGrouped(r.totalPlanned)}</td>;
+                      case 'Reported': return <td key={col.label} className="px-2.5 py-1.5 text-[11px] text-gray-700 font-bold border-b border-gray-50 text-center">{formatKpiGrouped(r.totalReported)}</td>;
+                      case 'Coverage %': return <td key={col.label} className="px-2.5 py-1.5 text-[11px] text-blue-700 font-bold border-b border-gray-50 text-center">{r.totalPlanned > 0 ? formatKpiPercent(r.totalReported / r.totalPlanned * 100) : formatKpiPercent(0)}</td>;
                       case 'Planned Days': return <td key={col.label} className="px-2.5 py-1.5 border-b border-gray-50">
                         {r.monthlyData ? (<div className="space-y-0.5">{Object.entries(r.monthlyData).map(([m, d]) => (<div key={m} className="flex items-center gap-1"><span className="text-[8px] font-black text-gray-400 w-7 flex-shrink-0">{m.slice(0, 3)}:</span><div className="flex flex-wrap gap-0.5 whitespace-nowrap">{d.planned.map(day => <span key={day} className="filter-tag">{day}</span>)}</div></div>))}</div>) : (<div className="flex flex-wrap gap-0.5 whitespace-nowrap">{r.monthPlanned.map(d => <span key={d} className="filter-tag">{d}</span>)}</div>)}
                       </td>;
@@ -351,7 +355,7 @@ const CustomerTable = ({
         )}
 
         <span className="text-[10px] font-black text-gray-400 hidden sm:block">
-          Page <span className="text-gray-900">{currentPage}</span> · <span className="text-gray-900">{sortedData.length}</span> records
+          Page <span className="text-gray-900">{currentPage}</span> · <span className="text-gray-900">{formatKpiGrouped(sortedData.length)}</span> records
         </span>
       </div>
     </div>
@@ -383,7 +387,7 @@ const FullTableModal = ({ onClose, ...tableProps }) => {
               Full Table View
             </span>
             <span className="text-[10px] text-gray-400 font-bold">
-              {tableProps.sortedData.length} records
+              {formatKpiGrouped(tableProps.sortedData.length)} records
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -684,8 +688,8 @@ const RoutingAnalyzer = () => {
       'Total Planned':  r.totalPlanned,
       'Total Reported': r.totalReported,
       'Coverage %':     r.totalPlanned > 0
-        ? (r.totalReported / r.totalPlanned * 100).toFixed(1) + '%'
-        : '0%',
+        ? formatKpiPercent(r.totalReported / r.totalPlanned * 100)
+        : formatKpiPercent(0),
       'Status': getStatus(r.totalPlanned, r.totalReported),
     }));
     const blob = new Blob([Papa.unparse(rows)], { type: 'text/csv;charset=utf-8;' });
@@ -908,25 +912,25 @@ const RoutingAnalyzer = () => {
   const renderKPIs = () => (
     <div className="flex items-stretch gap-2 px-4 py-2 overflow-x-auto">
       {[
-        { label: 'All HCPs',    value: stats.totalHCP,    icon: '👨‍⚕️', color: 'text-blue-700',    bg: 'bg-blue-50',    border: 'border-blue-100' },
-        { label: 'Active',      value: stats.active,      icon: '✅',   color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-100' },
-        { label: 'Deleted',     value: stats.deleted,     icon: '🗑️',  color: 'text-gray-500',    bg: 'bg-gray-50',    border: 'border-gray-200' },
-        { label: 'Planned',     value: stats.totalPlanned,  icon: '📋', color: 'text-gray-700',    bg: 'bg-gray-50',    border: 'border-gray-100' },
-        { label: 'Reported',    value: stats.totalReported, icon: '📝', color: 'text-green-600',   bg: 'bg-green-50',   border: 'border-green-100' },
+        { label: 'All HCPs',    value: formatKpiGrouped(stats.totalHCP),    icon: '👨‍⚕️', color: 'text-blue-700',    bg: 'bg-blue-50',    border: 'border-blue-100' },
+        { label: 'Active',      value: formatKpiGrouped(stats.active),      icon: '✅',   color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-100' },
+        { label: 'Deleted',     value: formatKpiGrouped(stats.deleted),     icon: '🗑️',  color: 'text-gray-500',    bg: 'bg-gray-50',    border: 'border-gray-200' },
+        { label: 'Planned',     value: formatKpiGrouped(stats.totalPlanned),  icon: '📋', color: 'text-gray-700',    bg: 'bg-gray-50',    border: 'border-gray-100' },
+        { label: 'Reported',    value: formatKpiGrouped(stats.totalReported), icon: '📝', color: 'text-green-600',   bg: 'bg-green-50',   border: 'border-green-100' },
         {
-          label: 'Coverage', value: `${stats.coverage.toFixed(1)}%`, icon: '🎯',
+          label: 'Coverage', value: formatKpiPercent(stats.coverage), icon: '🎯',
           color:  stats.coverage >= 80 ? 'text-emerald-600' : stats.coverage >= 50 ? 'text-amber-500' : 'text-red-500',
           bg:     stats.coverage >= 80 ? 'bg-emerald-50'    : stats.coverage >= 50 ? 'bg-amber-50'    : 'bg-red-50',
           border: stats.coverage >= 80 ? 'border-emerald-100' : stats.coverage >= 50 ? 'border-amber-100' : 'border-red-100',
         },
-        { label: 'Full',        value: stats.fullyCovered, icon: '💚', color: 'text-green-700',   bg: 'bg-green-50',   border: 'border-green-100' },
-        { label: 'Partial',     value: stats.partial,      icon: '🟡', color: 'text-amber-600',   bg: 'bg-amber-50',   border: 'border-amber-100' },
-        { label: 'Not Visited', value: stats.uncovered,    icon: '❌', color: 'text-red-600',     bg: 'bg-red-50',     border: 'border-red-100' },
+        { label: 'Full',        value: formatKpiGrouped(stats.fullyCovered), icon: '💚', color: 'text-green-700',   bg: 'bg-green-50',   border: 'border-green-100' },
+        { label: 'Partial',     value: formatKpiGrouped(stats.partial),      icon: '🟡', color: 'text-amber-600',   bg: 'bg-amber-50',   border: 'border-amber-100' },
+        { label: 'Not Visited', value: formatKpiGrouped(stats.uncovered),    icon: '❌', color: 'text-red-600',     bg: 'bg-red-50',     border: 'border-red-100' },
       ].map((card, i) => (
         <div key={i} className={`flex-shrink-0 ${card.bg} border ${card.border} rounded-xl px-3 py-2 flex flex-col justify-between min-w-[72px]`}>
           <span className="text-sm">{card.icon}</span>
           <p className={`text-base font-black leading-none mt-1 ${card.color}`}>
-            {typeof card.value === 'number' ? card.value.toLocaleString() : card.value}
+            {card.value}
           </p>
           <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wide leading-none mt-1 truncate">{card.label}</p>
         </div>
@@ -957,7 +961,7 @@ const RoutingAnalyzer = () => {
                 <div key={type}>
                   <div className="flex justify-between mb-1">
                     <span className="text-xs font-bold text-gray-600">{type || 'Unknown'}</span>
-                    <span className="text-xs font-black text-gray-800">{count}</span>
+                    <span className="text-xs font-black text-gray-800">{formatKpiGrouped(count)}</span>
                   </div>
                   <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                     <div className="h-full bg-yellow-400 rounded-full" style={{ width: `${(count / stats.allCustomers) * 100}%` }} />
@@ -975,7 +979,7 @@ const RoutingAnalyzer = () => {
                 <div key={status}>
                   <div className="flex justify-between mb-1">
                     <span className="text-xs font-bold text-gray-600">{status}</span>
-                    <span className="text-xs font-black text-gray-800">{count}</span>
+                    <span className="text-xs font-black text-gray-800">{formatKpiGrouped(count)}</span>
                   </div>
                   <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                     <div className="h-full bg-blue-400 rounded-full" style={{ width: `${(count / total) * 100}%` }} />
@@ -1003,12 +1007,12 @@ const RoutingAnalyzer = () => {
                 <div key={grade} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-black text-gray-800">{grade}</span>
-                    <span className={`text-xs font-black ${cov >= 80 ? 'text-green-600' : cov >= 50 ? 'text-amber-500' : 'text-red-500'}`}>{cov.toFixed(0)}%</span>
+                    <span className={`text-xs font-black ${cov >= 80 ? 'text-green-600' : cov >= 50 ? 'text-amber-500' : 'text-red-500'}`}>{formatKpiPercent(cov)}</span>
                   </div>
                   <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden mb-2">
                     <div className={`h-full rounded-full ${cov >= 80 ? 'bg-green-500' : cov >= 50 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${Math.min(cov, 100)}%` }} />
                   </div>
-                  <p className="text-[9px] text-gray-400 font-bold">P:{planned} R:{reported}</p>
+                  <p className="text-[9px] text-gray-400 font-bold">P:{formatKpiGrouped(planned)} R:{formatKpiGrouped(reported)}</p>
                 </div>
               );
             })}
@@ -1060,16 +1064,16 @@ const RoutingAnalyzer = () => {
                           {m.mr}
                         </div>
                       </td>
-                      <td className="px-4 py-2.5 text-xs text-gray-600">{m.count}</td>
-                      <td className="px-4 py-2.5 text-xs text-gray-600">{m.planned}</td>
-                      <td className="px-4 py-2.5 text-xs text-gray-600">{m.reported}</td>
+                      <td className="px-4 py-2.5 text-xs text-gray-600">{formatKpiGrouped(m.count)}</td>
+                      <td className="px-4 py-2.5 text-xs text-gray-600">{formatKpiGrouped(m.planned)}</td>
+                      <td className="px-4 py-2.5 text-xs text-gray-600">{formatKpiGrouped(m.reported)}</td>
                       <td className="px-4 py-2.5">
                         <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg ${m.coverage >= 80 ? 'bg-green-100 text-green-700' : m.coverage >= 50 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
-                          {m.coverage.toFixed(1)}%
+                          {formatKpiPercent(m.coverage)}
                         </span>
                       </td>
-                      <td className="px-4 py-2.5 text-xs text-gray-600">{m.notVisited}</td>
-                      <td className="px-4 py-2.5 text-xs text-gray-600">{m.extra}</td>
+                      <td className="px-4 py-2.5 text-xs text-gray-600">{formatKpiGrouped(m.notVisited)}</td>
+                      <td className="px-4 py-2.5 text-xs text-gray-600">{formatKpiGrouped(m.extra)}</td>
                     </tr>
                     {expandedMR === m.mr && (
                       <tr>
@@ -1129,16 +1133,16 @@ const RoutingAnalyzer = () => {
                 {specStats.map((s, i) => (
                   <tr key={s.specialty} className={`${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-yellow-50/40`}>
                     <td className="px-4 py-2.5 text-xs font-bold text-yellow-600">{s.specialty}</td>
-                    <td className="px-4 py-2.5 text-xs text-gray-600">{s.count}</td>
-                    <td className="px-4 py-2.5 text-xs text-gray-600">{s.planned}</td>
-                    <td className="px-4 py-2.5 text-xs text-gray-600">{s.reported}</td>
+                    <td className="px-4 py-2.5 text-xs text-gray-600">{formatKpiGrouped(s.count)}</td>
+                    <td className="px-4 py-2.5 text-xs text-gray-600">{formatKpiGrouped(s.planned)}</td>
+                    <td className="px-4 py-2.5 text-xs text-gray-600">{formatKpiGrouped(s.reported)}</td>
                     <td className="px-4 py-2.5">
                       <div className="flex items-center gap-2">
                         <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden min-w-[60px]">
                           <div className={`h-full rounded-full ${s.coverage >= 80 ? 'bg-green-500' : s.coverage >= 50 ? 'bg-amber-500' : 'bg-red-500'}`}
                             style={{ width: `${Math.min(s.coverage, 100)}%` }} />
                         </div>
-                        <span className="text-[10px] font-black text-gray-700 w-10 flex-shrink-0">{s.coverage.toFixed(0)}%</span>
+                        <span className="text-[10px] font-black text-gray-700 w-10 flex-shrink-0">{formatKpiPercent(s.coverage)}</span>
                       </div>
                     </td>
                   </tr>
@@ -1308,7 +1312,7 @@ const RoutingAnalyzer = () => {
               </div>
               <div className="ml-auto flex-shrink-0">
                 <span className="text-[10px] font-black text-gray-400">
-                  <span className="text-gray-900">{rawData.length.toLocaleString()}</span> records · {lineName}
+                  <span className="text-gray-900">{formatKpiGrouped(rawData.length)}</span> records · {lineName}
                 </span>
               </div>
             </div>
@@ -1326,25 +1330,25 @@ const RoutingAnalyzer = () => {
               {isKpiExpanded && (
                 <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-9 gap-2">
                   {[
-                    { label: 'All HCPs',    value: stats.totalHCP,    icon: '👨‍⚕️', color: 'text-blue-700',    bg: 'bg-blue-50',    border: 'border-blue-100' },
-                    { label: 'Active',      value: stats.active,      icon: '✅',   color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-100' },
-                    { label: 'Deleted',     value: stats.deleted,     icon: '🗑️',  color: 'text-gray-500',    bg: 'bg-gray-50',    border: 'border-gray-200' },
-                    { label: 'Planned',     value: stats.totalPlanned,  icon: '📋', color: 'text-gray-700',    bg: 'bg-gray-50',    border: 'border-gray-100' },
-                    { label: 'Reported',    value: stats.totalReported, icon: '📝', color: 'text-green-600',   bg: 'bg-green-50',   border: 'border-green-100' },
+                    { label: 'All HCPs',    value: formatKpiGrouped(stats.totalHCP),    icon: '👨‍⚕️', color: 'text-blue-700',    bg: 'bg-blue-50',    border: 'border-blue-100' },
+                    { label: 'Active',      value: formatKpiGrouped(stats.active),      icon: '✅',   color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-100' },
+                    { label: 'Deleted',     value: formatKpiGrouped(stats.deleted),     icon: '🗑️',  color: 'text-gray-500',    bg: 'bg-gray-50',    border: 'border-gray-200' },
+                    { label: 'Planned',     value: formatKpiGrouped(stats.totalPlanned),  icon: '📋', color: 'text-gray-700',    bg: 'bg-gray-50',    border: 'border-gray-100' },
+                    { label: 'Reported',    value: formatKpiGrouped(stats.totalReported), icon: '📝', color: 'text-green-600',   bg: 'bg-green-50',   border: 'border-green-100' },
                     {
-                      label: 'Coverage', value: `${stats.coverage.toFixed(1)}%`, icon: '🎯',
+                      label: 'Coverage', value: formatKpiPercent(stats.coverage), icon: '🎯',
                       color:  stats.coverage >= 80 ? 'text-emerald-600' : stats.coverage >= 50 ? 'text-amber-500' : 'text-red-500',
                       bg:     stats.coverage >= 80 ? 'bg-emerald-50'    : stats.coverage >= 50 ? 'bg-amber-50'    : 'bg-red-50',
                       border: stats.coverage >= 80 ? 'border-emerald-100' : stats.coverage >= 50 ? 'border-amber-100' : 'border-red-100',
                     },
-                    { label: 'Full',        value: stats.fullyCovered, icon: '💚', color: 'text-green-700',   bg: 'bg-green-50',   border: 'border-green-100' },
-                    { label: 'Partial',     value: stats.partial,      icon: '🟡', color: 'text-amber-600',   bg: 'bg-amber-50',   border: 'border-amber-100' },
-                    { label: 'Not Visited', value: stats.uncovered,    icon: '❌', color: 'text-red-600',     bg: 'bg-red-50',     border: 'border-red-100' },
+                    { label: 'Full',        value: formatKpiGrouped(stats.fullyCovered), icon: '💚', color: 'text-green-700',   bg: 'bg-green-50',   border: 'border-green-100' },
+                    { label: 'Partial',     value: formatKpiGrouped(stats.partial),      icon: '🟡', color: 'text-amber-600',   bg: 'bg-amber-50',   border: 'border-amber-100' },
+                    { label: 'Not Visited', value: formatKpiGrouped(stats.uncovered),    icon: '❌', color: 'text-red-600',     bg: 'bg-red-50',     border: 'border-red-100' },
                   ].map((card, i) => (
                     <div key={i} className={`${card.bg} border ${card.border} rounded-xl px-2 py-1.5 flex flex-col justify-center min-w-[60px] text-center`}>
                       <span className="text-[10px]">{card.icon}</span>
                       <p className={`text-xs font-black leading-none mt-0.5 ${card.color}`}>
-                        {typeof card.value === 'number' ? card.value.toLocaleString() : card.value}
+                        {card.value}
                       </p>
                       <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest leading-none mt-0.5 truncate">{card.label}</p>
                     </div>

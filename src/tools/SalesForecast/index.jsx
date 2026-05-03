@@ -17,6 +17,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { FilterButton } from '../../components/ui/FilterButton';
 
 // Utilities
+import { formatKpi, formatKpiGrouped, formatKpiPercent } from '../../utils/formatNumber';
 import { 
   cleanValue, 
   parseNameAndArea, 
@@ -209,7 +210,7 @@ const SalesForecastTool = () => {
       records: filteredData.length,
       mrs: mrCount,
       lines: lineCount,
-      avgAchievement: avgAchievement.toFixed(1),
+      avgAchievement: formatKpiPercent(avgAchievement),
       atRisk: atRiskCount
     };
   }, [filteredData, periodProgress]);
@@ -357,11 +358,11 @@ const SalesForecastTool = () => {
         {/* Summary Mini Bar */}
         {summary && (
           <div className="h-12 bg-gray-900 flex items-center gap-4 px-6 shrink-0 overflow-x-auto no-scrollbar">
-            <StatBadge label="Records" value={summary.records} />
-            <StatBadge label="MRs" value={summary.mrs} />
-            <StatBadge label="Lines" value={summary.lines} />
-            <StatBadge label="Avg Achievement" value={`${summary.avgAchievement}%`} highlight={summary.avgAchievement >= 100 ? 'text-emerald-400' : 'text-amber-400'} />
-            <StatBadge label="At Risk" value={summary.atRisk} highlight={summary.atRisk > 0 ? 'text-red-400' : 'text-emerald-400'} />
+            <StatBadge label="Records" value={formatKpiGrouped(summary.records)} />
+            <StatBadge label="MRs" value={formatKpiGrouped(summary.mrs)} />
+            <StatBadge label="Lines" value={formatKpiGrouped(summary.lines)} />
+            <StatBadge label="Avg Achievement" value={`${summary.avgAchievement}%`} highlight={parseFloat(summary.avgAchievement) >= 100 ? 'text-emerald-400' : 'text-amber-400'} />
+            <StatBadge label="At Risk" value={formatKpiGrouped(summary.atRisk)} highlight={summary.atRisk > 0 ? 'text-red-400' : 'text-emerald-400'} />
           </div>
         )}
 

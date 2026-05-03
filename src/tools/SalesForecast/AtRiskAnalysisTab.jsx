@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { ResponsiveContainer, ScatterChart, Scatter, XAxis, YAxis, ZAxis, Tooltip, Cell, ReferenceLine, CartesianGrid } from 'recharts';
 import { AlertTriangle, AlertCircle, ShieldAlert, Target, TrendingDown } from 'lucide-react';
+import { formatKpi, formatKpiGrouped, formatKpiPercent } from '../../utils/formatNumber';
 import { projectValue, getQuadrant } from '../../utils/salesForecastLogic';
 
 const AtRiskAnalysisTab = ({ data, periodProgress }) => {
@@ -64,10 +65,10 @@ const AtRiskAnalysisTab = ({ data, periodProgress }) => {
     <div className="space-y-6 pb-20">
       {/* RISK SUMMARY CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <RiskCard label="Total At Risk MRs" value={riskSummary.totalAtRisk} icon={<AlertTriangle className="text-amber-500" />} />
-        <RiskCard label="Total At Risk Gap" value={riskSummary.totalGap.toLocaleString(undefined, { maximumFractionDigits: 0 })} icon={<TrendingDown className="text-red-500" />} />
-        <RiskCard label="Critical MRs (<75%)" value={riskSummary.criticalMRs} icon={<AlertCircle className="text-red-600" />} />
-        <RiskCard label="Avg Risk Score" value={(riskSummary.totalAtRisk / (riskData.length || 1) * 100).toFixed(1) + '%'} icon={<ShieldAlert className="text-purple-500" />} />
+        <RiskCard label="Total At Risk MRs" value={formatKpiGrouped(riskSummary.totalAtRisk)} icon={<AlertTriangle className="text-amber-500" />} />
+        <RiskCard label="Total At Risk Gap" value={formatKpiGrouped(riskSummary.totalGap)} icon={<TrendingDown className="text-red-500" />} />
+        <RiskCard label="Critical MRs (<75%)" value={formatKpiGrouped(riskSummary.criticalMRs)} icon={<AlertCircle className="text-red-600" />} />
+        <RiskCard label="Avg Risk Score" value={formatKpiPercent(riskSummary.totalAtRisk / (riskData.length || 1) * 100)} icon={<ShieldAlert className="text-purple-500" />} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -127,7 +128,7 @@ const AtRiskAnalysisTab = ({ data, periodProgress }) => {
                    <div className="space-y-3 mb-4">
                      <div className="flex justify-between text-[10px] font-normal text-gray-400">
                         <span>Current Achievement</span>
-                        <span className="font-black text-gray-900">{mr.x.toFixed(1)}%</span>
+                        <span className="font-black text-gray-900">{formatKpiPercent(mr.x)}</span>
                      </div>
                      <div className="h-2 bg-gray-50 rounded-full overflow-hidden">
                        <div 
@@ -140,17 +141,17 @@ const AtRiskAnalysisTab = ({ data, periodProgress }) => {
                    <div className="flex flex-wrap gap-2">
                      {mr.bottomProducts.map((p, i) => (
                        <span key={i} className="px-2 py-1 bg-gray-50 text-gray-400 rounded-lg text-[9px] font-black uppercase flex items-center gap-1.5 border border-gray-100">
-                         {p.name} <span className="text-red-400">-{p.gap.toLocaleString()}</span>
+                         {p.name} <span className="text-red-400">-{formatKpiGrouped(p.gap)}</span>
                        </span>
                      ))}
                    </div>
                  </div>
-
+ 
                  <div className="md:w-32 flex flex-col items-center justify-center border-l border-gray-50 pl-6 text-center">
                     <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Projected</div>
-                    <div className={`text-xl font-black ${mr.y < 75 ? 'text-red-500' : 'text-amber-500'} mb-3`}>{mr.y.toFixed(1)}%</div>
+                    <div className={`text-xl font-black ${mr.y < 75 ? 'text-red-500' : 'text-amber-500'} mb-3`}>{formatKpiPercent(mr.y)}</div>
                     <div className="text-[8px] font-black text-gray-300 uppercase leading-[1]">Needs approx.</div>
-                    <div className="text-sm font-black text-blue-600">{(mr.gap / (30 - currentDay)).toFixed(0)} units/day</div>
+                    <div className="text-sm font-black text-blue-600">{formatKpi((mr.gap / (30 - currentDay)))} units/day</div>
                  </div>
                </div>
              ))

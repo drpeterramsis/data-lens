@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Search, GraduationCap, Calendar, User, ChevronRight, UserCircle, Briefcase, Clock, MapPin, Download, Shield } from 'lucide-react';
+import { formatKpi, formatKpiGrouped, formatKpiPercent } from '../../utils/formatNumber';
 
 const JOBS_TITLES_COLORS = {
   "District Manager (DM)": "text-blue-700 bg-blue-50 border-blue-100",
@@ -243,7 +244,7 @@ const CoachingSection = ({ data }) => {
                 ? 'text-amber-500' 
                 : 'text-gray-300'}`}>
             {stats.avgHCPPerDay > 0 
-              ? stats.avgHCPPerDay.toFixed(1) 
+              ? formatKpi(stats.avgHCPPerDay) 
               : '—'}
           </p>
 

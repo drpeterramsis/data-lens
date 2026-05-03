@@ -1,5 +1,6 @@
 import React from 'react';
 import { Info, Hash, Type, Fingerprint } from 'lucide-react';
+import { formatKpiGrouped } from '../../utils/formatNumber';
 
 const AnalysisSummary = ({ analysis }) => {
   if (!analysis) return null;
@@ -43,19 +44,19 @@ const AnalysisSummary = ({ analysis }) => {
                 <div className="grid grid-cols-2 gap-y-3 gap-x-4">
                   <div>
                     <p className="text-[9px] uppercase font-bold text-muted/60">Average</p>
-                    <p className="text-sm font-bold text-accent">{stats.avg.toLocaleString()}</p>
+                    <p className="text-sm font-bold text-accent">{formatKpiGrouped(stats.avg)}</p>
                   </div>
                   <div>
                     <p className="text-[9px] uppercase font-bold text-muted/60">Total Sum</p>
-                    <p className="text-sm font-bold text-white">{stats.sum.toLocaleString()}</p>
+                    <p className="text-sm font-bold text-white">{formatKpiGrouped(stats.sum)}</p>
                   </div>
                   <div>
                     <p className="text-[9px] uppercase font-bold text-muted/60">Minimum</p>
-                    <p className="text-sm font-bold text-white">{stats.min.toLocaleString()}</p>
+                    <p className="text-sm font-bold text-white">{formatKpiGrouped(stats.min)}</p>
                   </div>
                   <div>
                     <p className="text-[9px] uppercase font-bold text-muted/60">Maximum</p>
-                    <p className="text-sm font-bold text-white">{stats.max.toLocaleString()}</p>
+                    <p className="text-sm font-bold text-white">{formatKpiGrouped(stats.max)}</p>
                   </div>
                 </div>
               </div>

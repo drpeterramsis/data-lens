@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { PieChart, List } from 'lucide-react';
+import { formatKpi, formatKpiGrouped, formatKpiPercent } from '../../utils/formatNumber';
 
 const InteractionAnalysis = ({ data = [] }) => {
   const stats = useMemo(() => {
@@ -37,12 +38,12 @@ const InteractionAnalysis = ({ data = [] }) => {
         <div className="grid grid-cols-3 gap-1 mb-8">
           {['HCP', 'HCO', 'Pharmacy'].map(type => {
             const count = stats.types[type] || 0;
-            const pct = ((count / stats.total) * 100).toFixed(1);
+            const pct = (count / stats.total) * 100;
             return (
               <div key={type} className="text-center p-4 bg-gray-50 rounded-xl border border-gray-100 hover:border-accent/40 transition-all">
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{type}</p>
-                <p className="text-xl font-black text-gray-900">{count}</p>
-                <p className="text-[10px] font-bold text-accent">{pct}%</p>
+                <p className="text-xl font-black text-gray-900">{formatKpiGrouped(count)}</p>
+                <p className="text-[10px] font-bold text-accent">{formatKpiPercent(pct)}</p>
               </div>
             );
           })}
@@ -61,7 +62,7 @@ const InteractionAnalysis = ({ data = [] }) => {
                          <div className="h-full bg-accent" style={{ width: `${(count/stats.total)*100}%` }} />
                       </div>
                    </div>
-                   <span className="font-bold text-gray-900">{count}</span>
+                   <span className="font-bold text-gray-900">{formatKpiGrouped(count)}</span>
                 </div>
               ))}
            </div>
@@ -78,7 +79,7 @@ const InteractionAnalysis = ({ data = [] }) => {
         <div className="space-y-4">
            {['A+', 'A', 'B', 'C', 'Blank'].map(grade => {
              const count = stats.grades[grade] || 0;
-             const pct = ((count / stats.total) * 100).toFixed(1);
+             const pct = (count / stats.total) * 100;
              const colors = {
                'A+': 'bg-amber-400',
                'A': 'bg-success',
@@ -93,8 +94,8 @@ const InteractionAnalysis = ({ data = [] }) => {
                      <div className={`h-full ${colors[grade] || 'bg-gray-300'}`} style={{ width: `${pct}%` }} />
                   </div>
                   <div className="w-16 text-right">
-                     <span className="text-xs font-black text-gray-800">{count}</span>
-                     <span className="text-[9px] text-gray-400 ml-1">({pct}%)</span>
+                     <span className="text-xs font-black text-gray-800">{formatKpiGrouped(count)}</span>
+                     <span className="text-[9px] text-gray-400 ml-1">({formatKpiPercent(pct)})</span>
                   </div>
                </div>
              );
@@ -103,7 +104,7 @@ const InteractionAnalysis = ({ data = [] }) => {
         
         <div className="mt-8 p-4 bg-accent/5 rounded-xl border border-accent/10">
            <p className="text-[10px] text-accent-dark font-medium leading-relaxed italic">
-             Targeting efficiency: <span className="font-black">{( (( (stats.grades['A+']||0) + (stats.grades['A']||0) ) / stats.total) * 100 ).toFixed(1)}%</span> of calls were directed to core priority segments (A+ & A).
+             Targeting efficiency: <span className="font-black">{formatKpiPercent( ( ( (stats.grades['A+']||0) + (stats.grades['A']||0) ) / stats.total) * 100 )}</span> of calls were directed to core priority segments (A+ & A).
            </p>
         </div>
       </div>

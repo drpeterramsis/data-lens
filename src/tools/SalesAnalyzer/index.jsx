@@ -14,13 +14,17 @@ import {
   PieChart, Pie, Cell, Legend, LineChart, Line, CartesianGrid
 } from 'recharts';
 
+import { 
+  toNumberSafe, formatKpi, formatKpiGrouped, formatKpiPercent 
+} from '../../utils/formatNumber';
+
 import ReportsTab from '../reports/ReportsTab';
 import { FilterButton } from '../../components/ui/FilterButton';
 
 const APP_VERSION = {
-  version: '1.0.483',
+  version: '1.0.510',
   releaseDate: 'May 2026',
-  label: 'Dynamic Matrix & Multi-Period Perf Hub'
+  label: 'Consistent Number Formatting Update'
 };
 
 const CACHE_KEY = 'atr_sales_v1';
@@ -139,12 +143,13 @@ const formatDate = (d) => d.toLocaleDateString('en-EG', {day:'numeric', month:'s
 
 const FormatNum = ({ val, defaultClass = "", prefix = "", suffix = "" }) => {
   if (val == null) return "—";
-  const num = parseFloat(val);
+  const num = toNumberSafe(val);
   const isNeg = num < 0;
   const cls = isNeg ? `text-[#8b0000] bg-[#ffe6e6] px-1 rounded font-bold inline-block` : defaultClass;
+  
   return (
     <span className={cls}>
-      {prefix}{num.toLocaleString()}{suffix && ` ${suffix}`}
+      {prefix}{formatKpiGrouped(num)}{suffix && ` ${suffix}`}
     </span>
   );
 };
@@ -826,7 +831,7 @@ const UploadChoiceModal = ({ onChoose, onCancel, existingCount }) => (
         Upload Data
       </h2>
       <p className="text-sm text-gray-500 mb-6 font-medium">
-        You already have <strong className="text-gray-800">{existingCount.toLocaleString()}</strong> rows loaded.
+        You already have <strong className="text-gray-800">{formatKpiGrouped(existingCount)}</strong> rows loaded.
         How would you like to handle the new file?
       </p>
 
@@ -1257,7 +1262,7 @@ const SalesAnalyzer = () => {
       map[row.productName].invoices.add(row.invoiceNo);
     });
     const total = Object.values(map).reduce((s,r) => s + r.netValue, 0);
-    return Object.values(map).map(r => ({ ...r, invoiceCount: r.invoices.size, pct: total > 0 ? ((r.netValue/total)*100).toFixed(1) : '0.0' }));
+    return Object.values(map).map(r => ({ ...r, invoiceCount: r.invoices.size, pct: total > 0 ? formatKpiPercent((r.netValue/total)*100) : '0.00' }));
   }, [filteredData]);
 
   const { sorted: sortedProducts, sortKey: prodSortKey, sortDir: prodSortDir, toggle: prodToggle } = useSortableTable(byProduct, 'netQty', 'desc');
@@ -1282,7 +1287,7 @@ const SalesAnalyzer = () => {
         m.invoices.add(row.invoiceNo);
     });
     const total = Object.values(map).reduce((s,r) => s + r.netValue, 0);
-    return Object.values(map).map(r => ({ ...r, customerCount: r.customers.size, invoiceCount: r.invoices.size, pct: total > 0 ? ((r.netValue/total)*100).toFixed(1) : '0.0' }));
+    return Object.values(map).map(r => ({ ...r, customerCount: r.customers.size, invoiceCount: r.invoices.size, pct: total > 0 ? formatKpiPercent((r.netValue/total)*100) : '0.00' }));
   }, [filteredData]);
 
   const { sorted: sortedMR, sortKey: mrSortKey, sortDir: mrSortDir, toggle: mrToggle } = useSortableTable(byMR, 'netQty', 'desc');
@@ -1744,28 +1749,23 @@ const SalesAnalyzer = () => {
                           shrink-0">
             {[
               { label: 'Invoices', 
-                value: invoices?.length || 0,
+                value: formatKpiGrouped(invoices?.length || 0),
                 color: 'text-gray-900' },
               { label: 'Sales Qty',
-                value: totals.salesQty
-                        .toLocaleString(),
+                value: formatKpiGrouped(totals.salesQty),
                 color: 'text-blue-700' },
               { label: 'Net Qty',
-                value: totals.netQty
-                        .toLocaleString(),
+                value: formatKpiGrouped(totals.netQty),
                 color: 'text-emerald-700' },
               { label: 'Net Value',
-                value: totals.netValue
-                        .toLocaleString(),
+                value: formatKpiGrouped(totals.netValue),
                 color: 'text-gray-900',
                 suffix: 'EGP' },
               { label: 'Return Qty',
-                value: totals.returnQty
-                        .toLocaleString(),
+                value: formatKpiGrouped(totals.returnQty),
                 color: 'text-red-600' },
               { label: 'Return Value',
-                value: totals.returnValue
-                        .toLocaleString(),
+                value: formatKpiGrouped(totals.returnValue),
                 color: 'text-red-500',
                 suffix: 'EGP' },
             ].map((s, i) => (
@@ -1949,12 +1949,12 @@ const SalesAnalyzer = () => {
                                      text-right 
                                      font-semibold 
                                      text-emerald-700">
-                        {inv.netQty.toLocaleString()}
+                        {formatKpiGrouped(inv.netQty)}
                       </td>
                       <td className="px-3 py-2 
                                      text-right 
                                      text-gray-700">
-                        {inv.netValue.toLocaleString()}
+                        {formatKpiGrouped(inv.netValue)}
                       </td>
                     </tr>
                   ))}
@@ -2156,25 +2156,22 @@ const SalesAnalyzer = () => {
                             <td className="px-3 py-2 
                               text-right text-blue-700 
                               font-semibold">
-                              {p.salesQty
-                                .toLocaleString()}
+                              {formatKpiGrouped(p.salesQty)}
                             </td>
                             <td className="px-3 py-2 
                               text-right 
                               text-emerald-700 
                               font-semibold">
-                              {p.netQty.toLocaleString()}
+                              {formatKpiGrouped(p.netQty)}
                             </td>
                             <td className="px-3 py-2 
                               text-right text-gray-700">
-                              {p.netValue
-                                .toLocaleString()}
+                              {formatKpiGrouped(p.netValue)}
                             </td>
                             <td className="px-3 py-2 
                               text-right text-red-500">
                               {p.returnQty > 0
-                                ? p.returnQty
-                                    .toLocaleString()
+                                ? formatKpiGrouped(p.returnQty)
                                 : '—'}
                             </td>
                           </tr>
@@ -2193,25 +2190,21 @@ const SalesAnalyzer = () => {
                           </td>
                           <td className="px-3 py-2 
                             text-right text-blue-700">
-                            {activeInvoice.salesQty
-                              .toLocaleString()}
+                            {formatKpiGrouped(activeInvoice.salesQty)}
                           </td>
                           <td className="px-3 py-2 
                             text-right 
                             text-emerald-700">
-                            {activeInvoice.netQty
-                              .toLocaleString()}
+                            {formatKpiGrouped(activeInvoice.netQty)}
                           </td>
                           <td className="px-3 py-2 
                             text-right text-gray-800">
-                            {activeInvoice.netValue
-                              .toLocaleString()}
+                            {formatKpiGrouped(activeInvoice.netValue)}
                           </td>
                           <td className="px-3 py-2 
                             text-right text-red-500">
                             {activeInvoice.returnQty > 0
-                              ? activeInvoice.returnQty
-                                  .toLocaleString()
+                              ? formatKpiGrouped(activeInvoice.returnQty)
                               : '—'}
                           </td>
                         </tr>
@@ -2246,7 +2239,7 @@ const SalesAnalyzer = () => {
         b.invoices.add(row.invoiceNo);
     });
     const total = Object.values(map).reduce((s,r) => s + r.netValue, 0);
-    return Object.values(map).map(r => ({ ...r, mrCount: r.mrs.size, customerCount: r.customers.size, invoiceCount: r.invoices.size, pct: total > 0 ? ((r.netValue/total)*100).toFixed(1) : '0.0' }));
+    return Object.values(map).map(r => ({ ...r, mrCount: r.mrs.size, customerCount: r.customers.size, invoiceCount: r.invoices.size, pct: total > 0 ? formatKpiPercent((r.netValue/total)*100) : '0.00' }));
   }, [filteredData]);
 
   const { sorted: sortedBranch, sortKey: branchSortKey, sortDir: branchSortDir, toggle: branchToggle } = useSortableTable(byBranch, 'netQty', 'desc');
@@ -2404,11 +2397,11 @@ const SalesAnalyzer = () => {
                 {appendResult.mode === 'append' ? 'Data Appended' : 'Data Loaded'}
               </p>
               <div className="text-xs text-gray-300 mt-1 space-y-0.5">
-                <p>Added: <span className="font-bold text-white">{appendResult.added.toLocaleString()}</span> rows</p>
+                <p>Added: <span className="font-bold text-white">{formatKpiGrouped(appendResult.added)}</span> rows</p>
                 {appendResult.mode === 'append' && (
-                  <p>Skipped (dupes): <span className="text-gray-400">{appendResult.skipped.toLocaleString()}</span></p>
+                  <p>Skipped (dupes): <span className="text-gray-400">{formatKpiGrouped(appendResult.skipped)}</span></p>
                 )}
-                <p>Total: <span className="font-bold text-white">{appendResult.total.toLocaleString()}</span> rows</p>
+                <p>Total: <span className="font-bold text-white">{formatKpiGrouped(appendResult.total)}</span> rows</p>
               </div>
             </div>
             <button 
@@ -2424,7 +2417,7 @@ const SalesAnalyzer = () => {
         <div className="min-w-0 pr-6">
           <h2 className="text-lg sm:text-xl font-black text-gray-900 uppercase tracking-tight truncate">ATR Sales Analysis</h2>
           <p className="text-[10px] sm:text-xs text-gray-400 font-medium mt-0.5">
-            {data.length.toLocaleString()} INVOICES · {totalProducts} PRODUCTS · {totalMRs} MRs · {formatDate(startDate)} → {formatDate(endDate)}
+            {formatKpiGrouped(data.length)} INVOICES · {totalProducts} PRODUCTS · {totalMRs} MRs · {formatDate(startDate)} → {formatDate(endDate)}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -2494,7 +2487,7 @@ const SalesAnalyzer = () => {
           ))}
           {dataSources.length > 1 && (
             <span className="text-[11px] font-black text-emerald-600 ml-2">
-              {data.length.toLocaleString()} total rows
+              {formatKpiGrouped(data.length)} total rows
             </span>
           )}
         </div>
@@ -2535,10 +2528,10 @@ const SalesAnalyzer = () => {
             <div className={`space-y-3 ${isSummaryExpanded ? 'block' : 'hidden md:block'}`}>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-3">
                 {[
-                  { label: 'Net Quantity', value: kpis.netQty.toLocaleString(), suffix: 'units', icon: Package, color: 'text-emerald-600', bg: 'bg-emerald-50', negative: kpis.netQty < 0 },
-                  { label: 'Net Value', value: kpis.netValue.toLocaleString(), suffix: 'EGP', icon: DollarSign, color: 'text-blue-600', bg: 'bg-blue-50', negative: kpis.netValue < 0 },
-                  { label: 'Total Returns', value: Math.abs(kpis.returnsQty).toLocaleString(), suffix: 'units', sub: Math.abs(kpis.returnsValue).toLocaleString() + ' EGP', icon: RotateCcw, color: 'text-red-500', bg: 'bg-red-50', negative: false },
-                  { label: 'Unique Products', value: kpis.uniqueProducts, suffix: 'products', sub: filteredData.length.toLocaleString() + ' rows', icon: Grid, color: 'text-purple-600', bg: 'bg-purple-50', negative: false },
+                  { label: 'Net Quantity', value: formatKpiGrouped(kpis.netQty), suffix: 'units', icon: Package, color: 'text-emerald-600', bg: 'bg-emerald-50', negative: kpis.netQty < 0 },
+                  { label: 'Net Value', value: formatKpiGrouped(kpis.netValue), suffix: 'EGP', icon: DollarSign, color: 'text-blue-600', bg: 'bg-blue-50', negative: kpis.netValue < 0 },
+                  { label: 'Total Returns', value: formatKpiGrouped(Math.abs(kpis.returnsQty)), suffix: 'units', sub: formatKpiGrouped(Math.abs(kpis.returnsValue)) + ' EGP', icon: RotateCcw, color: 'text-red-500', bg: 'bg-red-50', negative: false },
+                  { label: 'Unique Products', value: kpis.uniqueProducts, suffix: 'products', sub: formatKpiGrouped(filteredData.length) + ' rows', icon: Grid, color: 'text-purple-600', bg: 'bg-purple-50', negative: false },
                 ].map((card, i) => (
                   <div key={i} className="bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3 flex items-center gap-3">
                     <div className={`${card.bg} p-2 rounded-lg shrink-0`}><card.icon size={16} className={card.color}/></div>
@@ -2596,7 +2589,7 @@ const SalesAnalyzer = () => {
                               </tr>
                             </thead>
                             <tbody>{sortedProducts.map((p, i) => <tr key={p.productName} className={`border-b ${i<3 ? (i===0?'border-l-4 border-l-yellow-400':i===1?'border-l-4 border-l-gray-400':'border-l-4 border-l-orange-400'):''} hover:bg-blue-50`}>
-                                <td className="p-2">{i+1}</td><td className="p-2 font-semibold">{p.productName}</td><td className="p-2 text-right"><FormatNum val={p.netQty} /></td><td className="p-2 text-right"><FormatNum val={p.netValue} /></td><td className="p-2 text-right">{p.pct}%</td></tr>)}</tbody>
+                                <td className="p-2">{i+1}</td><td className="p-2 font-semibold">{p.productName}</td><td className="p-2 text-right"><FormatNum val={p.netQty} /></td><td className="p-2 text-right"><FormatNum val={p.netValue} /></td><td className="p-2 text-right">{p.pct}</td></tr>)}</tbody>
                         </table></div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
@@ -2632,7 +2625,7 @@ const SalesAnalyzer = () => {
                                 <td className="p-2 font-semibold">{m.mrName}</td>
                                 <td className="p-2 text-right"><FormatNum val={m.netQty} /></td>
                                 <td className="p-2 text-right"><FormatNum val={m.netValue} /></td>
-                                <td className="p-2 text-right">{m.pct}%</td>
+                                <td className="p-2 text-right">{m.pct}</td>
                               </tr>
                             ))}</tbody>
                         </table></div>
@@ -2691,7 +2684,7 @@ const SalesAnalyzer = () => {
                                 <td className="p-2">{c.customerType}</td>
                                 <td className="p-2">{c.mrName}</td>
                                 <td className="p-2">{c.branch}</td>
-                                <td className="p-2 text-right font-mono">{c.invoiceCount.toLocaleString()}</td>
+                                <td className="p-2 text-right font-mono">{formatKpiGrouped(c.invoiceCount)}</td>
                                 <td className="p-2">{fmt(c.firstDate)}</td>
                                 <td className="p-2">{fmt(c.lastDate)}</td>
                                 <td className="p-2 text-right font-mono">{c.productCount}</td>
@@ -2717,7 +2710,7 @@ const SalesAnalyzer = () => {
                                 <SortableTH label="%" sortKey="pct" currentKey={branchSortKey} dir={branchSortDir} onSort={branchToggle} className="text-right" />
                               </tr>
                             </thead>
-                            <tbody>{sortedBranch.map(b => <tr key={b.branch} className="border-b hover:bg-blue-50"><td className="p-2 font-semibold">{b.branch}</td><td className="p-2 text-right"><FormatNum val={b.netQty} /></td><td className="p-2 text-right">{b.pct}%</td></tr>)}</tbody>
+                            <tbody>{sortedBranch.map(b => <tr key={b.branch} className="border-b hover:bg-blue-50"><td className="p-2 font-semibold">{b.branch}</td><td className="p-2 text-right"><FormatNum val={b.netQty} /></td><td className="p-2 text-right">{b.pct}</td></tr>)}</tbody>
                         </table></div>
                     </div>
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Branch vs Net Qty</h4><ResponsiveContainer height={260}><BarChart data={sortedBranch} layout="vertical" margin={{left: 60}}><XAxis type="number" fontSize={10} /><YAxis dataKey="branch" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netQty" fill="#F59E0B" /></BarChart></ResponsiveContainer></div>
@@ -2729,7 +2722,7 @@ const SalesAnalyzer = () => {
                         <div className="px-5 py-4 border-b border-gray-100"><h3 className="font-bold text-gray-800">Trend Data</h3><div className="flex gap-2 mt-2"><button onClick={()=>setTrendGroup('daily')} className={`px-3 py-1 rounded text-xs ${trendGroup==='daily'?'bg-blue-600 text-white':'bg-gray-200'}`}>Daily</button><button onClick={()=>setTrendGroup('monthly')} className={`px-3 py-1 rounded text-xs ${trendGroup==='monthly'?'bg-blue-600 text-white':'bg-gray-200'}`}>Monthly</button></div></div>
                         <div className="overflow-x-auto max-h-[420px] overflow-y-auto"><table className="w-full text-sm">
                             <thead className="sticky top-0 bg-gray-50 z-10"><tr className="text-xs text-gray-500 uppercase"><th className="p-2 text-left">Period</th><th className="p-2 text-right">Invoices</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">Value</th></tr></thead>
-                            <tbody>{trendData.map(t => <tr key={t.period} className="border-b hover:bg-blue-50"><td className="p-2 font-semibold">{t.period}</td><td className="p-2 text-right">{t.invoiceCount.toLocaleString()}</td><td className="p-2 text-right"><FormatNum val={t.netQty} /></td><td className="p-2 text-right"><FormatNum val={t.netValue} /></td></tr>)}</tbody>
+                            <tbody>{trendData.map(t => <tr key={t.period} className="border-b hover:bg-blue-50"><td className="p-2 font-semibold">{t.period}</td><td className="p-2 text-right">{formatKpiGrouped(t.invoiceCount)}</td><td className="p-2 text-right"><FormatNum val={t.netQty} /></td><td className="p-2 text-right"><FormatNum val={t.netValue} /></td></tr>)}</tbody>
                         </table></div>
                     </div>
                     <div className="bg-white rounded-[32px] shadow-sm border border-gray-100 p-8"><h4 className="text-sm font-black uppercase text-gray-900 tracking-widest mb-6 flex items-center gap-2"><TrendingUp className="text-blue-600" size={18} /> Sales Trend Analysis</h4><ResponsiveContainer height={350}>
@@ -3375,7 +3368,7 @@ const SalesAnalyzer = () => {
                                               const isWorst = v === minVal && values.some(val => val !== minVal);
                                               return (
                                                 <td key={i} className={`px-4 py-2.5 text-center font-bold font-mono transition-all duration-300 border-r border-gray-50 last:border-0 ${isBest ? 'bg-emerald-50/50 text-emerald-700' : isWorst ? 'bg-red-50/50 text-red-600' : 'text-gray-600'}`}>
-                                                  {v ? (m.format === 'val' ? Math.round(v).toLocaleString() : v.toLocaleString()) : '0'}
+                                                  {v ? (m.format === 'val' ? formatKpiGrouped(v) : formatKpiGrouped(v)) : '0.00'}
                                                 </td>
                                               );
                                             })}
@@ -3390,7 +3383,7 @@ const SalesAnalyzer = () => {
                                                   {trend === 'up' ? '↗' : trend === 'down' ? '↘' : '→'}
                                                 </span>
                                                 <span className={`text-[9px] font-black ${trend === 'up' ? 'text-emerald-500' : trend === 'down' ? 'text-red-500' : 'text-gray-400'}`}>
-                                                  {pctTotalChange > 0 ? '+' : ''}{pctTotalChange.toFixed(1)}%
+                                                  {pctTotalChange > 0 ? '+' : ''}{formatKpiPercent(pctTotalChange)}
                                                 </span>
                                               </div>
                                             </td>
@@ -3434,7 +3427,7 @@ const SalesAnalyzer = () => {
                                                <div key={i} className="flex-1 flex flex-col items-center justify-center p-3 rounded-xl bg-white border border-gray-200 hover:border-gray-300 shadow-sm transition-colors">
                                                   <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1 truncate max-w-[80px] text-center">{p.label} → {periodCalculations[i+1].label}</span>
                                                   <span className={`font-black font-mono tracking-tight ${compareFontSize} ${chg >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                                                    {chg >= 0 ? '+' : ''}{chg.toFixed(1)}%
+                                                    {chg >= 0 ? '+' : ''}{formatKpiPercent(chg)}
                                                   </span>
                                                </div>
                                              );
@@ -3473,22 +3466,22 @@ const SalesAnalyzer = () => {
                                       
                                       const totalGrowth = ((values[values.length-1] - values[0]) / values[0]) * 100;
                                       if (values.every((v, i) => i === 0 || v >= values[i-1])) {
-                                        insights.push({ icon: '📈', text: `Net Value grew consistently across all periods (+${totalGrowth.toFixed(1)}% total)`, type: 'success' });
+                                        insights.push({ icon: '📈', text: `Net Value grew consistently across all periods (+${formatKpiPercent(totalGrowth)} total)`, type: 'success' });
                                       } else if (values.every((v, i) => i === 0 || v <= values[i-1])) {
-                                        insights.push({ icon: '📉', text: `Net Value declined steadily across all periods (${totalGrowth.toFixed(1)}% total drop)`, type: 'danger' });
+                                        insights.push({ icon: '📉', text: `Net Value declined steadily across all periods (${formatKpiPercent(totalGrowth)} total drop)`, type: 'danger' });
                                       } else {
-                                        insights.push({ icon: '📊', text: `Overall value trend is ${totalGrowth >= 0 ? 'Positive' : 'Negative'} with a ${totalGrowth.toFixed(1)}% shift from start to end.`, type: 'info' });
+                                        insights.push({ icon: '📊', text: `Overall value trend is ${totalGrowth >= 0 ? 'Positive' : 'Negative'} with a ${formatKpiPercent(totalGrowth)} shift from start to end.`, type: 'info' });
                                       }
 
                                       const maxV = Math.max(...values);
                                       const maxP = periodCalculations[values.indexOf(maxV)];
-                                      insights.push({ icon: '🏆', text: `Highest performing period is ${maxP.label} with ${maxV.toLocaleString()} EGP in Net Value.`, type: 'success' });
+                                      insights.push({ icon: '🏆', text: `Highest performing period is ${maxP.label} with ${formatKpiGrouped(maxV)} EGP in Net Value.`, type: 'success' });
 
                                       const retValues = periodCalculations.map(pc => pc.metrics.returnQty);
                                       const maxRet = Math.max(...retValues);
                                       if (maxRet > 0) {
                                          const maxRetP = periodCalculations[retValues.indexOf(maxRet)];
-                                         insights.push({ icon: '⚠️', text: `Return volume peaked in ${maxRetP.label} (${maxRet.toLocaleString()} units).`, type: 'warning' });
+                                         insights.push({ icon: '⚠️', text: `Return volume peaked in ${maxRetP.label} (${formatKpiGrouped(maxRet)} units).`, type: 'warning' });
                                       }
 
                                       const custValues = periodCalculations.map(pc => pc.metrics.customers);
@@ -3921,15 +3914,15 @@ const SalesAnalyzer = () => {
                                                             const isWorst = pv.val === minInRow && minInRow > 0 && maxInRow !== minInRow;
                                                             return (
                                                               <td key={pv.id} className={`px-6 py-2.5 text-right font-mono font-bold ${compareFontSize} ${isBest ? 'bg-emerald-50/40 border-l-2 border-emerald-400 text-emerald-700' : isWorst ? 'bg-red-50/40 text-red-600' : 'text-gray-600'}`}>
-                                                                {pv.val > 0 ? (perfMetric === 'netValue' ? Math.round(pv.val).toLocaleString() : pv.val.toLocaleString()) : '—'}
+                                                                {pv.val > 0 ? (perfMetric === 'netValue' ? formatKpiGrouped(pv.val) : formatKpiGrouped(pv.val)) : '—'}
                                                               </td>
                                                             );
                                                           })}
                                                           <td className={`px-6 py-2.5 text-right bg-blue-50/30 font-black text-blue-800 font-mono ${compareFontSize}`}>
-                                                            {Math.round(row.total).toLocaleString()}
+                                                            {formatKpiGrouped(row.total)}
                                                           </td>
                                                           <td className={`px-6 py-2.5 text-right bg-gray-50/30 font-bold text-gray-600 font-mono ${compareFontSize}`}>
-                                                            {Math.round(row.avg).toLocaleString()}
+                                                            {formatKpiGrouped(row.avg)}
                                                           </td>
                                                           <td className="px-6 py-2.5 text-center">
                                                             {row.bestPeriod ? (
@@ -3941,7 +3934,7 @@ const SalesAnalyzer = () => {
                                                           <td className="px-6 py-2.5 text-center">
                                                             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black ${row.trendPct > 0 ? 'bg-emerald-100 text-emerald-700' : row.trendPct < 0 ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
                                                               {row.trendPct > 0 ? '▲' : row.trendPct < 0 ? '▼' : '—'}
-                                                              {Math.abs(row.trendPct).toFixed(0)}%
+                                                              {formatKpi(Math.abs(row.trendPct))}%
                                                             </span>
                                                           </td>
                                                       </tr>

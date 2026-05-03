@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Trophy, Medal, Crown } from 'lucide-react';
+import { formatKpi, formatKpiGrouped, formatKpiPercent } from '../../utils/formatNumber';
 
 const RankingsTab = ({ data }) => {
   const [mrRankMetric, setMrRankMetric] = useState('achUnits'); // achUnits, achValue, achPoints, absUnits, absValue
@@ -153,10 +154,10 @@ const RankingsTab = ({ data }) => {
                     <span className="px-2.5 py-1 bg-gray-100 text-gray-600 rounded-lg text-[10px] font-black uppercase tracking-widest">{mr.line}</span>
                   </td>
                   <td className="px-6 py-5 text-right font-black text-gray-900">
-                    {mrRankMetric.startsWith('ach') ? `${mr.metricVal.toFixed(1)}%` : mr.metricVal.toLocaleString()}
+                    {mrRankMetric.startsWith('ach') ? formatKpiPercent(mr.metricVal) : formatKpiGrouped(mr.metricVal)}
                   </td>
                   <td className={`px-6 py-5 text-right font-bold text-xs ${mr.vsAverage >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                    {mr.vsAverage >= 0 ? '+' : ''}{mr.vsAverage.toFixed(1)}%
+                    {mr.vsAverage >= 0 ? '+' : ''}{formatKpiPercent(mr.vsAverage)}
                   </td>
                   <td className="px-6 py-5">
                     <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden min-w-[80px]">
@@ -195,12 +196,12 @@ const RankingsTab = ({ data }) => {
                    <tr key={i} className="hover:bg-gray-50">
                      <td className="px-6 py-4 text-center font-black text-gray-400">{i + 1}</td>
                      <td className="px-6 py-4 font-bold text-gray-900">{p.name}</td>
-                     <td className="px-6 py-4 text-right font-black">{p.units.toLocaleString()}</td>
+                     <td className="px-6 py-4 text-right font-black">{formatKpiGrouped(p.units)}</td>
                      <td className={`px-6 py-4 text-right font-black ${p.achievement >= 100 ? 'text-emerald-600' : 'text-amber-600'}`}>
-                       {p.achievement.toFixed(0)}%
+                       {formatKpiPercent(p.achievement)}
                      </td>
                      <td className="px-6 py-4 text-center">
-                        <span className="bg-blue-50 text-blue-600 px-2 py-1 rounded-lg font-black">{p.mrCount}</span>
+                        <span className="bg-blue-50 text-blue-600 px-2 py-1 rounded-lg font-black">{formatKpiGrouped(p.mrCount)}</span>
                      </td>
                    </tr>
                  ))}
@@ -217,9 +218,9 @@ const RankingsTab = ({ data }) => {
           <div className="p-6 space-y-6">
             {lineRankings.map((l, i) => (
               <div key={i} className="space-y-2">
-                <div className="flex items-center justify-between">
+                 <div className="flex items-center justify-between">
                   <span className="text-xs font-black text-gray-900 uppercase tracking-widest">{l.name}</span>
-                  <span className={`text-xs font-black ${l.achievement >= 100 ? 'text-emerald-600' : 'text-amber-600'}`}>{l.achievement.toFixed(1)}%</span>
+                  <span className={`text-xs font-black ${l.achievement >= 100 ? 'text-emerald-600' : 'text-amber-600'}`}>{formatKpiPercent(l.achievement)}</span>
                 </div>
                 <div className="h-4 bg-gray-100 rounded-xl overflow-hidden relative">
                    <div 
@@ -227,7 +228,7 @@ const RankingsTab = ({ data }) => {
                      style={{ width: `${Math.min(100, l.achievement)}%` }}
                    />
                    <div className="absolute inset-0 flex items-center justify-end px-3">
-                     <span className="text-[9px] font-black text-gray-400 uppercase">{l.units.toLocaleString()} / {l.target.toLocaleString()} Units</span>
+                     <span className="text-[9px] font-black text-gray-400 uppercase">{formatKpiGrouped(l.units)} / {formatKpiGrouped(l.target)} Units</span>
                    </div>
                 </div>
               </div>

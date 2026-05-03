@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { ArrowLeft, ChevronRight, User, Package, Users, Building, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { formatKpi, formatKpiGrouped, formatKpiPercent } from '../../utils/formatNumber';
 
 const DrillDownTab = ({ data, drillPath, setDrillPath }) => {
   // Navigation: All Lines -> Line -> DM -> MR
@@ -145,18 +146,18 @@ const DrillDownTab = ({ data, drillPath, setDrillPath }) => {
                                <div className="font-black text-gray-900 text-sm">{p.name}</div>
                                <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{p.code}</div>
                             </td>
-                            <td className="px-6 py-4 text-sm font-bold text-gray-900 text-right">{p.salesUnits.toLocaleString()}</td>
-                            <td className="px-6 py-4 text-sm font-medium text-gray-400 text-right">{p.targetUnits.toLocaleString()}</td>
+                            <td className="px-6 py-4 text-sm font-bold text-gray-900 text-right">{formatKpiGrouped(p.salesUnits)}</td>
+                            <td className="px-6 py-4 text-sm font-medium text-gray-400 text-right">{formatKpiGrouped(p.targetUnits)}</td>
                             <td className="px-6 py-4 text-right">
                                <div className="flex flex-col items-end gap-1">
-                                 <span className={`text-xs font-black ${ach >= 100 ? 'text-emerald-500' : 'text-amber-500'}`}>{ach.toFixed(1)}%</span>
+                                 <span className={`text-xs font-black ${ach >= 100 ? 'text-emerald-500' : 'text-amber-500'}`}>{formatKpiPercent(ach)}</span>
                                  <div className="w-20 bg-gray-100 h-1.5 rounded-full overflow-hidden">
                                    <div className={`h-full ${ach >= 100 ? 'bg-emerald-500' : 'bg-amber-500'}`} style={{ width: `${Math.min(100, ach)}%` }} />
                                  </div>
                                </div>
                             </td>
-                            <td className="px-6 py-4 text-sm font-black text-gray-900 text-right">${p.salesValue.toLocaleString()}</td>
-                            <td className="px-6 py-4 text-sm font-black text-blue-600 text-right">{p.points.toLocaleString()}</td>
+                            <td className="px-6 py-4 text-sm font-black text-gray-900 text-right">${formatKpiGrouped(p.salesValue)}</td>
+                            <td className="px-6 py-4 text-sm font-black text-blue-600 text-right">{formatKpiGrouped(p.points)}</td>
                           </tr>
                         );
                       })}
@@ -196,7 +197,7 @@ const DrillCard = ({ item, level, onClick }) => (
       <div className="flex items-center justify-between">
         <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Achievement</span>
         <span className={`text-xs font-black ${item.achievement >= 100 ? 'text-emerald-600' : 'text-amber-600'}`}>
-          {item.achievement.toFixed(1)}%
+          {formatKpiPercent(item.achievement)}
         </span>
       </div>
       <div className="h-1.5 bg-gray-50 rounded-full overflow-hidden">
@@ -208,11 +209,11 @@ const DrillCard = ({ item, level, onClick }) => (
       <div className="flex justify-between text-[11px] font-bold text-gray-500">
         <div className="flex flex-col">
           <span className="text-[8px] uppercase text-gray-300">Sales</span>
-          {item.sales.toLocaleString()}
+          {formatKpiGrouped(item.sales)}
         </div>
         <div className="flex flex-col text-right">
           <span className="text-[8px] uppercase text-gray-300">Target</span>
-          {item.target.toLocaleString()}
+          {formatKpiGrouped(item.target)}
         </div>
       </div>
     </div>

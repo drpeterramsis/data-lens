@@ -42,6 +42,9 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 
 ## Version History
 
+- **v1.0.510:** Standardized number formatting application-wide using a new intelligent `formatNumber.js` utility. Successfully removed hundreds of redundant percentage signs across complex analytics tools (Sales Analyzer, Sales Forecast, Call Detailing Analyzer, Routing Analyzer). Optimized the global percentage formatter to automatically handle sign appending, ensuring consistent and precise data presentation.
+- **v1.0.508:** Replaced the scrollable MR selection pill buttons in Call Detailing Analyzer with a custom-engineered `MrDropdown` component. The new UI features real-time MR search, an "All Team" quick-selector, and a responsive trigger button that clearly indicates active filtering with distinct amber styling. Improved the overall dashboard layout by reclaiming vertical and horizontal space while maintaining full functionality and filtering logic.
+- **v1.0.507:** Implemented global KPI and metric formatting across the entire application. Standardized all numerical displays to show exactly two decimal places using a new centralized `formatNumber.js` utility. Applied fixes to Sales Analyzer (Compare, Summary, Detail views), Call Detailing Analyzer (Forecast, MR Cards, Tooltips), Sales Forecast, Routing Analyzer, and Skill-Zaty portal. Precision-tuned MR calculation logic to maintain accuracy before final display formatting. Updated all version-aware components to v1.0.507.
 - **v1.0.506:** Resolved Vercel deployment failure by migrating from `react-quill` to `react-quill-new`, ensuring full compatibility with React 19. Fixed peer dependency conflicts in the build pipeline.
 - **v1.0.505:** Resolved critical React Hooks violation in Skill-Zaty portal caused by conditional useMemo calls. Fixed GitHub API 404 error during initial startup by implementing a graceful fallback for the missing `skillzaty.json` data file. Refined data fetching logic to ensure high reliability across project environments.
 - **v1.0.504:** Launched **Skill-Zaty Training Center**, a comprehensive learning management tool with full GitHub synchronization. Features include a multi-category course portal, global cross-meta search, and a diverse range of interactive content blocks: Rich Text (Quill integration), Inline PDF (Viewer), Custom Audio, Video (YouTube/Vimeo), and Collapsible Active Cards. Implemented a robust **Admin Course Builder** with drag-and-drop section management, automated folder-based media uploads (thumbs/pdfs/audio/images), and granular user-specific course access controls. Updated global versioning and refined footer labels.
@@ -128,4 +131,4 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 - **v1.0.001:** Initial release. Authentication, CSV parsing, Analysis tools, and Admin panel implemented.
 
 ---
-© 2026 Data Lens Analytics | version 1.0.506
+© 2026 Data Lens Analytics | version 1.0.510

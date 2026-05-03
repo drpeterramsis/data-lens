@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Search, MapPin, Calendar, TrendingUp, GraduationCap } from 'lucide-react';
 import { getRateStatus, getStatusInfo, buildStatusTooltip } from '../../utils/mrCalculations';
 import StatusTooltip from '../../components/shared/StatusTooltip';
+import { formatKpi, formatKpiGrouped } from '../../utils/formatNumber';
 
 const STATUS_VARIANTS = {
   green: "text-green-700 bg-green-50 border-green-100 shadow-green-100/20",
@@ -248,7 +249,7 @@ const MRCard = ({ mr, isExpanded, onToggle, targets, onOpenCalendar }) => {
                           ? "text-yellow-600"
                           : "text-red-600"
                     }`}>
-                    {chip.rate}/d
+                    {formatKpi(chip.rate)}/d
                   </span>
                 </div>
               );
@@ -289,7 +290,7 @@ const MRCard = ({ mr, isExpanded, onToggle, targets, onOpenCalendar }) => {
                         <p className="text-[11px] font-black uppercase tracking-tight">{label}</p>
                         <p className="text-2xl font-black mt-1 mb-1">{calls}</p>
                         <div className="h-px w-8 bg-current mx-auto opacity-20 mb-2"></div>
-                        <p className="text-[11px] font-black italic">{rate}<span className="text-[9px] uppercase opacity-60 ml-0.5">v/d</span> {icon}</p>
+                        <p className="text-[11px] font-black italic">{formatKpi(rate)}<span className="text-[9px] uppercase opacity-60 ml-0.5">v/d</span> {icon}</p>
                         <p className="text-[9px] font-black uppercase opacity-40 mt-1">{days} Act. Days</p>
                      </div>
                    );

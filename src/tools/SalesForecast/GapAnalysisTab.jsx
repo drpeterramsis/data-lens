@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell, Legend } from 'recharts';
 import { Target, TrendingDown, Zap, ShieldAlert } from 'lucide-react';
+import { formatKpi, formatKpiGrouped, formatKpiPercent } from '../../utils/formatNumber';
 import { projectValue, getDifficultyDetails } from '../../utils/salesForecastLogic';
 
 const GapAnalysisTab = ({ data, periodProgress }) => {
@@ -61,19 +62,19 @@ const GapAnalysisTab = ({ data, periodProgress }) => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <GapCard 
           label="Total Units Gap" 
-          value={gapSummary.totalUnitsGap.toLocaleString()} 
+          value={formatKpiGrouped(gapSummary.totalUnitsGap)} 
           sub="Remaining to hit 100% Target"
           icon={<Target className="text-red-500" />}
         />
         <GapCard 
           label="Total Value Gap" 
-          value={`$${gapSummary.totalValueGap.toLocaleString()}`} 
+          value={`$${formatKpiGrouped(gapSummary.totalValueGap)}`} 
           sub="Potential Revenue Remaining"
           icon={<Zap className="text-amber-500" />}
         />
         <GapCard 
           label="MR Success Rate" 
-          value={`${gapSummary.percentHitTarget.toFixed(1)}%`} 
+          value={formatKpiPercent(gapSummary.percentHitTarget)} 
           sub="MRs who already achieved 100%"
           icon={<ShieldAlert className={`text-${gapSummary.percentHitTarget > 50 ? 'emerald' : 'red'}-500`} />}
         />
@@ -121,13 +122,13 @@ const GapAnalysisTab = ({ data, periodProgress }) => {
                 {gapSummary.mrGaps.map((mr, idx) => (
                   <tr key={idx} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 text-xs font-bold text-gray-900">{mr.name}</td>
-                    <td className="px-6 py-4 text-xs font-medium text-gray-400 text-right">{mr.sales.toLocaleString()}</td>
-                    <td className="px-6 py-4 text-xs font-medium text-gray-400 text-right">{mr.target.toLocaleString()}</td>
+                    <td className="px-6 py-4 text-xs font-medium text-gray-400 text-right">{formatKpiGrouped(mr.sales)}</td>
+                    <td className="px-6 py-4 text-xs font-medium text-gray-400 text-right">{formatKpiGrouped(mr.target)}</td>
                     <td className="px-6 py-4 text-right">
-                       <span className="text-xs font-black text-red-600">{mr.gap > 0 ? mr.gap.toLocaleString() : 'Surplus'}</span>
-                       <div className="text-[10px] font-bold text-gray-400">{mr.gapPercent.toFixed(1)}% remaining</div>
+                       <span className="text-xs font-black text-red-600">{mr.gap > 0 ? formatKpiGrouped(mr.gap) : 'Surplus'}</span>
+                       <div className="text-[10px] font-bold text-gray-400">{formatKpiPercent(mr.gapPercent)} remaining</div>
                     </td>
-                    <td className="px-6 py-4 text-xs font-black text-blue-600 text-right">{mr.dailyNeeded.toFixed(1)}/day</td>
+                    <td className="px-6 py-4 text-xs font-black text-blue-600 text-right">{formatKpi(mr.dailyNeeded)}/day</td>
                     <td className="px-6 py-4 text-center">
                        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${mr.difficulty.bg} ${mr.difficulty.color}`}>
                          {mr.difficulty.label}

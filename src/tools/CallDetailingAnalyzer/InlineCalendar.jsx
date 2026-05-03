@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { X, Search, ChevronLeft, ChevronRight, GraduationCap, Hospital, Pill, UserRound } from 'lucide-react';
+import { formatKpi } from '../../utils/formatNumber';
 
 export default function InlineCalendar({ mr, targets, onClose }) {
   const [currentMonth, setCurrentMonth] = useState(() => {
@@ -116,21 +117,21 @@ export default function InlineCalendar({ mr, targets, onClose }) {
                 <div className="w-8 h-8 rounded-lg bg-green-100 text-green-700 flex items-center justify-center font-black">🏥</div>
                 <div>
                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none">HCO Total</p>
-                   <p className="text-sm font-black text-gray-900">{mr.totalHCO} <span className="text-[10px] text-gray-400 font-bold">({mr.hcoRate}/d)</span></p>
+                   <p className="text-sm font-black text-gray-900">{mr.totalHCO} <span className="text-[10px] text-gray-400 font-bold">({formatKpi(mr.hcoRate)}/d)</span></p>
                 </div>
              </div>
              <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center font-black">💊</div>
                 <div>
                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none">PH Total</p>
-                   <p className="text-sm font-black text-gray-900">{mr.totalPH} <span className="text-[10px] text-gray-400 font-bold">({mr.phRate}/d)</span></p>
+                   <p className="text-sm font-black text-gray-900">{mr.totalPH} <span className="text-[10px] text-gray-400 font-bold">({formatKpi(mr.phRate)}/d)</span></p>
                 </div>
              </div>
              <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-black">👨‍⚕️</div>
                 <div>
                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none">HCP Total</p>
-                   <p className="text-sm font-black text-gray-900">{mr.totalHCP} <span className="text-[10px] text-gray-400 font-bold">({mr.hcpRate}/d)</span></p>
+                   <p className="text-sm font-black text-gray-900">{mr.totalHCP} <span className="text-[10px] text-gray-400 font-bold">({formatKpi(mr.hcpRate)}/d)</span></p>
                 </div>
              </div>
              <div className="flex items-center gap-2 ml-auto">

@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
 import { TrendingUp, AlertCircle, CheckCircle2, Trophy, Clock } from 'lucide-react';
+import { formatKpi, formatKpiGrouped, formatKpiPercent } from '../../utils/formatNumber';
 import { projectValue, getStatusDetails } from '../../utils/salesForecastLogic';
 
 const ForecastTab = ({ data, periodProgress, setPeriodProgress }) => {
@@ -113,7 +114,7 @@ const ForecastTab = ({ data, periodProgress, setPeriodProgress }) => {
           <div className="h-12 w-[1px] bg-gray-100" />
 
           <div className="text-right">
-            <div className="text-2xl font-black text-blue-600 tracking-tight">{progressPercent.toFixed(1)}%</div>
+            <div className="text-2xl font-black text-blue-600 tracking-tight">{formatKpiPercent(progressPercent)}</div>
             <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Month Complete</div>
           </div>
         </div>
@@ -121,16 +122,16 @@ const ForecastTab = ({ data, periodProgress, setPeriodProgress }) => {
 
       {/* FORECAST SUMMARY */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        <FStat label="Projected Total Units" value={summary.totalProjUnits.toLocaleString(undefined, { maximumFractionDigits: 0 })} />
-        <FStat label="Projected Total Value" value={`$${summary.totalProjValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} />
+        <FStat label="Projected Total Units" value={formatKpiGrouped(summary.totalProjUnits)} />
+        <FStat label="Projected Total Value" value={`$${formatKpiGrouped(summary.totalProjValue)}`} />
         <FStat 
           label="Proj. Achievement" 
-          value={`${summary.overallProjAch.toFixed(1)}%`} 
+          value={formatKpiPercent(summary.overallProjAch)} 
           highlight={summary.overallProjAch >= 100 ? 'text-emerald-500' : 'text-amber-500'}
         />
-        <FStat label="MRs on Track" value={summary.onTrack} icon={<CheckCircle2 size={16} className="text-emerald-500" />} />
-        <FStat label="MRs At Risk" value={summary.atRisk} icon={<AlertCircle size={16} className="text-red-500" />} />
-        <FStat label="Total Units Gap" value={summary.totalGap.toLocaleString(undefined, { maximumFractionDigits: 0 })} icon={<Trophy size={16} className="text-purple-500" />} />
+        <FStat label="MRs on Track" value={formatKpiGrouped(summary.onTrack)} icon={<CheckCircle2 size={16} className="text-emerald-500" />} />
+        <FStat label="MRs At Risk" value={formatKpiGrouped(summary.atRisk)} icon={<AlertCircle size={16} className="text-red-500" />} />
+        <FStat label="Total Units Gap" value={formatKpiGrouped(summary.totalGap)} icon={<Trophy size={16} className="text-purple-500" />} />
       </div>
 
       {/* CHART */}
@@ -178,14 +179,14 @@ const ForecastTab = ({ data, periodProgress, setPeriodProgress }) => {
               {forecastData.map((d, idx) => (
                 <tr key={idx} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 text-xs font-bold text-gray-900">{d.name}</td>
-                  <td className="px-6 py-4 text-xs font-medium text-gray-600 text-right">{d.sales.toLocaleString()}</td>
-                  <td className="px-6 py-4 text-xs font-bold text-gray-400 text-right">{d.currentAch.toFixed(1)}%</td>
-                  <td className="px-6 py-4 text-xs font-black text-gray-900 text-right">{d.projectedUnits.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+                  <td className="px-6 py-4 text-xs font-medium text-gray-600 text-right">{formatKpiGrouped(d.sales)}</td>
+                  <td className="px-6 py-4 text-xs font-bold text-gray-400 text-right">{formatKpiPercent(d.currentAch)}</td>
+                  <td className="px-6 py-4 text-xs font-black text-gray-900 text-right">{formatKpiGrouped(d.projectedUnits)}</td>
                   <td className="px-6 py-4 text-right">
-                    <span className={`text-xs font-black ${d.status.color}`}>{d.projectedAch.toFixed(1)}%</span>
+                    <span className={`text-xs font-black ${d.status.color}`}>{formatKpiPercent(d.projectedAch)}</span>
                   </td>
-                  <td className="px-6 py-4 text-xs font-bold text-gray-500 text-right">{d.gap > 0 ? d.gap.toLocaleString(undefined, { maximumFractionDigits: 0 }) : 'Surplus'}</td>
-                  <td className="px-6 py-4 text-xs font-bold text-blue-600 text-right">{d.dailyRateNeeded.toFixed(1)}/day</td>
+                  <td className="px-6 py-4 text-xs font-bold text-gray-500 text-right">{d.gap > 0 ? formatKpiGrouped(d.gap) : 'Surplus'}</td>
+                  <td className="px-6 py-4 text-xs font-bold text-blue-600 text-right">{formatKpi(d.dailyRateNeeded)}/day</td>
                   <td className="px-6 py-4 text-center">
                     <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${d.status.bg} ${d.status.color}`}>
                       {d.status.label}

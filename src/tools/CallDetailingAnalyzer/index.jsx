@@ -1,5 +1,8 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { X, Search, GraduationCap, Hospital, Pill, Users, TrendingUp, SearchIcon, Upload } from 'lucide-react';
+import { 
+  toNumberSafe, formatKpi, formatKpiGrouped, formatKpiPercent 
+} from '../../utils/formatNumber';
 import CSVUploader from '../../components/shared/CSVUploader';
 import AutoInsights from '../../components/shared/AutoInsights.jsx';
 import VirtualTable from '../../components/shared/VirtualTable';
@@ -17,11 +20,12 @@ import InteractionAnalysis from './InteractionAnalysis';
 import CoachingAnalysis from './CoachingAnalysis';
 import CoachingSection from './CoachingSection';
 import InlineCalendar from './InlineCalendar';
+import MrDropdown from '../../components/MrDropdown';
 
 const APP_VERSION = {
-  version: '1.0.445',
-  releaseDate: 'Jun 2025',
-  label: 'Avg HCP Coaching KPI Card Added'
+  version: '1.0.510',
+  releaseDate: 'May 2026',
+  label: 'Consistent Number Formatting Update'
 };
 
 const StickyToolbar = ({
@@ -112,7 +116,7 @@ const StickyToolbar = ({
             <div className="flex items-center gap-1.5 bg-gray-100 border border-gray-200 rounded-lg px-2.5 py-1">
               <span className="text-xs font-medium text-gray-700">{periodLabel}</span>
               <span className="text-[10px] text-gray-400 border-l border-gray-300 pl-1.5">
-                {filteredRowCount.toLocaleString()} rows
+                {formatKpiGrouped(filteredRowCount)} rows
               </span>
             </div>
           </div>
@@ -129,7 +133,7 @@ const StickyToolbar = ({
             <span className="text-[10px] font-medium text-gray-700">{periodLabel}</span>
           </div>
           <div className="text-[10px] text-gray-400 flex-shrink-0">
-            {filteredRowCount.toLocaleString()} rows
+            {formatKpiGrouped(filteredRowCount)} rows
           </div>
         </div>
       )}
@@ -152,7 +156,7 @@ const KPICard = ({ title, value, unit, sub, icon, color }) => (
     </div>
     <div className="flex items-baseline gap-1 mt-1">
       <span className="text-3xl font-black text-gray-900 leading-none tracking-tight">
-        {value}
+        {formatKpiGrouped(value)}
       </span>
       {unit && (
         <span className="text-[10px] font-black uppercase text-gray-400">
@@ -242,7 +246,7 @@ const UploadChoiceModal = ({ onChoose, onCancel, existingCount }) => (
         Upload Data
       </h2>
       <p className="text-sm text-gray-500 mb-6 font-medium">
-        You already have <strong className="text-gray-800">{existingCount.toLocaleString()}</strong> rows loaded.
+        You already have <strong className="text-gray-800">{formatKpiGrouped(existingCount)}</strong> rows loaded.
         How would you like to handle the new file?
       </p>
 
@@ -875,7 +879,7 @@ const CallDetailingAnalyzer = () => {
                     Call Detailing Data
                  </h3>
                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest flex items-center gap-1.5 mt-0.5">
-                    {rawData.length.toLocaleString()} rows
+                    {formatKpiGrouped(rawData.length)} rows
                  </p>
               </div>
            </div>
@@ -919,7 +923,7 @@ const CallDetailingAnalyzer = () => {
           ))}
           {dataSources.length > 1 && (
             <span className="text-[11px] font-black text-emerald-600 ml-2">
-              {rawData.length.toLocaleString()} total rows
+              {formatKpiGrouped(rawData.length)} total rows
             </span>
           )}
         </div>
@@ -947,12 +951,12 @@ const CallDetailingAnalyzer = () => {
             </p>
             {appendResult.mode === 'append' && (
               <p className="text-[11px] text-emerald-400 font-semibold mt-1">
-                +{appendResult.added.toLocaleString()} new rows
-                {appendResult.skipped > 0 && ` · ${appendResult.skipped.toLocaleString()} skipped`}
+                +{formatKpiGrouped(appendResult.added)} new rows
+                {appendResult.skipped > 0 && ` · ${formatKpiGrouped(appendResult.skipped)} skipped`}
               </p>
             )}
             <p className="text-[11px] text-gray-300 font-bold mt-0.5">
-              Total: {appendResult.total.toLocaleString()} rows
+              Total: {formatKpiGrouped(appendResult.total)} rows
             </p>
           </div>
           <button onClick={() => setAppendResult(null)} className="text-gray-500 hover:text-white shrink-0">✕</button>
@@ -987,7 +991,7 @@ const CallDetailingAnalyzer = () => {
                   <span className="sm:hidden">All</span>
                   <span className="hidden sm:inline">All Months</span>
                   <span className="ml-1 text-[10px] opacity-70">
-                    ({rawData.length.toLocaleString()})
+                    ({formatKpiGrouped(rawData.length)})
                   </span>
                 </FilterButton>
 
@@ -1008,7 +1012,7 @@ const CallDetailingAnalyzer = () => {
                       <span className="sm:hidden">{shortLabel(m.yearMonth)}</span>
                       <span className="hidden sm:inline">{m.label}</span>
                       <span className="ml-1 text-[10px] opacity-70">
-                        ({m.rowCount})
+                        ({formatKpiGrouped(m.rowCount)})
                       </span>
                     </FilterButton>
                   );
@@ -1023,7 +1027,7 @@ const CallDetailingAnalyzer = () => {
                   </span>
                   <span className="text-gray-300">|</span>
                   <span className="text-accent font-black">
-                    {(filteredData?.length ?? 0).toLocaleString()} rows
+                    {formatKpiGrouped(filteredData?.length ?? 0)} rows
                   </span>
                 </div>
               )}
@@ -1064,7 +1068,7 @@ const CallDetailingAnalyzer = () => {
                       })()} <span className="text-xs text-gray-400 uppercase">Days</span>
                    </p>
                    <p className="text-[10px] font-bold text-accent uppercase tracking-widest mt-1">
-                      {(filteredData?.length ?? 0).toLocaleString()} Interactions
+                      {formatKpiGrouped(filteredData?.length ?? 0)} Interactions
                    </p>
                 </div>
              </div>
@@ -1098,46 +1102,28 @@ const CallDetailingAnalyzer = () => {
              </div>
           </div>
 
-          <div className="px-6 py-3 bg-white border-b border-gray-100 shrink-0 shadow-sm rounded-3xl">
-            <div className="flex items-center gap-3">
-              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest shrink-0">
-                View MR:
-              </span>
-              <FilterButton
-                onClick={() => setSelectedMR('')}
-                isActive={!selectedMR}
-                label="👥 All Team"
-              />
-              <div className="w-px h-5 bg-gray-200 shrink-0"/>
-              <div className="flex-1 overflow-x-auto">
-                <div className="flex gap-2 pb-0.5 no-scrollbar">
-                  {mrList.map(mr => (
-                    <FilterButton
-                      key={mr}
-                      onClick={() => setSelectedMR(selectedMR === mr ? '' : mr)}
-                      isActive={selectedMR === mr}
-                      label={mr}
-                    />
-                  ))}
-                </div>
-              </div>
-              {selectedMR && (
-                <FilterButton
-                  onClick={() => setSelectedMR('')}
-                  label="Clear"
-                  className="!text-red-500 !bg-red-50 !border-red-100 hover:!bg-red-100"
-                />
-              )}
-            </div>
+          <div className="flex items-center gap-3 p-[10px_16px] bg-white border border-[#F1F5F9] rounded-xl">
+            <span className="text-[0.75rem] font-semibold text-[#94A3B8] uppercase tracking-[0.05em] whitespace-nowrap">
+              VIEW MR:
+            </span>
+            <MrDropdown 
+              mrList={mrList}
+              selected={selectedMR}
+              onChange={setSelectedMR}
+            />
             {selectedMR && (
-              <div className="mt-2.5 flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-xl border border-blue-100">
+              <div className="flex-1 flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-xl border border-blue-100 animate-in fade-in slide-in-from-left-2">
                 <span className="text-sm">👤</span>
-                <p className="text-xs font-black text-blue-800">
-                  Showing data for: {selectedMR}
-                </p>
-                <span className="text-[10px] text-blue-400 ml-auto">
-                  All charts & tables filtered
-                </span>
+                <div className="flex flex-col">
+                  <p className="text-[10px] font-black text-blue-800 uppercase tracking-tight leading-none">Selected MR Performance</p>
+                  <p className="text-[9px] text-blue-400 font-bold mt-0.5">Filtering all analytics for {selectedMR}</p>
+                </div>
+                <button 
+                  onClick={() => setSelectedMR('')}
+                  className="ml-auto w-6 h-6 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 hover:bg-blue-200 transition-colors"
+                >
+                  <X size={12} />
+                </button>
               </div>
             )}
           </div>
@@ -1168,7 +1154,7 @@ const CallDetailingAnalyzer = () => {
               </div>
               <div className="flex items-baseline gap-1">
                 <p className={`text-2xl font-black ${coachingKPI.isGood ? 'text-emerald-600' : coachingKPI.avg > 0 ? 'text-amber-500' : 'text-gray-300'}`}>
-                  {coachingKPI.avg > 0 ? coachingKPI.avg.toFixed(1) : '—'}
+                  {coachingKPI.avg > 0 ? formatKpi(coachingKPI.avg) : '—'}
                 </p>
                 <span className="text-[10px] font-black uppercase text-gray-400">/ D</span>
               </div>
@@ -1176,11 +1162,11 @@ const CallDetailingAnalyzer = () => {
               <div className="mt-3 pt-3 border-t border-gray-50 space-y-1">
                 <div className="flex justify-between items-center text-[10px]">
                   <span className="text-gray-400">Calls:</span>
-                  <span className="font-bold text-gray-700">{coachingKPI.totalCoachingCalls.toLocaleString()}</span>
+                  <span className="font-bold text-gray-700">{formatKpiGrouped(coachingKPI.totalCoachingCalls)}</span>
                 </div>
                 <div className="flex justify-between items-center text-[10px]">
                   <span className="text-gray-400">Appr. Days:</span>
-                  <span className="font-bold text-gray-700">{coachingKPI.approvedDays.toLocaleString()}</span>
+                  <span className="font-bold text-gray-700">{formatKpiGrouped(coachingKPI.approvedDays)}</span>
                 </div>
                 <div className="mt-2">
                   <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
@@ -1374,7 +1360,7 @@ const CallDetailingAnalyzer = () => {
                      <span className="text-3xl">📋</span>
                      <div>
                         <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tight">Raw Source Data</h3>
-                        <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mt-1">High-performance virtualized rendering ({(filteredData?.length ?? 0).toLocaleString()} rows)</p>
+                        <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mt-1">High-performance virtualized rendering ({formatKpiGrouped(filteredData?.length ?? 0)} rows)</p>
                      </div>
                   </div>
                   <span className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-xs group-open:rotate-180 transition-transform">▼</span>

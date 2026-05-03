@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Users, ChevronUp, ChevronDown } from 'lucide-react';
 import { safeStr, parseReportDate, isCoached } from '../../utils/safeCSV';
 import { isHCPWorkingDay, isHCOWorkingDay, isPHWorkingDay } from '../../utils/periodRules';
+import { formatKpi, formatKpiGrouped, formatKpiPercent } from '../../utils/formatNumber';
 
 const TeamOverviewTable = ({ data = [], targets }) => {
   const [sortConfig, setSortConfig] = useState({ key: 'total', direction: 'desc' });
@@ -136,16 +137,16 @@ const TeamOverviewTable = ({ data = [], targets }) => {
                 <td className="px-4 py-3 font-bold text-gray-900 border-r border-gray-50">{mr.name}</td>
                 <td className="px-4 py-3 text-gray-500 font-medium border-r border-gray-50">{mr.line}</td>
                 
-                <td className="px-4 py-3 text-center text-blue-600 font-medium group-hover:font-bold">{mr.totalHcp}</td>
-                <td className="px-4 py-3 text-center text-green-600 font-medium group-hover:font-bold">{mr.totalHco}</td>
-                <td className="px-4 py-3 text-center text-teal-600 font-medium group-hover:font-bold">{mr.totalPh}</td>
-                <td className="px-4 py-3 text-center font-black bg-gray-50/50 text-gray-900 border-x border-gray-50">{mr.total}</td>
+                <td className="px-4 py-3 text-center text-blue-600 font-medium group-hover:font-bold">{formatKpiGrouped(mr.totalHcp)}</td>
+                <td className="px-4 py-3 text-center text-green-600 font-medium group-hover:font-bold">{formatKpiGrouped(mr.totalHco)}</td>
+                <td className="px-4 py-3 text-center text-teal-600 font-medium group-hover:font-bold">{formatKpiGrouped(mr.totalPh)}</td>
+                <td className="px-4 py-3 text-center font-black bg-gray-50/50 text-gray-900 border-x border-gray-50">{formatKpiGrouped(mr.total)}</td>
                 
-                <td className={`px-4 py-3 text-center font-black ${ (targets?.hcpPerDay && mr.hcpRate >= targets.hcpPerDay) ? 'text-green-600' : 'text-red-600' }`}>{mr.hcpRate.toFixed(1)}</td>
-                <td className={`px-4 py-3 text-center font-black ${ (targets?.hcoPerDay && mr.hcoRate >= targets.hcoPerDay) ? 'text-green-600' : 'text-red-600' }`}>{mr.hcoRate.toFixed(1)}</td>
-                <td className={`px-4 py-3 text-center font-black ${ (targets?.phPerDay && mr.phRate >= targets.phPerDay) ? 'text-green-600' : 'text-red-600' }` + " border-r border-gray-50"}>{mr.phRate.toFixed(1)}</td>
+                <td className={`px-4 py-3 text-center font-black ${ (targets?.hcpPerDay && mr.hcpRate >= targets.hcpPerDay) ? 'text-green-600' : 'text-red-600' }`}>{formatKpi(mr.hcpRate)}</td>
+                <td className={`px-4 py-3 text-center font-black ${ (targets?.hcoPerDay && mr.hcoRate >= targets.hcoPerDay) ? 'text-green-600' : 'text-red-600' }`}>{formatKpi(mr.hcoRate)}</td>
+                <td className={`px-4 py-3 text-center font-black ${ (targets?.phPerDay && mr.phRate >= targets.phPerDay) ? 'text-green-600' : 'text-red-600' }` + " border-r border-gray-50"}>{formatKpi(mr.phRate)}</td>
                 
-                <td className={`px-4 py-3 text-center font-bold ${ mr.coachingDays > 0 ? 'text-green-600' : 'text-red-600' }`}>{mr.coachingDays}</td>
+                <td className={`px-4 py-3 text-center font-bold ${ mr.coachingDays > 0 ? 'text-green-600' : 'text-red-600' }`}>{formatKpiGrouped(mr.coachingDays)}</td>
               </tr>
             ))}
           </tbody>

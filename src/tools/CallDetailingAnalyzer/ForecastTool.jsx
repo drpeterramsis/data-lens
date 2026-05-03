@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { TrendingUp, Trash2, Calendar, ShieldCheck, AlertCircle } from 'lucide-react';
+import { formatKpi, formatKpiGrouped, formatKpiPercent } from '../../utils/formatNumber';
 import { calculateForecast, STATUS_CONFIG } from '../../utils/forecastEngine';
 import StatusTooltip from '../../components/shared/StatusTooltip';
 import { buildRequiredTooltip } from '../../utils/mrCalculations';
@@ -55,7 +56,7 @@ const ForecastTool = ({ data, targets, mrStats }) => {
                 ? "✅"
                 : status === "impossible"
                   ? "❌"
-                  : `${required?.toFixed(1) ?? "—"}`
+                  : formatKpi(required)
               }
             </div>
             <div className={`text-[10px] mt-0.5 ${colors.text} opacity-80`}>
@@ -627,7 +628,7 @@ const ForecastTool = ({ data, targets, mrStats }) => {
                                     </td>
                                     
                                     {/* HCO */}
-                                    <td className="p-3 text-center text-sm text-gray-700 border-r border-b border-gray-200">{row.hcoDone}</td>
+                                    <td className="p-3 text-center text-sm text-gray-700 border-r border-b border-gray-200">{formatKpiGrouped(row.hcoDone)}</td>
                                     <td className="p-3 text-center text-sm text-gray-700 border-r border-b border-gray-200">{row.hcoWorkedDays}d</td>
                                     <td className={`p-3 text-center text-sm font-bold border-r border-b border-gray-200 ${
                                       row.hcoActualRate >= hcoTarget ? "text-green-700" : row.hcoActualRate >= hcoTarget * 0.9 ? "text-yellow-600" : "text-red-600"
@@ -636,13 +637,13 @@ const ForecastTool = ({ data, targets, mrStats }) => {
                                         title="🏥 HCO Daily Rate"
                                         color={row.hcoActualRate >= hcoTarget ? "green" : row.hcoActualRate >= hcoTarget * 0.9 ? "yellow" : "red"}
                                         lines={[
-                                          `Reported HCO Rate: ${row.hcoActualRate}/day`,
-                                          `Target HCO Rate: ${hcoTarget}/day`,
-                                          `Achievement: ${Math.round((row.hcoActualRate / hcoTarget) * 100)}%`,
-                                          `Total HCO visits: ${row.hcoDone}`,
+                                          `Reported HCO Rate: ${formatKpi(row.hcoActualRate)}/day`,
+                                          `Target HCO Rate: ${formatKpi(hcoTarget)}/day`,
+                                          `Achievement: ${formatKpiPercent((row.hcoActualRate / hcoTarget) * 100)}`,
+                                          `Total HCO visits: ${formatKpiGrouped(row.hcoDone)}`,
                                           `Worked days: ${row.hcoWorkedDays}`
                                         ]}>
-                                        <div className="cursor-help">{row.hcoActualRate}</div>
+                                        <div className="cursor-help">{formatKpi(row.hcoActualRate)}</div>
                                       </StatusTooltip>
                                     </td>
                                     <RequiredCell
@@ -656,7 +657,7 @@ const ForecastTool = ({ data, targets, mrStats }) => {
                                     />
 
                                     {/* PH */}
-                                    <td className="p-3 text-center text-sm text-gray-700 border-r border-b border-gray-200 border-l-2 border-l-gray-300">{row.phDone}</td>
+                                    <td className="p-3 text-center text-sm text-gray-700 border-r border-b border-gray-200 border-l-2 border-l-gray-300">{formatKpiGrouped(row.phDone)}</td>
                                     <td className="p-3 text-center text-sm text-gray-700 border-r border-b border-gray-200">{row.phWorkedDays}d</td>
                                     <td className={`p-3 text-center text-sm font-bold border-r border-b border-gray-200 ${
                                       row.phActualRate >= phTarget ? "text-green-700" : row.phActualRate >= phTarget * 0.9 ? "text-yellow-600" : "text-red-600"
@@ -665,13 +666,13 @@ const ForecastTool = ({ data, targets, mrStats }) => {
                                         title="💊 PH Daily Rate"
                                         color={row.phActualRate >= phTarget ? "green" : row.phActualRate >= phTarget * 0.9 ? "yellow" : "red"}
                                         lines={[
-                                          `Reported PH Rate: ${row.phActualRate}/day`,
-                                          `Target PH Rate: ${phTarget}/day`,
-                                          `Achievement: ${Math.round((row.phActualRate / phTarget) * 100)}%`,
-                                          `Total PH visits: ${row.phDone}`,
+                                          `Reported PH Rate: ${formatKpi(row.phActualRate)}/day`,
+                                          `Target PH Rate: ${formatKpi(phTarget)}/day`,
+                                          `Achievement: ${formatKpiPercent((row.phActualRate / phTarget) * 100)}`,
+                                          `Total PH visits: ${formatKpiGrouped(row.phDone)}`,
                                           `Worked days: ${row.phWorkedDays}`
                                         ]}>
-                                        <div className="cursor-help">{row.phActualRate}</div>
+                                        <div className="cursor-help">{formatKpi(row.phActualRate)}</div>
                                       </StatusTooltip>
                                     </td>
                                     <RequiredCell
@@ -685,7 +686,7 @@ const ForecastTool = ({ data, targets, mrStats }) => {
                                     />
 
                                     {/* HCP */}
-                                    <td className="p-3 text-center text-sm text-gray-700 border-r border-b border-gray-200 border-l-2 border-l-gray-300">{row.hcpDone}</td>
+                                    <td className="p-3 text-center text-sm text-gray-700 border-r border-b border-gray-200 border-l-2 border-l-gray-300">{formatKpiGrouped(row.hcpDone)}</td>
                                     <td className="p-3 text-center text-sm text-gray-700 border-r border-b border-gray-200">{row.hcpWorkedDays}d</td>
                                     <td className={`p-3 text-center text-sm font-bold border-r border-b border-gray-200 ${
                                       row.hcpActualRate >= hcpTarget ? "text-green-700" : row.hcpActualRate >= hcpTarget * 0.9 ? "text-yellow-600" : "text-red-600"
@@ -694,13 +695,13 @@ const ForecastTool = ({ data, targets, mrStats }) => {
                                         title="👤 HCP Daily Rate"
                                         color={row.hcpActualRate >= hcpTarget ? "green" : row.hcpActualRate >= hcpTarget * 0.9 ? "yellow" : "red"}
                                         lines={[
-                                          `Reported HCP Rate: ${row.hcpActualRate}/day`,
-                                          `Target HCP Rate: ${hcpTarget}/day`,
-                                          `Achievement: ${Math.round((row.hcpActualRate / hcpTarget) * 100)}%`,
-                                          `Total HCP visits: ${row.hcpDone}`,
+                                          `Reported HCP Rate: ${formatKpi(row.hcpActualRate)}/day`,
+                                          `Target HCP Rate: ${formatKpi(hcpTarget)}/day`,
+                                          `Achievement: ${formatKpiPercent((row.hcpActualRate / hcpTarget) * 100)}`,
+                                          `Total HCP visits: ${formatKpiGrouped(row.hcpDone)}`,
                                           `Worked days: ${row.hcpWorkedDays}`
                                         ]}>
-                                        <div className="cursor-help">{row.hcpActualRate}</div>
+                                        <div className="cursor-help">{formatKpi(row.hcpActualRate)}</div>
                                       </StatusTooltip>
                                     </td>
                                     <RequiredCell

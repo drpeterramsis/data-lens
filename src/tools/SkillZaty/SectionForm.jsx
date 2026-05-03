@@ -80,7 +80,7 @@ export const SectionForm = ({ isOpen, type, onClose, onSave, initialData, isSavi
         ...prev,
         fileUrl: result.rawUrl,
         fileName: file.name,
-        fileSize: (file.size / 1024 / 1024).toFixed(1) + 'MB'
+        fileSize: (file.size / 1024 / 1024).toFixed(2) + 'MB'
       }));
       setUploadProgress(100);
     } catch (error) {
@@ -136,7 +136,7 @@ export const SectionForm = ({ isOpen, type, onClose, onSave, initialData, isSavi
                 <div className="flex flex-col items-center">
                   <FileText size={48} className="text-gray-300 mb-4" />
                   <label className="cursor-pointer px-6 py-2 bg-white border border-gray-300 rounded-lg font-bold text-sm hover:bg-gray-50 transition-all shadow-sm">
-                    {uploading ? `Uploading (${uploadProgress}%)...` : 'Select PDF File'}
+                    {uploading ? `Uploading (${uploadProgress.toFixed(2)}%)...` : 'Select PDF File'}
                     <input type="file" hidden accept=".pdf" onChange={(e) => handleFileUpload(e, 'pdfs', 25 * 1024 * 1024)} disabled={uploading} />
                   </label>
                   <p className="text-[10px] text-gray-400 mt-4 uppercase tracking-widest">Max size: 25MB</p>
@@ -166,7 +166,7 @@ export const SectionForm = ({ isOpen, type, onClose, onSave, initialData, isSavi
                 <div className="flex flex-col items-center">
                   <Music size={48} className="text-gray-300 mb-4" />
                   <label className="cursor-pointer px-6 py-2 bg-white border border-gray-300 rounded-lg font-bold text-sm hover:bg-gray-50 transition-all shadow-sm">
-                    {uploading ? `Uploading (${uploadProgress}%)...` : 'Select Audio File'}
+                    {uploading ? `Uploading (${uploadProgress.toFixed(2)}%)...` : 'Select Audio File'}
                     <input type="file" hidden accept="audio/*" onChange={(e) => handleFileUpload(e, 'audio', 25 * 1024 * 1024)} disabled={uploading} />
                   </label>
                   <p className="text-[10px] text-gray-400 mt-4 uppercase tracking-widest">Max size: 25MB (.mp3, .wav, .m4a)</p>

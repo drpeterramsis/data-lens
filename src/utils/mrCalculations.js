@@ -4,6 +4,7 @@ import {
   isPHWorkingDay,
 } from "./periodRules";
 import { isCoached, safeStr } from "./safeCSV";
+import { formatKpi } from "./formatNumber";
 
 export const getRateStatus = (rate, target) => {
   if (!target || target === 0) {
@@ -133,11 +134,11 @@ export const calculateMRStats = (filteredRows) => {
 
     // Call rates
     const hcoRate = hcoDates.length
-      ? +(totalHCO / hcoDates.length).toFixed(1) : 0;
+      ? (totalHCO / hcoDates.length) : 0;
     const phRate  = phDates.length
-      ? +(totalPH  / phDates.length).toFixed(1)  : 0;
+      ? (totalPH  / phDates.length)  : 0;
     const hcpRate = hcpDates.length
-      ? +(totalHCP / hcpDates.length).toFixed(1) : 0;
+      ? (totalHCP / hcpDates.length) : 0;
 
     // Coaching days = ANY day with at least 1 coached visit
     const coachingDaysList = allDates.filter(d =>
@@ -275,12 +276,12 @@ export const buildStatusTooltip = (mr, targets, status) => {
   const lines = [
     `Rule: ${thresholdLine[status]}`,
     "─────────────────────",
-    `🏥 HCO: ${mr.hcoActualRate}/day vs target ${targets.hcoPerDay}/day = ${hcoPct}%` +
-      (mr.hcoRequired ? ` · needs ${mr.hcoRequired}/day` : ""),
-    `💊 PH: ${mr.phActualRate}/day vs target ${targets.phPerDay}/day = ${phPct}%` +
-      (mr.phRequired ? ` · needs ${mr.phRequired}/day` : ""),
-    `👤 HCP: ${mr.hcpActualRate}/day vs target ${targets.hcpPerDay}/day = ${hcpPct}%` +
-      (mr.hcpRequired ? ` · needs ${mr.hcpRequired}/day` : ""),
+    `🏥 HCO: ${formatKpi(mr.hcoActualRate)}/day vs target ${formatKpi(targets.hcoPerDay)}/day = ${hcoPct}%` +
+      (mr.hcoRequired ? ` · needs ${formatKpi(mr.hcoRequired)}/day` : ""),
+    `💊 PH: ${formatKpi(mr.phActualRate)}/day vs target ${formatKpi(targets.phPerDay)}/day = ${phPct}%` +
+      (mr.phRequired ? ` · needs ${formatKpi(mr.phRequired)}/day` : ""),
+    `👤 HCP: ${formatKpi(mr.hcpActualRate)}/day vs target ${formatKpi(targets.hcpPerDay)}/day = ${hcpPct}%` +
+      (mr.hcpRequired ? ` · needs ${formatKpi(mr.hcpRequired)}/day` : ""),
     "─────────────────────",
     `Weakest: ${worstPct}% achievement rate`,
     `Worked: ${mr.workedDays} days · Last visit: ${formatDate(mr.lastDate)}`,
@@ -333,11 +334,11 @@ export const buildRequiredTooltip = (
       `Total target for period: ${totalTarget}`,
       `Still needed: ${deficit} more visits`,
       `Remaining working days: ${remDays}`,
-      `Required rate: ${deficit} ÷ ${remDays} = ${required.toFixed(1)}/day`,
-      `Daily target: ${target}/day`,
+      `Required rate: ${deficit} ÷ ${remDays} = ${formatKpi(deficit / remDays)}/day`,
+      `Daily target: ${formatKpi(target)}/day`,
       `Status: ${feasible}`,
       required > target
-        ? `Exceeds target by ${(required - target).toFixed(1)}/day`
+        ? `Exceeds target by ${formatKpi(required - target)}/day`
         : `Within target — keep current pace`,
     ],
   };
@@ -363,8 +364,8 @@ export const calculateKPICards = (mrStats) => {
   const hcpMRs = mrStats.filter(mr => mr.hcpDays > 0);
 
   const avg = (arr, key) => arr.length
-    ? (arr.reduce((s,m) => s + m[key], 0) / arr.length).toFixed(1)
-    : "0.0";
+    ? (arr.reduce((s,m) => s + m[key], 0) / arr.length)
+    : 0;
 
   return {
     coachingDays,

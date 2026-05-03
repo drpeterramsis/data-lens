@@ -13,6 +13,7 @@ import Papa from 'papaparse';
 import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
 import { FilterButton } from '../../components/ui/FilterButton';
+import { formatKpi, formatKpiGrouped, formatKpiPercent } from '../../utils/formatNumber';
 
 // ─────────────────────────────────────────────
 // HELPERS
@@ -347,16 +348,16 @@ const DrilldownModal = ({ info, onClose }) => {
                   <div className="flex items-center gap-4 text-xs">
                     <div className="flex flex-col items-end">
                       <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Net Value</span>
-                      <span className="font-bold text-gray-800">{inv.netValue.toLocaleString()} EGP</span>
+                      <span className="font-bold text-gray-800">{formatKpiGrouped(inv.netValue)} EGP</span>
                     </div>
                     <div className="flex flex-col items-end">
                       <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Net Qty</span>
-                      <span className="font-bold text-emerald-600">{inv.netQty.toLocaleString()}</span>
+                      <span className="font-bold text-emerald-600">{formatKpiGrouped(inv.netQty)}</span>
                     </div>
                     {inv.returnQty > 0 && (
                       <div className="flex flex-col items-end">
                         <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Returns</span>
-                        <span className="font-bold text-red-500">{inv.returnQty.toLocaleString()}</span>
+                        <span className="font-bold text-red-500">{formatKpiGrouped(inv.returnQty)}</span>
                       </div>
                     )}
                   </div>
@@ -390,8 +391,8 @@ const DrilldownModal = ({ info, onClose }) => {
                       {inv.products.map((p, pidx) => (
                         <tr key={pidx} className="hover:bg-blue-50/30 transition-colors">
                           <td className="px-4 py-1.5 text-gray-800 font-medium">{p.productName}</td>
-                          <td className="px-4 py-1.5 text-right font-mono font-bold text-emerald-600">{p.netQty.toLocaleString()}</td>
-                          <td className="px-4 py-1.5 text-right font-mono text-gray-600">{p.netValue.toLocaleString()}</td>
+                          <td className="px-4 py-1.5 text-right font-mono font-bold text-emerald-600">{formatKpiGrouped(p.netQty)}</td>
+                          <td className="px-4 py-1.5 text-right font-mono text-gray-600">{formatKpiGrouped(p.netValue)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -624,7 +625,7 @@ const Report1 = ({ data, filterOptions }) => {
   };
 
   // ── Format number ──
-  const fmtN = (n) => Math.round(n).toLocaleString();
+  const fmtN = (n) => formatKpiGrouped(n);
 
   // Negative styles
   const negStyle = "text-[#8b0000] bg-[#ffe6e6] px-1 rounded inline-block";
@@ -732,13 +733,13 @@ const Report1 = ({ data, filterOptions }) => {
              if (hasReturnsCol) rData.push(metric === 'value' ? periodTotal.returnValue : periodTotal.returnQty);
              if (!hideTotal) rData.push(metric === 'value' ? periodTotal.value : periodTotal.qty);
              if (groupBy !== 'month') {
-                 rData.push(((metric === 'value' ? periodTotal.value : periodTotal.qty) / (periodKeys.length || 1)).toFixed(2));
+                 rData.push(formatKpi((metric === 'value' ? periodTotal.value : periodTotal.qty) / (periodKeys.length || 1)));
              }
         });
         const grand = getRowGrandTotal(rowVal);
         const avg = getRowAvg(rowVal);
         rData.push(metric === 'value' ? grand.value : grand.qty);
-        rData.push(metric === 'value' ? avg.value.toFixed(2) : avg.qty.toFixed(2));
+        rData.push(metric === 'value' ? formatKpi(avg.value) : formatKpi(avg.qty));
         rows.push(rData);
     });
 
@@ -1102,7 +1103,7 @@ const Report1 = ({ data, filterOptions }) => {
                 <YAxis tick={{ fontSize: chartSettings.fontSize }} />
                 <Tooltip
                   contentStyle={{ fontSize: chartSettings.fontSize, borderRadius: 12, border: '1px solid #e5e7eb' }}
-                  formatter={(val) => [val.toLocaleString(), '']}
+                  formatter={(val) => [formatKpiGrouped(val), '']}
                 />
                 {chartSettings.showLegend && <Legend wrapperStyle={{ fontSize: chartSettings.fontSize }} />}
                 {activeCols.map((col, i) => (
@@ -1112,7 +1113,7 @@ const Report1 = ({ data, filterOptions }) => {
                     fill={chartSettings.colors[i % chartSettings.colors.length]}
                     radius={[4, 4, 0, 0]}
                     label={chartSettings.showValues
-                      ? { position: 'top', fontSize: chartSettings.fontSize - 1, formatter: v => v > 0 ? v.toLocaleString() : '' }
+                      ? { position: 'top', fontSize: chartSettings.fontSize - 1, formatter: v => v > 0 ? formatKpiGrouped(v) : '' }
                       : false
                     }
                   />
@@ -1131,7 +1132,7 @@ const Report1 = ({ data, filterOptions }) => {
                 <YAxis tick={{ fontSize: chartSettings.fontSize }} />
                 <Tooltip
                   contentStyle={{ fontSize: chartSettings.fontSize, borderRadius: 12, border: '1px solid #e5e7eb' }}
-                  formatter={(val) => [val.toLocaleString(), '']}
+                  formatter={(val) => [formatKpiGrouped(val), '']}
                 />
                 {chartSettings.showLegend && <Legend wrapperStyle={{ fontSize: chartSettings.fontSize }} />}
                 {activeCols.map((col, i) => (
@@ -1144,7 +1145,7 @@ const Report1 = ({ data, filterOptions }) => {
                     dot={{ r: 4 }}
                     activeDot={{ r: 6 }}
                     label={chartSettings.showValues
-                      ? { position: 'top', fontSize: chartSettings.fontSize - 1, formatter: v => v > 0 ? v.toLocaleString() : '' }
+                      ? { position: 'top', fontSize: chartSettings.fontSize - 1, formatter: v => v > 0 ? formatKpiGrouped(v) : '' }
                       : false
                     }
                   />

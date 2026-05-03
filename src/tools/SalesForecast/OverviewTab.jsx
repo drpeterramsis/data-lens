@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine, Legend, Cell } from 'recharts';
 import { Download } from 'lucide-react';
+import { formatKpi, formatKpiGrouped, formatKpiPercent } from '../../utils/formatNumber';
 
 const OverviewTab = ({ data }) => {
   const stats = useMemo(() => {
@@ -72,17 +73,17 @@ const OverviewTab = ({ data }) => {
     <div className="space-y-6 pb-20">
       {/* SUMMARY CARDS */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 md:gap-4">
-        <SummaryCard label="Total Sales Units" value={stats.totalSalesUnits.toLocaleString()} />
-        <SummaryCard label="Total Sales Value" value={`$${stats.totalSalesValue.toLocaleString()}`} />
-        <SummaryCard label="Total Target Units" value={stats.totalTargetUnits.toLocaleString()} />
-        <SummaryCard label="Total Target Value" value={`$${stats.totalTargetValue.toLocaleString()}`} />
+        <SummaryCard label="Total Sales Units" value={formatKpiGrouped(stats.totalSalesUnits)} />
+        <SummaryCard label="Total Sales Value" value={`$${formatKpiGrouped(stats.totalSalesValue)}`} />
+        <SummaryCard label="Total Target Units" value={formatKpiGrouped(stats.totalTargetUnits)} />
+        <SummaryCard label="Total Target Value" value={`$${formatKpiGrouped(stats.totalTargetValue)}`} />
         <SummaryCard 
           label="Overall Achievement" 
-          value={`${stats.overallAchievement.toFixed(1)}%`} 
-          badge={`${stats.overallAchievement.toFixed(0)}%`}
+          value={formatKpiPercent(stats.overallAchievement)} 
+          badge={`${formatKpi(stats.overallAchievement)}%`}
           badgeColor={stats.overallAchievement >= 100 ? 'bg-emerald-100 text-emerald-600' : stats.overallAchievement >= 75 ? 'bg-amber-100 text-amber-600' : 'bg-red-100 text-red-600'}
         />
-        <SummaryCard label="Total Points" value={stats.totalPoints.toLocaleString()} icon="🎯" />
+        <SummaryCard label="Total Points" value={formatKpiGrouped(stats.totalPoints)} icon="🎯" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -97,7 +98,7 @@ const OverviewTab = ({ data }) => {
                  <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 10, fontWeight: 700, fill: '#6C757D' }} axisLine={false} tickLine={false} />
                  <Tooltip 
                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                   formatter={(val) => [`${val.toFixed(1)}%`, 'Achievement']}
+                   formatter={(val) => [formatKpiPercent(val), 'Achievement']}
                  />
                  <ReferenceLine x={100} stroke="#6B7280" strokeDasharray="5 5" label={{ position: 'top', value: 'Target', fontSize: 10, fontWeight: 900, fill: '#6B7280' }} />
                  <Bar dataKey="achievement" radius={[0, 4, 4, 0]} barSize={20}>
@@ -141,15 +142,15 @@ const OverviewTab = ({ data }) => {
                       <td className="px-6 py-4 text-xs font-bold text-gray-900">{mr.mrName}</td>
                       <td className="px-6 py-4 text-xs font-medium text-gray-500">{mr.area}</td>
                       <td className="px-6 py-4 text-xs font-medium text-gray-500">{mr.line}</td>
-                      <td className="px-6 py-4 text-xs font-bold text-gray-900 text-right">{mr.salesUnits.toLocaleString()}</td>
-                      <td className="px-6 py-4 text-xs font-medium text-gray-400 text-right">{mr.targetUnits.toLocaleString()}</td>
+                      <td className="px-6 py-4 text-xs font-bold text-gray-900 text-right">{formatKpiGrouped(mr.salesUnits)}</td>
+                      <td className="px-6 py-4 text-xs font-medium text-gray-400 text-right">{formatKpiGrouped(mr.targetUnits)}</td>
                       <td className="px-6 py-4 text-right">
                         <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase ${ach >= 100 ? 'bg-emerald-100 text-emerald-600' : ach >= 75 ? 'bg-amber-100 text-amber-600' : 'bg-red-100 text-red-600'}`}>
-                          {ach.toFixed(1)}%
+                          {formatKpiPercent(ach)}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-xs font-bold text-gray-900 text-right">${mr.salesValue.toLocaleString()}</td>
-                      <td className="px-6 py-4 text-xs font-bold text-blue-600 text-right">{mr.points.toLocaleString()}</td>
+                      <td className="px-6 py-4 text-xs font-bold text-gray-900 text-right">${formatKpiGrouped(mr.salesValue)}</td>
+                      <td className="px-6 py-4 text-xs font-bold text-blue-600 text-right">{formatKpiGrouped(mr.points)}</td>
                     </tr>
                   );
                 })}

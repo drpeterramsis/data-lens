@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { GraduationCap, UserCheck } from 'lucide-react';
+import { formatKpi, formatKpiGrouped, formatKpiPercent } from '../../utils/formatNumber';
 
 const CoachingAnalysis = ({ data = [] }) => {
   const stats = useMemo(() => {
@@ -41,11 +42,11 @@ const CoachingAnalysis = ({ data = [] }) => {
            { label: 'Total Coached MRs', val: Object.values(stats.mrBreakdown).filter(m => m.coached >= 4).length, color: 'text-success', bg: 'bg-green-50' },
            { label: 'MRs with 0 Coaching', val: Object.values(stats.mrBreakdown).filter(m => m.coached === 0).length, color: 'text-danger', bg: 'bg-red-50' },
            { label: 'Total Coaching Sessions', val: stats.mrCoaching, color: 'text-blue-500', bg: 'bg-blue-50' },
-           { label: 'Coaching Coverage %', val: ((Object.values(stats.mrBreakdown).filter(m => m.coached >= 4).length / Math.max(Object.values(stats.mrBreakdown).length, 1)) * 100).toFixed(1), color: 'text-purple-500', bg: 'bg-purple-50', isPct: true }
+           { label: 'Coaching Coverage %', val: formatKpiPercent((Object.values(stats.mrBreakdown).filter(m => m.coached >= 4).length / Math.max(Object.values(stats.mrBreakdown).length, 1)) * 100), color: 'text-purple-500', bg: 'bg-purple-50', isPct: true }
          ].map((card, i) => (
            <div key={i} className={`p-4 rounded-xl border border-gray-100 ${card.bg}`}>
               <p className="text-[10px] font-black uppercase text-gray-400 mb-1 leading-none">{card.label}</p>
-              <p className={`text-xl font-black ${card.color}`}>{card.val}{card.isPct && '%'}</p>
+              <p className={`text-xl font-black ${card.color}`}>{card.val}</p>
            </div>
          ))}
       </div>
@@ -66,7 +67,7 @@ const CoachingAnalysis = ({ data = [] }) => {
                              <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                                 <div className={`h-full ${data.coached > 0 ? 'bg-success' : 'bg-gray-200'}`} style={{ width: `${(data.coached/data.total)*100}%` }} />
                              </div>
-                             <span className="font-black text-gray-700 w-8 text-right">{data.coached}</span>
+                             <span className="font-black text-gray-700 w-12 text-right">{formatKpiGrouped(data.coached)}</span>
                            </div>
                         </td>
                       </tr>
