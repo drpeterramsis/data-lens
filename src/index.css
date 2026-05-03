@@ -471,7 +471,247 @@
   background: rgba(239,68,68,0.1);
 }
 
-/* ── Messages Section ── */
+/* ── Drop Zone Styles ── */
+.file-drop-zone {
+  position: relative;
+  border: 2px dashed #CBD5E1;
+  border-radius: 14px;
+  padding: 32px 24px;
+  text-align: center;
+  cursor: pointer;
+  background: #FAFAFA;
+  transition: all 0.2s ease;
+  user-select: none;
+
+  /* CRITICAL: ensure pointer events work */
+  pointer-events: all !important;
+}
+
+.file-drop-zone:hover {
+  border-color: #94A3B8;
+  background: #F8FAFC;
+}
+
+/* Dragging state */
+.file-drop-zone.is-dragging {
+  border-color: #FFC300;
+  background: #FFFBEB;
+  border-style: solid;
+  box-shadow: 0 0 0 4px rgba(255,195,0,0.15);
+  transform: scale(1.01);
+}
+
+/* Error state */
+.file-drop-zone.has-error {
+  border-color: #EF4444;
+  background: #FEF2F2;
+}
+
+/* Disabled state */
+.file-drop-zone.is-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Drop overlay (shows when dragging over) */
+.drop-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  background: rgba(255, 195, 0, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.drop-overlay-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #92400E;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.drop-zone-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  pointer-events: none; /* let parent handle events */
+}
+
+.drop-icon-wrap {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: white;
+  border: 1.5px solid #E2E8F0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748B;
+  transition: all 0.2s;
+}
+
+.is-dragging .drop-icon-wrap {
+  background: #FFF3CD;
+  border-color: #FFC300;
+  color: #92400E;
+}
+
+.drop-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.drop-main-text {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1E293B;
+}
+
+.drop-sub-text {
+  font-size: 0.8rem;
+  color: #64748B;
+}
+
+.drop-browse {
+  color: #FFC300;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.drop-hint {
+  font-size: 0.72rem;
+  color: #CBD5E1;
+  margin-top: 2px;
+}
+
+.drop-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin-top: 8px;
+  font-size: 0.75rem;
+  color: #EF4444;
+  background: #FEE2E2;
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* ── Library Loader Styles ── */
+.library-loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: 40px 0;
+}
+
+/* Spinner */
+.library-spinner-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.library-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid #F1F5F9;
+  border-top-color: #FFC300;
+  border-radius: 50%;
+  animation: lib-spin 0.75s
+    cubic-bezier(0.5, 0, 0.5, 1) infinite;
+}
+
+@keyframes lib-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Skeleton grid */
+.library-skeleton-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  width: 100%;
+  max-width: 900px;
+}
+
+.skeleton-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 12px;
+  background: white;
+  border: 1.5px solid #F1F5F9;
+  animation: skeleton-pulse 1.5s ease infinite;
+}
+
+@keyframes skeleton-pulse {
+  0%   { opacity: 1;    }
+  50%  { opacity: 0.45; }
+  100% { opacity: 1;    }
+}
+
+.skeleton-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  background: #F1F5F9;
+  flex-shrink: 0;
+}
+
+.skeleton-lines {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.skeleton-line {
+  height: 8px;
+  border-radius: 4px;
+  background: #F1F5F9;
+}
+
+.skeleton-line.long  { width: 80%; }
+.skeleton-line.short { width: 50%; }
+
+/* ── Empty state ── */
+.library-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 60px 20px;
+  color: #CBD5E1;
+  text-align: center;
+}
+
+.empty-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #94A3B8;
+  margin: 4px 0 0;
+}
+
+.empty-desc {
+  font-size: 0.8rem;
+  color: #CBD5E1;
+  margin: 0;
+}
+
 .messages-section { width: 100%; margin-bottom: 28px; }
 .messages-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
 .messages-header-title { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #64748B; }
