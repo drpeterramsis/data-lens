@@ -25,40 +25,18 @@ import {
   EyeOff, 
   Save, 
   AlertCircle, 
-  Shield, 
   CheckCircle2,
-  LayoutDashboard,
-  Phone,
-  BarChart2,
-  TrendingUp,
-  Map as MapIcon,
-  Link as LinkIcon,
-  GraduationCap
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useDashboardConfig } from '../../../context/DashboardConfigContext';
 import { saveDashboardConfig, getLatestSHA } from '../../../services/githubService';
-
-// Helper to get Lucide icon based on icon string
-const getMenuIcon = (iconName) => {
-  switch (iconName) {
-    case 'dashboard': return <LayoutDashboard size={18} />;
-    case 'phone': return <Phone size={18} />;
-    case 'bar_chart': return <BarChart2 size={18} />;
-    case 'trending_up': return <TrendingUp size={18} />;
-    case 'map': return <MapIcon size={18} />;
-    case 'link': return <LinkIcon size={18} />;
-    case 'school': return <GraduationCap size={18} />;
-    case 'shield': return <Shield size={18} />;
-    default: return <LayoutDashboard size={18} />;
-  }
-};
+import { resolveIcon } from '../../../utils/iconResolver';
 
 const DEFAULT_GROUPS = [
-  { id: 'grp_main', label: 'Main', color: '#3B82F6', order: 1, visible: true, collapsible: false, defaultCollapsed: false },
-  { id: 'grp_analytics', label: 'Analytics', color: '#10B981', order: 2, visible: true, collapsible: true, defaultCollapsed: false },
-  { id: 'grp_resources', label: 'Resources', color: '#EC4899', order: 3, visible: true, collapsible: true, defaultCollapsed: false },
-  { id: 'grp_admin', label: 'Administration', color: '#8B5CF6', order: 4, visible: true, collapsible: false, defaultCollapsed: false, adminOnly: true }
+  { id: 'grp_main', label: 'Main', icon: 'dashboard', color: '#3B82F6', order: 1, visible: true, collapsible: false, defaultCollapsed: false },
+  { id: 'grp_analytics', label: 'Analytics', icon: 'bar_chart', color: '#10B981', order: 2, visible: true, collapsible: true, defaultCollapsed: false },
+  { id: 'grp_resources', label: 'Resources', icon: 'book', color: '#EC4899', order: 3, visible: true, collapsible: true, defaultCollapsed: false },
+  { id: 'grp_admin', label: 'Administration', icon: 'shield', color: '#8B5CF6', order: 4, visible: true, collapsible: false, defaultCollapsed: false, adminOnly: true }
 ];
 
 const DEFAULT_MENU_ITEMS = [
@@ -186,7 +164,7 @@ const SortableGroupRow = ({ group, itemCount, onEdit, onToggleVisible }) => {
         <GripVertical size={18} />
       </div>
       <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: group.color }} />
-      <span className="text-lg w-6 text-center">{group.icon}</span>
+      <span className="text-lg w-6 text-center">{resolveIcon(group.icon, 18)}</span>
       
       <div className="flex-1 flex flex-col justify-center">
         <span className="text-sm font-bold text-slate-700">{group.label}</span>
@@ -236,7 +214,7 @@ const SortableMenuItemRow = ({ item, groups, onChangeGroup, onToggleVisible }) =
       </div>
 
       <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${item.adminOnly ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-600'}`}>
-        {getMenuIcon(item.icon)}
+        {resolveIcon(item.icon, 18)}
       </div>
 
       <div className="flex-1 min-w-0 flex flex-col justify-center">
@@ -251,7 +229,7 @@ const SortableMenuItemRow = ({ item, groups, onChangeGroup, onToggleVisible }) =
       >
         <option value="">-- No Group --</option>
         {groups.map(g => (
-          <option key={g.id} value={g.id}>{g.icon} {g.label}</option>
+          <option key={g.id} value={g.id}>{resolveIcon(g.icon, 12)} {g.label}</option>
         ))}
       </select>
 
@@ -382,8 +360,13 @@ const SidebarMenuTab = () => {
         setTimeout(() => setMessage(''), 3000);
       }
     } catch (err) {
-      console.error('Failed to save config:', err);
-      alert('Failed to save: ' + err.message);
+      if (err.message && err.message.includes('not configured')) {
+        console.error('GitHub not configured:', err);
+        alert('GitHub repository details are not configured. To enable saving, please configure your GitHub secrets.');
+      } else {
+        console.error('Failed to save config:', err);
+        alert('Failed to save: ' + err.message);
+      }
     } finally {
       setSaving(false);
     }
@@ -462,7 +445,7 @@ const SidebarMenuTab = () => {
                 return (
                   <div key={group.id}>
                     <div className="flex items-center gap-2 px-3 py-1.5 mb-3 bg-white border-l-4 rounded-r-lg shadow-sm" style={{ borderLeftColor: group.color }}>
-                      <span>{group.icon}</span>
+                      <span>{resolveIcon(group.icon, 16)}</span>
                       <span className="text-[11px] font-black text-slate-600 tracking-wider uppercase">{group.label}</span>
                       <span className="text-[10px] text-slate-400 font-medium ml-1 bg-slate-100 px-1.5 py-0.5 rounded-full">{items.length} items</span>
                       {group.adminOnly && <span className="ml-auto text-xs">👑</span>}

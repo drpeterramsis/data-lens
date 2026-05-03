@@ -7,6 +7,7 @@ import {
   Calendar, AlertCircle, Expand, Download,
   Maximize2, Minimize2, Type, ChevronsUpDown, TrendingUp
 } from 'lucide-react';
+import FullscreenWrapper from '../../components/shared/FullscreenWrapper';
 
 import * as XLSX from 'xlsx';
 import { 
@@ -2561,6 +2562,7 @@ const SalesAnalyzer = () => {
           <div className="flex-1 overflow-y-auto px-6 pb-[200px]">
             <div className="bg-white p-6 rounded-3xl border border-gray-200">
               {activeTab === 'Overview' && (
+                <FullscreenWrapper title="Overview">
                   <div className="space-y-8">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                           <div className="h-[300px]">
@@ -2573,149 +2575,158 @@ const SalesAnalyzer = () => {
                           </div>
                       </div>
                   </div>
+                </FullscreenWrapper>
               )}
                       {activeTab === 'By Product' && (
-                  <div className="space-y-6">
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                        <div className="px-5 py-4 border-b border-gray-100"><h3 className="font-bold text-gray-800">Product Breakdown</h3><p className="text-xs text-gray-400 mt-0.5">{filteredData.length} records</p></div>
-                        <div className="overflow-x-auto max-h-[420px] overflow-y-auto"><table className="w-full text-sm">
-                            <thead className="sticky top-0 bg-gray-50 z-10">
-                              <tr className="text-xs text-gray-500 uppercase">
-                                <th className="p-2 text-left">#</th>
-                                <SortableTH label="Product" sortKey="productName" currentKey={prodSortKey} dir={prodSortDir} onSort={prodToggle} />
-                                <SortableTH label="Qty" sortKey="netQty" currentKey={prodSortKey} dir={prodSortDir} onSort={prodToggle} className="text-right" />
-                                <SortableTH label="Value" sortKey="netValue" currentKey={prodSortKey} dir={prodSortDir} onSort={prodToggle} className="text-right" />
-                                <SortableTH label="%" sortKey="pct" currentKey={prodSortKey} dir={prodSortDir} onSort={prodToggle} className="text-right" />
-                              </tr>
-                            </thead>
-                            <tbody>{sortedProducts.map((p, i) => <tr key={p.productName} className={`border-b ${i<3 ? (i===0?'border-l-4 border-l-yellow-400':i===1?'border-l-4 border-l-gray-400':'border-l-4 border-l-orange-400'):''} hover:bg-blue-50`}>
-                                <td className="p-2">{i+1}</td><td className="p-2 font-semibold">{p.productName}</td><td className="p-2 text-right"><FormatNum val={p.netQty} /></td><td className="p-2 text-right"><FormatNum val={p.netValue} /></td><td className="p-2 text-right">{p.pct}</td></tr>)}</tbody>
-                        </table></div>
+                  <FullscreenWrapper title="By Product">
+                    <div className="space-y-6">
+                      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                          <div className="px-5 py-4 border-b border-gray-100"><h3 className="font-bold text-gray-800">Product Breakdown</h3><p className="text-xs text-gray-400 mt-0.5">{filteredData.length} records</p></div>
+                          <div className="overflow-x-auto max-h-[420px] overflow-y-auto"><table className="w-full text-sm">
+                              <thead className="sticky top-0 bg-gray-50 z-10">
+                                <tr className="text-xs text-gray-500 uppercase">
+                                  <th className="p-2 text-left">#</th>
+                                  <SortableTH label="Product" sortKey="productName" currentKey={prodSortKey} dir={prodSortDir} onSort={prodToggle} />
+                                  <SortableTH label="Qty" sortKey="netQty" currentKey={prodSortKey} dir={prodSortDir} onSort={prodToggle} className="text-right" />
+                                  <SortableTH label="Value" sortKey="netValue" currentKey={prodSortKey} dir={prodSortDir} onSort={prodToggle} className="text-right" />
+                                  <SortableTH label="%" sortKey="pct" currentKey={prodSortKey} dir={prodSortDir} onSort={prodToggle} className="text-right" />
+                                </tr>
+                              </thead>
+                              <tbody>{sortedProducts.map((p, i) => <tr key={p.productName} className={`border-b ${i<3 ? (i===0?'border-l-4 border-l-yellow-400':i===1?'border-l-4 border-l-gray-400':'border-l-4 border-l-orange-400'):''} hover:bg-blue-50`}>
+                                  <td className="p-2">{i+1}</td><td className="p-2 font-semibold">{p.productName}</td><td className="p-2 text-right"><FormatNum val={p.netQty} /></td><td className="p-2 text-right"><FormatNum val={p.netValue} /></td><td className="p-2 text-right">{p.pct}</td></tr>)}</tbody>
+                          </table></div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 Products (Qty)</h4><ResponsiveContainer height={260}><BarChart data={sortedProducts.slice(0,10)} layout="vertical" margin={{left: 40}}><XAxis type="number" fontSize={10} /><YAxis dataKey="productName" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netQty" fill="#10B981" /></BarChart></ResponsiveContainer></div>
+                          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 Products (Value)</h4><ResponsiveContainer height={260}><BarChart data={sortedProducts.slice(0,10)} layout="vertical" margin={{left: 40}}><XAxis type="number" fontSize={10} /><YAxis dataKey="productName" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netValue" fill="#3B82F6" /></BarChart></ResponsiveContainer></div>
+                      </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 Products (Qty)</h4><ResponsiveContainer height={260}><BarChart data={sortedProducts.slice(0,10)} layout="vertical" margin={{left: 40}}><XAxis type="number" fontSize={10} /><YAxis dataKey="productName" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netQty" fill="#10B981" /></BarChart></ResponsiveContainer></div>
-                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 Products (Value)</h4><ResponsiveContainer height={260}><BarChart data={sortedProducts.slice(0,10)} layout="vertical" margin={{left: 40}}><XAxis type="number" fontSize={10} /><YAxis dataKey="productName" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netValue" fill="#3B82F6" /></BarChart></ResponsiveContainer></div>
+                  </FullscreenWrapper>
+                )}
+                {activeTab === 'By MR' && (
+                  <FullscreenWrapper title="By MR">
+                    <div className="space-y-6">
+                      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                          <div className="px-5 py-4 border-b border-gray-100"><h3 className="font-bold text-gray-800">MR Breakdown</h3><p className="text-xs text-gray-400 mt-0.5">{filteredData.length} records</p></div>
+                          <div className="overflow-x-auto max-h-[420px] overflow-y-auto"><table className="w-full text-sm">
+                              <thead className="sticky top-0 bg-gray-50 z-10">
+                                <tr className="text-xs text-gray-500 uppercase">
+                                  <th className="p-2 text-left">#</th>
+                                  <SortableTH label="MR" sortKey="mrName" currentKey={mrSortKey} dir={mrSortDir} onSort={mrToggle} />
+                                  <SortableTH label="Qty" sortKey="netQty" currentKey={mrSortKey} dir={mrSortDir} onSort={mrToggle} className="text-right" />
+                                  <SortableTH label="Value" sortKey="netValue" currentKey={mrSortKey} dir={mrSortDir} onSort={mrToggle} className="text-right" />
+                                  <SortableTH label="%" sortKey="pct" currentKey={mrSortKey} dir={mrSortDir} onSort={mrToggle} className="text-right" />
+                                </tr>
+                              </thead>
+                              <tbody>{sortedMR.map((m, i) => (
+                                <tr key={m.mrName} 
+                                  onClick={() => setDrillModal({ open: true, type: 'mr', data: m })}
+                                  className="border-b hover:bg-blue-50 cursor-pointer">
+                                  <td className="p-2">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-gray-300 text-xs">⊕</span>
+                                      {i+1}
+                                    </div>
+                                  </td>
+                                  <td className="p-2 font-semibold">{m.mrName}</td>
+                                  <td className="p-2 text-right"><FormatNum val={m.netQty} /></td>
+                                  <td className="p-2 text-right"><FormatNum val={m.netValue} /></td>
+                                  <td className="p-2 text-right">{m.pct}</td>
+                                </tr>
+                              ))}</tbody>
+                          </table></div>
+                      </div>
+                      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 MRs (Net Qty)</h4><ResponsiveContainer height={260}><BarChart data={sortedMR.slice(0,10)} layout="vertical" margin={{left: 60}}><XAxis type="number" fontSize={10} /><YAxis dataKey="mrName" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netQty" fill="#8B5CF6" /></BarChart></ResponsiveContainer></div>
                     </div>
-                  </div>
-              )}
-              {activeTab === 'By MR' && (
-                  <div className="space-y-6">
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                        <div className="px-5 py-4 border-b border-gray-100"><h3 className="font-bold text-gray-800">MR Breakdown</h3><p className="text-xs text-gray-400 mt-0.5">{filteredData.length} records</p></div>
-                        <div className="overflow-x-auto max-h-[420px] overflow-y-auto"><table className="w-full text-sm">
-                            <thead className="sticky top-0 bg-gray-50 z-10">
-                              <tr className="text-xs text-gray-500 uppercase">
-                                <th className="p-2 text-left">#</th>
-                                <SortableTH label="MR" sortKey="mrName" currentKey={mrSortKey} dir={mrSortDir} onSort={mrToggle} />
-                                <SortableTH label="Qty" sortKey="netQty" currentKey={mrSortKey} dir={mrSortDir} onSort={mrToggle} className="text-right" />
-                                <SortableTH label="Value" sortKey="netValue" currentKey={mrSortKey} dir={mrSortDir} onSort={mrToggle} className="text-right" />
-                                <SortableTH label="%" sortKey="pct" currentKey={mrSortKey} dir={mrSortDir} onSort={mrToggle} className="text-right" />
-                              </tr>
-                            </thead>
-                            <tbody>{sortedMR.map((m, i) => (
-                              <tr key={m.mrName} 
-                                onClick={() => setDrillModal({ open: true, type: 'mr', data: m })}
-                                className="border-b hover:bg-blue-50 cursor-pointer">
-                                <td className="p-2">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-gray-300 text-xs">⊕</span>
-                                    {i+1}
-                                  </div>
-                                </td>
-                                <td className="p-2 font-semibold">{m.mrName}</td>
-                                <td className="p-2 text-right"><FormatNum val={m.netQty} /></td>
-                                <td className="p-2 text-right"><FormatNum val={m.netValue} /></td>
-                                <td className="p-2 text-right">{m.pct}</td>
-                              </tr>
-                            ))}</tbody>
-                        </table></div>
-                    </div>
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 MRs (Net Qty)</h4><ResponsiveContainer height={260}><BarChart data={sortedMR.slice(0,10)} layout="vertical" margin={{left: 60}}><XAxis type="number" fontSize={10} /><YAxis dataKey="mrName" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netQty" fill="#8B5CF6" /></BarChart></ResponsiveContainer></div>
-                  </div>
-              )}
+                  </FullscreenWrapper>
+                )}
               {activeTab === 'By Customer' && (
-                  <div className="space-y-6">
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                        <div className="px-5 py-4 border-b border-gray-100"><h3 className="font-bold text-gray-800">Customer Breakdown</h3><input value={customerSearch} onChange={e=>setCustomerSearch(e.target.value)} placeholder="Search customer..." className="p-2 border rounded-lg w-full text-xs mt-2" /></div>
-                        <div className="overflow-x-auto max-h-[420px] overflow-y-auto"><table className="w-full text-sm">
-                            <thead className="sticky top-0 bg-gray-50 z-10">
-                              <tr className="text-xs text-gray-500 uppercase">
-                                <th className="p-2 text-left">#</th>
-                                <SortableTH label="Name" sortKey="customerName" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} />
-                                <SortableTH label="Type" sortKey="customerType" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} />
-                                <SortableTH label="MR" sortKey="mrName" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} />
-                                <SortableTH label="Branch" sortKey="branch" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} />
-                                <SortableTH label="Invoices" sortKey="invoiceCount" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} className="text-right" />
-                                <SortableTH label="First" sortKey="firstDate" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} />
-                                <SortableTH label="Last" sortKey="lastDate" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} />
-                                <SortableTH label="Prods" sortKey="productCount" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} className="text-right" />
-                                <SortableTH label="Qty" sortKey="netQty" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} className="text-right" />
-                                <SortableTH label="Value" sortKey="netValue" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} className="text-right" />
-                                <SortableTH label="Ret.Qty" sortKey="returnQty" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} className="text-right" />
-                                <SortableTH label="Ret.Val" sortKey="returnValue" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} className="text-right" />
-                              </tr>
-                            </thead>
-                            <tbody>{(sortedCustomers || []).filter(c => {
-                              const s = customerSearch.toLowerCase();
-                              if (!s) return true;
-                              return (
-                                (c.customerName || '').toLowerCase().includes(s) ||
-                                (c.customerType || '').toLowerCase().includes(s) ||
-                                (c.mrName || '').toLowerCase().includes(s) ||
-                                (c.branch || '').toLowerCase().includes(s) ||
-                                (c.line || '').toLowerCase().includes(s) ||
-                                (c.supervisor || '').toLowerCase().includes(s) ||
-                                Array.from(c.products || []).some(p => (p || '').toLowerCase().includes(s)) ||
-                                Array.from(c.lines || []).some(l => (l || '').toLowerCase().includes(s)) ||
-                                Array.from(c.supervisors || []).some(sup => (sup || '').toLowerCase().includes(s)) ||
-                                Array.from(c.mrs || []).some(mr => (mr || '').toLowerCase().includes(s))
-                              );
-                            }).slice(0, 50).map((c, i) => (
-                              <tr key={i}
-                                onClick={() => setDrillModal({ open: true, type: 'customer', data: c })}
-                                className="border-b hover:bg-blue-50 cursor-pointer">
-                                <td className="p-2">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-gray-300 text-xs">⊕</span>
-                                    {i+1}
-                                  </div>
-                                </td>
-                                <td className="p-2">{c.customerName}</td>
-                                <td className="p-2">{c.customerType}</td>
-                                <td className="p-2">{c.mrName}</td>
-                                <td className="p-2">{c.branch}</td>
-                                <td className="p-2 text-right font-mono">{formatKpiGrouped(c.invoiceCount)}</td>
-                                <td className="p-2">{fmt(c.firstDate)}</td>
-                                <td className="p-2">{fmt(c.lastDate)}</td>
-                                <td className="p-2 text-right font-mono">{c.productCount}</td>
-                                <td className="p-2 text-right font-mono font-semibold"><FormatNum val={c.netQty} defaultClass="text-emerald-700" /></td>
-                                <td className="p-2 text-right font-mono"><FormatNum val={c.netValue} /></td>
-                                <td className="p-2 text-right font-mono text-red-500"><FormatNum val={c.returnQty} defaultClass="text-red-500" /></td>
-                                <td className="p-2 text-right font-mono text-red-400"><FormatNum val={c.returnValue} defaultClass="text-red-400" /></td>
-                              </tr>
-                            ))}</tbody>
-                        </table></div>
+                  <FullscreenWrapper title="By Customer">
+                    <div className="space-y-6">
+                      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                          <div className="px-5 py-4 border-b border-gray-100"><h3 className="font-bold text-gray-800">Customer Breakdown</h3><input value={customerSearch} onChange={e=>setCustomerSearch(e.target.value)} placeholder="Search customer..." className="p-2 border rounded-lg w-full text-xs mt-2" /></div>
+                          <div className="overflow-x-auto max-h-[420px] overflow-y-auto"><table className="w-full text-sm">
+                              <thead className="sticky top-0 bg-gray-50 z-10">
+                                <tr className="text-xs text-gray-500 uppercase">
+                                  <th className="p-2 text-left">#</th>
+                                  <SortableTH label="Name" sortKey="customerName" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} />
+                                  <SortableTH label="Type" sortKey="customerType" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} />
+                                  <SortableTH label="MR" sortKey="mrName" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} />
+                                  <SortableTH label="Branch" sortKey="branch" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} />
+                                  <SortableTH label="Invoices" sortKey="invoiceCount" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} className="text-right" />
+                                  <SortableTH label="First" sortKey="firstDate" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} />
+                                  <SortableTH label="Last" sortKey="lastDate" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} />
+                                  <SortableTH label="Prods" sortKey="productCount" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} className="text-right" />
+                                  <SortableTH label="Qty" sortKey="netQty" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} className="text-right" />
+                                  <SortableTH label="Value" sortKey="netValue" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} className="text-right" />
+                                  <SortableTH label="Ret.Qty" sortKey="returnQty" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} className="text-right" />
+                                  <SortableTH label="Ret.Val" sortKey="returnValue" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} className="text-right" />
+                                </tr>
+                              </thead>
+                              <tbody>{(sortedCustomers || []).filter(c => {
+                                const s = customerSearch.toLowerCase();
+                                if (!s) return true;
+                                return (
+                                  (c.customerName || '').toLowerCase().includes(s) ||
+                                  (c.customerType || '').toLowerCase().includes(s) ||
+                                  (c.mrName || '').toLowerCase().includes(s) ||
+                                  (c.branch || '').toLowerCase().includes(s) ||
+                                  (c.line || '').toLowerCase().includes(s) ||
+                                  (c.supervisor || '').toLowerCase().includes(s) ||
+                                  Array.from(c.products || []).some(p => (p || '').toLowerCase().includes(s)) ||
+                                  Array.from(c.lines || []).some(l => (l || '').toLowerCase().includes(s)) ||
+                                  Array.from(c.supervisors || []).some(sup => (sup || '').toLowerCase().includes(s)) ||
+                                  Array.from(c.mrs || []).some(mr => (mr || '').toLowerCase().includes(s))
+                                );
+                              }).slice(0, 50).map((c, i) => (
+                                <tr key={i}
+                                  onClick={() => setDrillModal({ open: true, type: 'customer', data: c })}
+                                  className="border-b hover:bg-blue-50 cursor-pointer">
+                                  <td className="p-2">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-gray-300 text-xs">⊕</span>
+                                      {i+1}
+                                    </div>
+                                  </td>
+                                  <td className="p-2">{c.customerName}</td>
+                                  <td className="p-2">{c.customerType}</td>
+                                  <td className="p-2">{c.mrName}</td>
+                                  <td className="p-2">{c.branch}</td>
+                                  <td className="p-2 text-right font-mono">{formatKpiGrouped(c.invoiceCount)}</td>
+                                  <td className="p-2">{fmt(c.firstDate)}</td>
+                                  <td className="p-2">{fmt(c.lastDate)}</td>
+                                  <td className="p-2 text-right font-mono">{c.productCount}</td>
+                                  <td className="p-2 text-right font-mono font-semibold"><FormatNum val={c.netQty} defaultClass="text-emerald-700" /></td>
+                                  <td className="p-2 text-right font-mono"><FormatNum val={c.netValue} /></td>
+                                  <td className="p-2 text-right font-mono text-red-500"><FormatNum val={c.returnQty} defaultClass="text-red-500" /></td>
+                                  <td className="p-2 text-right font-mono text-red-400"><FormatNum val={c.returnValue} defaultClass="text-red-400" /></td>
+                                </tr>
+                              ))}</tbody>
+                          </table></div>
+                      </div>
                     </div>
-                  </div>
-              )}
-              {activeTab === 'By Branch' && (
-                  <div className="space-y-6">
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                        <div className="px-5 py-4 border-b border-gray-100"><h3 className="font-bold text-gray-800">Branch Breakdown</h3><p className="text-xs text-gray-400 mt-0.5">{filteredData.length} records</p></div>
-                        <div className="overflow-x-auto max-h-[420px] overflow-y-auto"><table className="w-full text-sm">
-                            <thead className="sticky top-0 bg-gray-50 z-10">
-                              <tr className="text-xs text-gray-500 uppercase">
-                                <SortableTH label="Branch" sortKey="branch" currentKey={branchSortKey} dir={branchSortDir} onSort={branchToggle} />
-                                <SortableTH label="Qty" sortKey="netQty" currentKey={branchSortKey} dir={branchSortDir} onSort={branchToggle} className="text-right" />
-                                <SortableTH label="%" sortKey="pct" currentKey={branchSortKey} dir={branchSortDir} onSort={branchToggle} className="text-right" />
-                              </tr>
-                            </thead>
-                            <tbody>{sortedBranch.map(b => <tr key={b.branch} className="border-b hover:bg-blue-50"><td className="p-2 font-semibold">{b.branch}</td><td className="p-2 text-right"><FormatNum val={b.netQty} /></td><td className="p-2 text-right">{b.pct}</td></tr>)}</tbody>
-                        </table></div>
+                  </FullscreenWrapper>
+                )}
+                {activeTab === 'By Branch' && (
+                  <FullscreenWrapper title="By Branch">
+                    <div className="space-y-6">
+                      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                          <div className="px-5 py-4 border-b border-gray-100"><h3 className="font-bold text-gray-800">Branch Breakdown</h3><p className="text-xs text-gray-400 mt-0.5">{filteredData.length} records</p></div>
+                          <div className="overflow-x-auto max-h-[420px] overflow-y-auto"><table className="w-full text-sm">
+                              <thead className="sticky top-0 bg-gray-50 z-10">
+                                <tr className="text-xs text-gray-500 uppercase">
+                                  <SortableTH label="Branch" sortKey="branch" currentKey={branchSortKey} dir={branchSortDir} onSort={branchToggle} />
+                                  <SortableTH label="Qty" sortKey="netQty" currentKey={branchSortKey} dir={branchSortDir} onSort={branchToggle} className="text-right" />
+                                  <SortableTH label="%" sortKey="pct" currentKey={branchSortKey} dir={branchSortDir} onSort={branchToggle} className="text-right" />
+                                </tr>
+                              </thead>
+                              <tbody>{sortedBranch.map(b => <tr key={b.branch} className="border-b hover:bg-blue-50"><td className="p-2 font-semibold">{b.branch}</td><td className="p-2 text-right"><FormatNum val={b.netQty} /></td><td className="p-2 text-right">{b.pct}</td></tr>)}</tbody>
+                          </table></div>
+                      </div>
+                      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Branch vs Net Qty</h4><ResponsiveContainer height={260}><BarChart data={sortedBranch} layout="vertical" margin={{left: 60}}><XAxis type="number" fontSize={10} /><YAxis dataKey="branch" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netQty" fill="#F59E0B" /></BarChart></ResponsiveContainer></div>
                     </div>
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Branch vs Net Qty</h4><ResponsiveContainer height={260}><BarChart data={sortedBranch} layout="vertical" margin={{left: 60}}><XAxis type="number" fontSize={10} /><YAxis dataKey="branch" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netQty" fill="#F59E0B" /></BarChart></ResponsiveContainer></div>
-                  </div>
-              )}
+                  </FullscreenWrapper>
+                )}
               {activeTab === 'Trend' && (
                   <div className="space-y-6">
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">

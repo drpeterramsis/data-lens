@@ -29,6 +29,7 @@ import {
   restrictToParentElement
 } from '@dnd-kit/modifiers';
 import SortableCategoryItem from '../dashboard/SortableCategoryItem';
+import { resolveIcon } from '../../../utils/iconResolver';
 
 const DashboardSettingsTab = () => {
   const { config, setConfig, loading, sha, setSha } = useDashboardConfig();
@@ -73,8 +74,13 @@ const DashboardSettingsTab = () => {
         setIsOrderDirty(false);
       }
     } catch (error) {
-      console.error('Error saving config:', error);
-      alert('Failed to save settings. Please try again.');
+      if (error.message && error.message.includes('not configured')) {
+        console.error('GitHub not configured:', error);
+        alert('GitHub repository details are not configured in environment variables. To enable saving, please configure VITE_GITHUB_TOKEN, OWNER, and REPO in your environment secrets.');
+      } else {
+        console.error('Error saving config:', error);
+        alert('Failed to save settings: ' + error.message);
+      }
     } finally {
       setSaving(false);
     }
@@ -372,7 +378,7 @@ const DashboardSettingsTab = () => {
                   <tr key={mod.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <span className="text-lg">{mod.icon}</span>
+                        <span className="text-lg">{resolveIcon(mod.icon, 20)}</span>
                         <div>
                           <p className="text-sm font-bold text-slate-700">{mod.name}</p>
                           <p className="text-[10px] text-slate-400 italic">{mod.route}</p>

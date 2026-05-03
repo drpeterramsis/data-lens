@@ -19,7 +19,7 @@ export default function Footer() {
   };
 
   return (
-    <footer className="fixed bottom-0 left-0 right-0 z-30 bg-[#000000] border-t border-gray-900 py-3 px-6 shadow-2xl">
+    <footer className="z-30 bg-[#000000] border-t border-gray-900 py-3 px-6 shadow-2xl">
       <div className="flex items-center justify-between">
         {/* LEFT */}
         <p className="text-[10px] sm:text-xs text-white flex items-center gap-1 font-medium">

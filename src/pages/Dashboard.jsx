@@ -17,13 +17,36 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { ALL_TOOLS } from '../config/toolsConfig';
 import { getDashboardConfig } from '../services/githubService';
+import dashboardConfigLocal from '../data/dashboardConfig.json';
 import { ModuleIcon } from '../components/dashboard/ModuleIcon';
+import MessagesPanel from '../components/dashboard/MessagesPanel';
 
 const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
+  
+  // Panel open/closed — persisted in localStorage
+  const [panelOpen, setPanelOpen] = useState(() => {
+    try {
+      return localStorage.getItem('dashboard_msg_panel')
+        !== 'closed'
+    } catch { return false }
+  })
+
+  const togglePanel = () => {
+    setPanelOpen(prev => {
+      const next = !prev
+      try {
+        localStorage.setItem(
+          'dashboard_msg_panel',
+          next ? 'open' : 'closed'
+        )
+      } catch {}
+      return next
+    })
+  }
 
   useEffect(() => {
     const fetchConfig = async () => {
@@ -52,8 +75,8 @@ const Dashboard = () => {
     );
   }
 
-  // Fallback to static config if fetch fails or config is empty
-  const dashboardConfig = config || {
+  // Fallback to local config if fetch fails or config is empty
+  const dashboardConfig = config || dashboardConfigLocal || {
     categories: [
       { id: 'all', name: 'Modules', icon: '⊞', color: '#6366f1', order: 1, visible: true, modules: ALL_TOOLS.filter(t => t.showOnDashboard).map(t => t.id) }
     ],
@@ -161,95 +184,106 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="p-6 md:p-8 space-y-12 max-w-7xl mx-auto flex-1 w-full min-w-0 box-border overflow-x-hidden">
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-4xl font-black text-gray-900 tracking-tight flex items-center gap-4">
-            <div className="w-12 h-12 bg-accent/10 rounded-2xl flex items-center justify-center">
-              <LayoutDashboard className="text-accent" size={32} />
-            </div>
-            <span className="text-accent">DASHBOARD</span>
-          </h2>
-          <p className="text-gray-400 text-xs font-bold uppercase tracking-[0.2em] mt-2 ml-1">Select an intelligence module to begin analysis</p>
-        </div>
-        <div className="hidden md:flex items-center gap-3 bg-white border border-gray-100 px-4 py-2 rounded-xl shadow-sm">
-           <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-           <span className="text-[9px] font-black uppercase text-gray-500 tracking-widest">Node Node Primary</span>
-        </div>
-      </div>
-
-      {dashboardSettings.showCategories ? (
-        <div className="space-y-12">
-          {categories
-            .filter(cat => cat.visible && (!cat.adminOnly || isAdmin))
-            .sort((a, b) => a.order - b.order)
-            .map(category => {
-              const categoryModules = modules.filter(m => 
-                category.modules.includes(m.id) && 
-                m.visible &&
-                (!m.adminOnly || isAdmin) &&
-                (isAdmin || user?.allowedPages?.includes(m.id))
-              );
-
-              if (categoryModules.length === 0) return null;
-
-              return (
-                <div key={category.id} className="animate-in fade-in slide-in-from-bottom-4 duration-500 w-full mb-8">
-                  <div className="flex items-center gap-3 mb-6 group">
-                     <div className="w-1 h-6 rounded-full" style={{ backgroundColor: category.color }} />
-                     <span className="text-lg" style={{ color: category.color }}>
-                       <ModuleIcon icon={category.icon || 'folder'} color={category.color} bgColor={`${category.color}15`} size={16} />
-                     </span>
-                     <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-500 flex items-center gap-3">
-                       {category.name}
-                       {category.adminOnly && (
-                         <span className="bg-amber-100 text-amber-700 px-2.5 py-0.5 rounded-full text-[9px] lowercase font-black italic shadow-sm flex items-center gap-1">
-                           <ShieldAlert size={10} /> admin vault
-                         </span>
-                       )}
-                     </h3>
-                  </div>
-                  <div 
-                    className={`grid gap-4 w-full ${getGridClass(categoryModules.length)}`}
-                  >
-                    {categoryModules.sort((a,b) => a.order - b.order).map(mod => renderModuleCard(mod))}
-                  </div>
-                  {dashboardSettings.categorySeparator && <div className="mt-12 h-px bg-gray-100 w-full" />}
+    <div className="dashboard-layout">
+      {/* ── LEFT: All dashboard content ── */}
+      <div className={`dashboard-main ${panelOpen ? 'panel-is-open' : ''}`}>
+        <div className="p-6 md:p-8 space-y-12 max-w-7xl mx-auto flex-1 w-full min-w-0 box-border overflow-x-hidden">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-4xl font-black text-gray-900 tracking-tight flex items-center gap-4">
+                <div className="w-12 h-12 bg-accent/10 rounded-2xl flex items-center justify-center">
+                  <LayoutDashboard className="text-accent" size={32} />
                 </div>
-              );
-            })}
-        </div>
-      ) : (
-        <div 
-          className={`grid gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full ${getGridClass(modules.filter(m => m.visible && (!m.adminOnly || isAdmin) && (isAdmin || user?.allowedPages?.includes(m.id))).length)}`}
-        >
-          {modules
-            .filter(m => m.visible && (!m.adminOnly || isAdmin) && (isAdmin || user?.allowedPages?.includes(m.id)))
-            .sort((a,b) => a.order - b.order)
-            .map(mod => renderModuleCard(mod))}
-        </div>
-      )}
+                <span className="text-accent">DASHBOARD</span>
+              </h2>
+              <p className="text-gray-400 text-xs font-bold uppercase tracking-[0.2em] mt-2 ml-1">Select an intelligence module to begin analysis</p>
+            </div>
+            <div className="hidden md:flex items-center gap-3 bg-white border border-gray-100 px-4 py-2 rounded-xl shadow-sm">
+              <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+              <span className="text-[9px] font-black uppercase text-gray-500 tracking-widest">Node Node Primary</span>
+            </div>
+          </div>
 
-      {/* Security Footer Banner */}
-      <div className="pt-12">
-        <div className="p-8 bg-gradient-to-r from-gray-900 to-slate-800 rounded-3xl text-white relative overflow-hidden shadow-2xl flex flex-col md:flex-row items-center gap-8 border border-white/5">
-           <div className="relative z-10 space-y-4 max-w-xl">
-              <h3 className="text-2xl font-black italic uppercase tracking-tight leading-none tracking-tighter">DATA LENS <span className="text-accent underline decoration-accent/30 underline-offset-4">ANALYTICS HUB</span></h3>
-              <p className="text-gray-400 text-xs leading-relaxed font-medium">
-                Access to data modules is strictly governed by regional assignment and security clearance. 
-                Any unauthorized access attempts are logged and flagged for administrative review.
-              </p>
-           </div>
-           <div className="relative z-10 bg-white/5 backdrop-blur-sm border border-white/10 p-5 rounded-2xl flex-1 flex flex-col items-center gap-3">
-               <span className="text-[10px] uppercase font-black tracking-[0.2em] text-accent">Clearance Verified</span>
-               <p className="text-xs text-center text-gray-300 font-medium font-mono lowercase">usr::node::{user?.fullName?.replace(/\s+/g, '_')}</p>
-               <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+          {dashboardSettings.showCategories ? (
+            <div className="space-y-12">
+              {categories
+                .filter(cat => cat.visible && (!cat.adminOnly || isAdmin))
+                .sort((a, b) => a.order - b.order)
+                .map(category => {
+                  const categoryModules = modules.filter(m => 
+                    category.modules.includes(m.id) && 
+                    m.visible &&
+                    (!m.adminOnly || isAdmin) &&
+                    (isAdmin || user?.allowedPages?.includes(m.id))
+                  );
+
+                  if (categoryModules.length === 0) return null;
+
+                  return (
+                    <div key={category.id} className="animate-in fade-in slide-in-from-bottom-4 duration-500 w-full mb-8">
+                      <div className="flex items-center gap-3 mb-6 group">
+                        <div className="w-1 h-6 rounded-full" style={{ backgroundColor: category.color }} />
+                        <span className="text-lg" style={{ color: category.color }}>
+                          <ModuleIcon icon={category.icon || 'folder'} color={category.color} bgColor={`${category.color}15`} size={16} />
+                        </span>
+                        <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-500 flex items-center gap-3">
+                          {category.name}
+                          {category.adminOnly && (
+                            <span className="bg-amber-100 text-amber-700 px-2.5 py-0.5 rounded-full text-[9px] lowercase font-black italic shadow-sm flex items-center gap-1">
+                              <ShieldAlert size={10} /> admin vault
+                            </span>
+                          )}
+                        </h3>
+                      </div>
+                      <div 
+                        className={`grid gap-4 w-full ${getGridClass(categoryModules.length)}`}
+                      >
+                        {categoryModules.sort((a,b) => a.order - b.order).map(mod => renderModuleCard(mod))}
+                      </div>
+                      {dashboardSettings.categorySeparator && <div className="mt-12 h-px bg-gray-100 w-full" />}
+                    </div>
+                  );
+                })}
+            </div>
+          ) : (
+            <div 
+              className={`grid gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full ${getGridClass(modules.filter(m => m.visible && (!m.adminOnly || isAdmin) && (isAdmin || user?.allowedPages?.includes(m.id))).length)}`}
+            >
+              {modules
+                .filter(m => m.visible && (!m.adminOnly || isAdmin) && (isAdmin || user?.allowedPages?.includes(m.id)))
+                .sort((a,b) => a.order - b.order)
+                .map(mod => renderModuleCard(mod))}
+            </div>
+          )}
+
+          {/* Security Footer Banner */}
+          <div className="pt-12">
+            <div className="p-8 bg-gradient-to-r from-gray-900 to-slate-800 rounded-3xl text-white relative overflow-hidden shadow-2xl flex flex-col md:flex-row items-center gap-8 border border-white/5">
+              <div className="relative z-10 space-y-4 max-w-xl">
+                <h3 className="text-2xl font-black italic uppercase tracking-tight leading-none tracking-tighter">DATA LENS <span className="text-accent underline decoration-accent/30 underline-offset-4">ANALYTICS HUB</span></h3>
+                <p className="text-gray-400 text-xs leading-relaxed font-medium">
+                  Access to data modules is strictly governed by regional assignment and security clearance. 
+                  Any unauthorized access attempts are logged and flagged for administrative review.
+                </p>
+              </div>
+              <div className="relative z-10 bg-white/5 backdrop-blur-sm border border-white/10 p-5 rounded-2xl flex-1 flex flex-col items-center gap-3">
+                <span className="text-[10px] uppercase font-black tracking-[0.2em] text-accent">Clearance Verified</span>
+                <p className="text-xs text-center text-gray-300 font-medium font-mono lowercase">usr::node::{user?.fullName?.replace(/\s+/g, '_')}</p>
+                <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
                   <div className="h-full bg-accent w-3/4" />
-               </div>
-           </div>
-           <div className="absolute top-0 right-0 w-64 h-64 bg-accent/20 rounded-full -mr-32 -mt-32 blur-3xl opacity-30" />
+                </div>
+              </div>
+              <div className="absolute top-0 right-0 w-64 h-64 bg-accent/20 rounded-full -mr-32 -mt-32 blur-3xl opacity-30" />
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* ── RIGHT: Messages panel ── */}
+      <MessagesPanel
+        isOpen={panelOpen}
+        onToggle={togglePanel}
+      />
     </div>
   );
 };

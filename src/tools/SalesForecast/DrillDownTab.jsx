@@ -66,8 +66,9 @@ const DrillDownTab = ({ data, drillPath, setDrillPath }) => {
   const drillInto = (item) => setDrillPath(prev => [...prev, { level, id: item.id, name: item.name }]);
 
   return (
-    <div className="space-y-6 pb-20">
-      {/* BREADCRUMBS */}
+    <FullscreenWrapper title="Drill Down">
+      <div className="space-y-6 pb-20">
+        {/* BREADCRUMBS */}
       <div className="flex items-center gap-2 mb-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
         <button 
           onClick={() => setDrillPath([])}
@@ -169,6 +170,7 @@ const DrillDownTab = ({ data, drillPath, setDrillPath }) => {
         </motion.div>
       </AnimatePresence>
     </div>
+    </FullscreenWrapper>
   );
 };
 

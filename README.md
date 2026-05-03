@@ -42,6 +42,7 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 
 ## Version History
 
+- **v1.0.522:** Fixed critical "GitHub repository details are not configured" error that prevented the application from loading. Implemented a robust local JSON fallback system for `dashboardConfig.json` and `skillzaty.json` to ensure platform stability in unconfigured environments. Improved admin settings with descriptive alerts regarding GitHub secrets requirements.
 - **v1.0.514:** Implemented advanced Drag & Drop reordering for dashboard categories in Admin Settings using @dnd-kit. Features include vertical axis restriction, secure drag handles, and an unsaved changes indicator with a dedicated save bar.
 - **v1.0.513:** Fixed Admin Settings Dashboard Category Add/Edit functionality. Implemented an inline category creator in the Skill-Zaty "Create Course" modal, allowing administrators to add new categories without exiting the course creation flow.
 - **v1.0.512:** Fixed `ReferenceError: Trash2 is not defined` in the User Management Tab.
@@ -135,4 +136,4 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 - **v1.0.001:** Initial release. Authentication, CSV parsing, Analysis tools, and Admin panel implemented.
 
 ---
-© 2026 Data Lens Analytics | version 1.0.514
+© 2026 Data Lens Analytics | version 1.0.522

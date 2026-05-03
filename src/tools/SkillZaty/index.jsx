@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search, Plus, GraduationCap, Edit, Trash2, ChevronRight, FileText, Globe, Music, Image as ImageIcon, Video, FileStack, Loader2, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { getSkillZaty, saveSkillZaty, getLatestSHA } from '../../services/githubService';
+import skillzatyLocal from '../../data/skillzaty.json';
 import { CategoryModal, CourseModal } from './AdminModals';
 
 const SkillZaty = () => {
@@ -29,7 +30,17 @@ const SkillZaty = () => {
       setData(result.content);
       setSha(result.sha);
     } catch (error) {
-      console.error('Error fetching Skill-Zaty data:', error);
+      if (error.message && error.message.includes('not configured')) {
+        console.warn('GitHub not configured, using local SkillZaty data');
+      } else {
+        console.error('Error fetching Skill-Zaty data:', error);
+      }
+      
+      // Fallback
+      if (data.categories.length === 0) {
+        setData(skillzatyLocal);
+        setSha('local-fallback');
+      }
     } finally {
       setLoading(false);
     }

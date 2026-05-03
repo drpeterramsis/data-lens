@@ -209,7 +209,7 @@ const Sidebar = () => {
         </div>
 
         {/* Navigation Items */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden py-4 space-y-1 custom-scrollbar">
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden py-4 space-y-1 custom-scrollbar sidebar-nav">
           {groups.map(group => {
             const items = getGroupItems(group.id);
             if (items.length === 0) return null;
@@ -296,13 +296,13 @@ const Sidebar = () => {
               </div>
             );
           })}
-        </div>
+        </nav>
 
         {/* Bottom Section - User Info */}
-        <div className="shrink-0 border-t border-gray-800 relative">
-          <div className={`flex items-center ${isExpanded || isMobileOpen ? 'p-4 gap-3' : 'p-3 flex-col gap-2'}`}>
+        <div className="shrink-0 border-t border-gray-800 relative sidebar-footer">
+          <div className={`flex items-center ${isExpanded || isMobileOpen ? 'p-4 gap-3' : 'p-3 flex-col gap-2 sidebar-footer-collapsed'}`}>
             <div 
-              className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 border-2 border-gray-700 shadow-sm"
+              className="user-avatar"
               style={{ backgroundColor: user?.username ? `hsl(${user.username.length * 40}, 60%, 40%)` : '#198754' }}
               title={(!isExpanded && !isMobileOpen) ? user?.fullName : undefined}
             >
@@ -318,7 +318,7 @@ const Sidebar = () => {
 
             <button 
               onClick={logout}
-              className={`text-gray-400 hover:text-red-400 transition-colors ${isExpanded || isMobileOpen ? 'p-1.5' : 'p-0 pt-2'}`}
+              className={`logout-btn ${isExpanded || isMobileOpen ? 'p-1.5' : 'p-0 pt-2'}`}
               title="Logout"
             >
               <LogOut size={18} />

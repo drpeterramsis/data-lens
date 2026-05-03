@@ -73,7 +73,14 @@ const CSVUploader = ({ onDataLoaded, storageKey = "datalens_last_report", toolNa
   return (
     <div className="w-full">
       {rowCount > 0 ? (
-        <div className="flex items-center justify-between bg-white border border-gray-200 shadow-sm rounded-lg p-3">
+        <div
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            processFile(e.dataTransfer.files[0]);
+          }}
+          className="flex items-center justify-between bg-white border border-gray-200 shadow-sm rounded-lg p-3"
+        >
           <div>
             <p className="text-xs font-bold text-gray-900 border-b border-transparent">
               📂 {cacheInfo?.fileName || "report.csv"} · {rowCount.toLocaleString()} rows

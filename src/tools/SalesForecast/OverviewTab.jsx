@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine, Legend, Cell } from 'recharts';
 import { Download } from 'lucide-react';
-import { formatKpi, formatKpiGrouped, formatKpiPercent } from '../../utils/formatNumber';
+import FullscreenWrapper from '../../components/shared/FullscreenWrapper';
 
 const OverviewTab = ({ data }) => {
   const stats = useMemo(() => {

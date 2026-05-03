@@ -1,0 +1,17 @@
+{
+  "messages": [
+    {
+      "id": "msg_001",
+      "title": "Welcome to Data Lens!",
+      "body": "<p>Welcome to the new <strong>Data Lens</strong> platform...</p>",
+      "author": "Peter Admin",
+      "createdAt": "2025-01-15T10:00:00Z",
+      "updatedAt": "2025-01-15T10:00:00Z",
+      "visible": true,
+      "showDate": true,
+      "targetRoles": ["all"],
+      "pinned": false,
+      "type": "info"
+    }
+  ]
+}

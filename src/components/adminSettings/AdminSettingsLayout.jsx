@@ -6,6 +6,7 @@ const AdminSettingsLayout = ({ children, activeTab, setActiveTab }) => {
     { id: 'users', label: 'User Management', icon: <Users size={18} /> },
     { id: 'dashboard', label: 'Dashboard View', icon: <Layout size={18} /> },
     { id: 'sidebar', label: 'Sidebar Menu', icon: <Compass size={18} /> },
+    { id: 'messages', label: 'Messages', icon: <Layout size={18} /> },
   ];
 
   return (

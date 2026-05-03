@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import AdminSettingsLayout from '../components/adminSettings/AdminSettingsLayout';
 import UserManagementTab from '../components/adminSettings/tabs/UserManagementTab';
 import DashboardSettingsTab from '../components/adminSettings/tabs/DashboardSettingsTab';
+import MessagesManagerTab from '../components/adminSettings/tabs/MessagesManagerTab';
 import SidebarMenuTab from '../components/adminSettings/tabs/SidebarMenuTab';
 import SystemSettingsTab from '../components/adminSettings/tabs/SystemSettingsTab';
 
@@ -16,6 +17,8 @@ const AdminSettings = () => {
         return <DashboardSettingsTab />;
       case 'sidebar':
         return <SidebarMenuTab />;
+      case 'messages':
+        return <MessagesManagerTab currentUser={null} showToast={(m) => alert(m)} showError={(m) => alert(m)} />;
       default:
         return <UserManagementTab />;
     }

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { resolveIcon } from '../../../utils/iconResolver';
 import { GripVertical, Eye, EyeOff, Edit2 } from 'lucide-react';
 
 const SortableCategoryItem = ({ 
@@ -44,10 +45,10 @@ const SortableCategoryItem = ({
 
       {/* Category Icon */}
       <div 
-        className="w-10 h-10 rounded-xl flex items-center justify-center text-xl shadow-inner shrink-0"
+        className="w-10 h-10 rounded-xl flex items-center justify-center shadow-inner shrink-0"
         style={{ backgroundColor: `${category.color}15`, color: category.color }}
       >
-        {category.icon}
+        {resolveIcon(category.icon, 20)}
       </div>
 
       {/* Category Info */}

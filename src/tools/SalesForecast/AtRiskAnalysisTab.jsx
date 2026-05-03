@@ -62,8 +62,8 @@ const AtRiskAnalysisTab = ({ data, periodProgress }) => {
   }, [atRiskMRs]);
 
   return (
-    <div className="space-y-6 pb-20">
-      {/* RISK SUMMARY CARDS */}
+      <div className="space-y-6 pb-20">
+        {/* RISK SUMMARY CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <RiskCard label="Total At Risk MRs" value={formatKpiGrouped(riskSummary.totalAtRisk)} icon={<AlertTriangle className="text-amber-500" />} />
         <RiskCard label="Total At Risk Gap" value={formatKpiGrouped(riskSummary.totalGap)} icon={<TrendingDown className="text-red-500" />} />

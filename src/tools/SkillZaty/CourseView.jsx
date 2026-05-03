@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ChevronLeft, ChevronRight, FileStack, Settings, Plus, Layout, Edit, Trash2, GripVertical, FileText, Globe, Music, Image as ImageIcon, Video, Loader2, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { getSkillZaty, saveSkillZaty, getLatestSHA } from '../../services/githubService';
+import skillzatyLocal from '../../data/skillzaty.json';
 import SectionRenderer from './SectionRenderer';
 import { SectionBuilder } from './AdminModals';
 import { SectionForm } from './SectionForm';
@@ -29,7 +30,16 @@ const CourseView = () => {
       const result = await getSkillZaty();
       setData(result.content);
     } catch (error) {
-      console.error(error);
+      if (error.message && error.message.includes('not configured')) {
+        console.warn('GitHub not configured, using local SkillZaty data in CourseView');
+      } else {
+        console.error(error);
+      }
+      
+      // Fallback
+      if (data.categories.length === 0) {
+        setData(skillzatyLocal);
+      }
     } finally {
       setLoading(false);
     }
