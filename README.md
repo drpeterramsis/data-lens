@@ -42,6 +42,7 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 
 ## Version History
 
+- **v1.0.512:** Fixed `ReferenceError: Trash2 is not defined` in the User Management Tab.
 - **v1.0.511:** Introduced the comprehensive Admin Settings Page and dynamic Dashboard Categories system. Migrated the existing user management interface to a new tabbed admin panel. Implemented a GitHub-backed `dashboardConfig.json` engine that allows real-time control over module visibility, categorical grouping, and display settings (column count, descriptions, link visibility). Updated the main dashboard to render dynamically based on this centralized configuration while maintaining strict role-based access control.
 - **v1.0.510:** Standardized number formatting application-wide using a new intelligent `formatNumber.js` utility. Successfully removed hundreds of redundant percentage signs across complex analytics tools (Sales Analyzer, Sales Forecast, Call Detailing Analyzer, Routing Analyzer). Optimized the global percentage formatter to automatically handle sign appending, ensuring consistent and precise data presentation.
 - **v1.0.508:** Replaced the scrollable MR selection pill buttons in Call Detailing Analyzer with a custom-engineered `MrDropdown` component. The new UI features real-time MR search, an "All Team" quick-selector, and a responsive trigger button that clearly indicates active filtering with distinct amber styling. Improved the overall dashboard layout by reclaiming vertical and horizontal space while maintaining full functionality and filtering logic.
@@ -132,4 +133,4 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 - **v1.0.001:** Initial release. Authentication, CSV parsing, Analysis tools, and Admin panel implemented.
 
 ---
-© 2026 Data Lens Analytics | version 1.0.511
+© 2026 Data Lens Analytics | version 1.0.512

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { UserPlus, Edit, Users, X, Search, Settings, Shield, Lock, Power } from 'lucide-react';
+import { UserPlus, Edit, Users, X, Search, Settings, Shield, Lock, Power, Trash2 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import Toast, { useToast } from '../../Toast';
 import { getLatestSHA, saveFileToGitHub, getFileFromGitHub } from '../../../services/githubService';
