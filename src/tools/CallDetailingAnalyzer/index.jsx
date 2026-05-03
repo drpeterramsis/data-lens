@@ -23,7 +23,7 @@ import InlineCalendar from './InlineCalendar';
 import MrDropdown from '../../components/MrDropdown';
 
 const APP_VERSION = {
-  version: '1.0.513',
+  version: '1.0.514',
   releaseDate: 'May 2026',
   label: 'Admin Settings & Dashboard Categories'
 };

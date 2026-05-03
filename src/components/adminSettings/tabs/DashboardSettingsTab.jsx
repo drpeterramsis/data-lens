@@ -2,11 +2,31 @@ import React, { useState, useEffect } from 'react';
 import { 
   Eye, EyeOff, Edit2, Plus, GripVertical, Check, Save, 
   Settings as SettingsIcon, Layout, Monitor, Trash2, 
-  CheckCircle2, AlertCircle
+  CheckCircle2, AlertCircle, Loader2
 } from 'lucide-react';
 import { getDashboardConfig, saveDashboardConfig, getLatestSHA } from '../../../services/githubService';
 import CategoryEditor from '../dashboard/CategoryEditor';
 import { useAuth } from '../../../context/AuthContext';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  arrayMove
+} from '@dnd-kit/sortable';
+import {
+  restrictToVerticalAxis,
+  restrictToParentElement
+} from '@dnd-kit/modifiers';
+import SortableCategoryItem from '../dashboard/SortableCategoryItem';
 
 const DashboardSettingsTab = () => {
   const [config, setConfig] = useState(null);
@@ -17,6 +37,21 @@ const DashboardSettingsTab = () => {
   const [editingCategory, setEditingCategory] = useState(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const { user: currentUser } = useAuth();
+  
+  // Dnd State
+  const [activeId, setActiveId] = useState(null);
+  const [isOrderDirty, setIsOrderDirty] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   useEffect(() => {
     loadConfig();
@@ -50,6 +85,7 @@ const DashboardSettingsTab = () => {
         setMessage('Settings saved successfully!');
         setTimeout(() => setMessage(''), 3000);
         setSha(currentSha);
+        setIsOrderDirty(false);
       }
     } catch (error) {
       console.error('Error saving config:', error);
@@ -130,6 +166,42 @@ const DashboardSettingsTab = () => {
     setConfig(updatedConfig);
     setIsCategoryModalOpen(false);
     setEditingCategory(null);
+    setIsOrderDirty(true);
+  };
+
+  const handleDragStart = (event) => {
+    setActiveId(event.active.id);
+  };
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    setActiveId(null);
+
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = config.categories.findIndex(cat => cat.id === active.id);
+    const newIndex = config.categories.findIndex(cat => cat.id === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove(config.categories, oldIndex, newIndex);
+    
+    // Update order values based on new indices
+    const withUpdatedOrder = reordered.map((cat, idx) => ({
+      ...cat,
+      order: idx + 1
+    }));
+
+    setConfig(prev => ({
+      ...prev,
+      categories: withUpdatedOrder
+    }));
+    
+    setIsOrderDirty(true);
+  };
+
+  const handleDragCancel = () => {
+    setActiveId(null);
   };
 
   if (loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div></div>;
@@ -191,49 +263,83 @@ const DashboardSettingsTab = () => {
             <Layout size={18} className="text-purple-500" />
             <h3 className="text-xs font-black uppercase text-slate-400 tracking-[0.2em]">Category Manager</h3>
           </div>
-          <button 
-            onClick={handleAddCategory}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-bold transition-colors"
+          <div className="flex items-center gap-2">
+            {isOrderDirty && (
+              <span className="text-[10px] font-black text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-100 flex items-center gap-1 animate-pulse">
+                <AlertCircle size={12} />
+                Unsaved Order
+              </span>
+            )}
+            <button 
+              onClick={handleAddCategory}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-bold transition-colors"
+            >
+              <Plus size={14} />
+              Add Category
+            </button>
+          </div>
+        </div>
+        
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
+          modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+        >
+          <SortableContext
+            items={config.categories.map(c => c.id)}
+            strategy={verticalListSortingStrategy}
           >
-            <Plus size={14} />
-            Add Category
-          </button>
-        </div>
-        <div className="space-y-3">
-          {config.categories.sort((a,b) => a.order - b.order).map(cat => (
-            <div key={cat.id} className="p-4 bg-white border border-slate-100 rounded-xl shadow-sm hover:border-slate-200 transition-all flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <GripVertical className="text-slate-200 cursor-move" size={18} />
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl shadow-sm`} style={{ backgroundColor: `${cat.color}15`, color: cat.color }}>
-                  {cat.icon}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-black text-slate-700">{cat.name}</p>
-                    {cat.adminOnly && (
-                      <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[9px] font-black uppercase tracking-wider">Admin Only</span>
-                    )}
-                  </div>
-                  <p className="text-xs text-slate-400 font-medium">{cat.modules.length} modules assigned</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button 
-                  onClick={() => toggleCategoryVisibility(cat.id)}
-                  className={`p-2 rounded-lg transition-colors ${cat.visible ? 'text-blue-500 hover:bg-blue-50' : 'text-slate-300 hover:bg-slate-50'}`}
-                >
-                  {cat.visible ? <Eye size={18} /> : <EyeOff size={18} />}
-                </button>
-                <button 
-                  onClick={() => handleEditCategory(cat)}
-                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
-                >
-                  <Edit2 size={18} />
-                </button>
-              </div>
+            <div className="space-y-3">
+              {config.categories.sort((a,b) => a.order - b.order).map(cat => (
+                <SortableCategoryItem 
+                  key={cat.id} 
+                  category={cat} 
+                  onEdit={handleEditCategory}
+                  onToggleVisible={toggleCategoryVisibility}
+                />
+              ))}
             </div>
-          ))}
-        </div>
+          </SortableContext>
+
+          <DragOverlay>
+            {activeId ? (
+              <div className="p-4 bg-white border border-amber-400 rounded-xl shadow-2xl flex items-center gap-4 opacity-90 scale-105 cursor-grabbing">
+                <GripVertical className="text-amber-500" size={18} />
+                <div 
+                  className="w-10 h-10 rounded-xl flex items-center justify-center text-xl shadow-sm"
+                  style={{ 
+                    backgroundColor: `${config.categories.find(c => c.id === activeId)?.color}15`, 
+                    color: config.categories.find(c => c.id === activeId)?.color 
+                  }}
+                >
+                  {config.categories.find(c => c.id === activeId)?.icon}
+                </div>
+                <p className="text-sm font-black text-slate-700">
+                  {config.categories.find(c => c.id === activeId)?.name}
+                </p>
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+
+        {isOrderDirty && (
+          <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between animate-in fade-in slide-in-from-top-2">
+            <div className="flex items-center gap-2 text-amber-700 text-xs font-bold">
+              <AlertCircle size={16} />
+              Category order changed. Save to apply.
+            </div>
+            <button 
+              onClick={handleSave}
+              disabled={saving}
+              className="px-4 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-black uppercase tracking-wider rounded-lg transition-colors shadow-sm active:scale-95 disabled:opacity-50"
+            >
+              {saving ? 'Saving...' : 'Save Order'}
+            </button>
+          </div>
+        )}
       </section>
 
       {/* SECTION C — Module Visibility */}
