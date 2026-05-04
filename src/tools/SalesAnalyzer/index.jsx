@@ -926,6 +926,51 @@ const UploadChoiceModal = ({ onChoose, onCancel, existingCount }) => (
   </div>
 );
 
+
+const DropZone = ({ onUpload, onUploadClick }) => {
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!['xlsx', 'xls', 'csv'].includes(ext)) {
+      alert('Please upload an Excel or CSV file');
+      return;
+    }
+    onUpload(file);
+  };
+
+  return (
+    <div
+      onClick={onUploadClick}
+      onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+      onDragEnter={(e) => { e.preventDefault(); setIsDragging(true); }}
+      onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
+      onDrop={handleDrop}
+      className={`p-12 bg-white border-2 border-dashed rounded-3xl flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-200
+        ${isDragging 
+          ? 'border-blue-500 bg-blue-50 scale-[1.02] shadow-xl' 
+          : 'border-gray-300 hover:border-blue-500 hover:bg-gray-50'
+        }`}
+    >
+      <Upload size={48} className={`mb-4 transition-colors ${isDragging ? 'text-blue-500' : 'text-gray-400'}`} />
+      <h3 className={`text-lg font-bold transition-colors ${isDragging ? 'text-blue-600' : 'text-gray-700'}`}>
+        {isDragging ? '🎯 Drop file here!' : 'Drop XLSX or CSV file here'}
+      </h3>
+      <p className="text-gray-400 text-sm mt-1">or click to browse</p>
+      {isDragging && (
+        <p className="text-blue-400 text-xs mt-2 font-semibold animate-pulse">
+          Release to upload
+        </p>
+      )}
+    </div>
+  );
+};
+
 const DIMENSIONS = {
   'MR':         'mrName',
   'Product':    'productName',
@@ -2428,11 +2473,12 @@ invoiceDate: (() => {
           />
         )}
 
-        <div className="p-12 bg-white border-2 border-dashed border-gray-300 rounded-3xl flex flex-col items-center justify-center text-center cursor-pointer hover:border-blue-500 transition-colors" onClick={handleUploadClick}>
-            <Upload size={48} className="text-gray-400 mb-4" />
-            <h3 className="text-lg font-bold text-gray-700">Drop XLSX or CSV file here</h3>
-            <p className="text-gray-400 text-sm mt-1">or click to browse</p>
-        </div>
+
+<div className="p-12 bg-white border-2 border-dashed border-gray-300 rounded-3xl flex flex-col items-center justify-center text-center cursor-pointer hover:border-blue-500 transition-colors" onClick={handleUploadClick}>
+    <Upload size={48} className="text-gray-400 mb-4" />
+    <h3 className="text-lg font-bold text-gray-700">Drop XLSX or CSV file here</h3>
+    <p className="text-gray-400 text-sm mt-1">or click to browse</p>
+</div>
       </div>
     );
   }
