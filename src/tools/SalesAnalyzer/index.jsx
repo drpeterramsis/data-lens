@@ -172,6 +172,7 @@ const initDB = () => {
   });
 };
 
+
 const loadRowsFromStorage = async () => {
   try {
     const db = await initDB();
@@ -193,7 +194,63 @@ const loadRowsFromStorage = async () => {
           else resolve({
             rows: rowsResult.map(r => ({
               ...r,
-              invoiceDate: r.invoiceDate ? new Date(r.invoiceDate) : null
+              invoiceDate: (() => {
+                if (!r.invoiceDate) return null;
+
+                // If it's already a Date object (shouldn't happen in IndexedDB
+                // but just in case)
+                if (r.invoiceDate instanceof Date) {
+                  if (isNaN(r.invoiceDate.getTime())) return null;
+                  return new Date(
+                    r.invoiceDate.getFullYear(),
+                    r.invoiceDate.getMonth(),
+                    r.invoiceDate.getDate(),
+                    12, 0, 0
+                  );
+                }
+
+                // If it's a string — extract date parts DIRECTLY
+                // to avoid UTC timezone shift
+                if (typeof r.invoiceDate === 'string') {
+                  // Match YYYY-MM-DD at the start of any ISO string
+                  // e.g. "2026-04-01T10:00:00.000Z"
+                  //   or "2026-04-01"
+                  const match = r.invoiceDate.match(
+                    /^(\d{4})-(\d{2})-(\d{2})/
+                  );
+                  if (match) {
+                    return new Date(
+                      +match[1],      // year
+                      +match[2] - 1,  // month (0-indexed)
+                      +match[3],      // day
+                      12, 0, 0        // noon — avoids ALL tz issues
+                    );
+                  }
+                }
+
+                // If it's a number (timestamp) — convert but
+                // then normalize to local noon
+                if (typeof r.invoiceDate === 'number') {
+                  const d = new Date(r.invoiceDate);
+                  if (isNaN(d.getTime())) return null;
+                  return new Date(
+                    d.getFullYear(),
+                    d.getMonth(),
+                    d.getDate(),
+                    12, 0, 0
+                  );
+                }
+
+                // Fallback — try generic parse + normalize
+                const d = new Date(r.invoiceDate);
+                if (isNaN(d.getTime())) return null;
+                return new Date(
+                  d.getFullYear(),
+                  d.getMonth(),
+                  d.getDate(),
+                  12, 0, 0
+                );
+              })()
             })),
             meta: metaResult || null
           });
@@ -202,7 +259,7 @@ const loadRowsFromStorage = async () => {
 
       rowsReq.onsuccess = () => { rowsResult = rowsReq.result; checkDone(); };
       rowsReq.onerror = () => { hasError = true; reject(rowsReq.error); };
-      
+
       metaReq.onsuccess = () => { metaResult = metaReq.result; checkDone(); };
       metaReq.onerror = () => { hasError = true; reject(metaReq.error); };
     });
@@ -1110,9 +1167,10 @@ const SalesAnalyzer = () => {
     let droppedCnt = 0;
     const validPeriods = [];
     config.periods.forEach(p => {
-       const fromD = new Date(p.from);
-       const toD = new Date(p.to);
-       toD.setHours(23, 59, 59);
+ const fp = p.from.split('-');
+const tp = p.to.split('-');
+const fromD = new Date(+fp[0], +fp[1]-1, +fp[2], 0, 0, 0);
+const toD = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
        const hasData = filteredData.some(r => r.invoiceDate >= fromD && r.invoiceDate <= toD);
        if (hasData) {
           validPeriods.push(p);
@@ -1208,13 +1266,16 @@ const SalesAnalyzer = () => {
       filtered = filtered.filter(f => 
         filters.product.includes(f.productName));
     
-    if (filters.fromDate) 
-      filtered = filtered.filter(f => 
-        f.invoiceDate >= new Date(filters.fromDate));
-    
-    if (filters.toDate) 
-      filtered = filtered.filter(f => 
-        f.invoiceDate <= new Date(filters.toDate));
+
+if (filters.fromDate) {
+  const from = (() => { const p = filters.fromDate.split('-'); return new Date(+p[0], +p[1]-1, +p[2], 0, 0, 0); })();
+  filtered = filtered.filter(f => f.invoiceDate >= from);
+}
+
+if (filters.toDate) {
+  const to = (() => { const p = filters.toDate.split('-'); return new Date(+p[0], +p[1]-1, +p[2], 23, 59, 59); })();
+  filtered = filtered.filter(f => f.invoiceDate <= to);
+}
     
     return filtered;
   }, [data, filters]);
@@ -1246,8 +1307,18 @@ const SalesAnalyzer = () => {
   const [customerSearch, setCustomerSearch] = useState('');
   const [expandedRow, setExpandedRow] = useState(null);
   const activeFilterCount = useMemo(() => Object.entries(filters).filter(([k, v]) => Array.isArray(v) ? v.length > 0 : v !== '').length, [filters]);
-  const startDate = useMemo(() => data.length > 0 ? new Date(Math.min(...data.map(d => d.invoiceDate))) : new Date(), [data]);
-  const endDate = useMemo(() => data.length > 0 ? new Date(Math.max(...data.map(d => d.invoiceDate))) : new Date(), [data]);
+
+const startDate = useMemo(() => {
+  if (data.length === 0) return new Date();
+  const d = new Date(Math.min(...data.map(d => d.invoiceDate)));
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0);
+}, [data]);
+
+const endDate = useMemo(() => {
+  if (data.length === 0) return new Date();
+  const d = new Date(Math.max(...data.map(d => d.invoiceDate)));
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0);
+}, [data]);
 
   const byProduct = useMemo(() => {
     if (!filteredData || filteredData.length === 0) return [];
@@ -1334,8 +1405,9 @@ const SalesAnalyzer = () => {
       ...r, 
       productCount: r.products.size, 
       invoiceCount: r.invoices.size, 
-      firstDate: r.dates.length > 0 ? new Date(Math.min(...r.dates)) : null, 
-      lastDate: r.dates.length > 0 ? new Date(Math.max(...r.dates)) : null 
+
+firstDate: r.dates.length > 0 ? (() => { const d = new Date(Math.min(...r.dates)); return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0); })() : null,
+lastDate: r.dates.length > 0 ? (() => { const d = new Date(Math.max(...r.dates)); return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0); })() : null
     }));
   }, [filteredData]);
 
@@ -1367,16 +1439,27 @@ const SalesAnalyzer = () => {
     processFile(file, uploadModeRef.current);
   };
 
-  const processFile = async (file, mode) => {
+const processFile = async (file, mode) => {
     setIsLoading(true);
     setParsing(true);
     try {
       setProgress('Reading file...');
       const buffer = await file.arrayBuffer();
-      const wb = XLSX.read(buffer, { type: 'array', cellDates: true });
+      
+const wb = XLSX.read(buffer, { 
+  type: 'array', 
+  cellDates: false,   // ← اتركها false
+  cellNF: false,
+  cellText: false
+});
       setProgress('Detecting headers...');
       const ws = wb.Sheets[wb.SheetNames[0]];
-      const rawData = XLSX.utils.sheet_to_json(ws, { header: 1 });
+      
+const rawData = XLSX.utils.sheet_to_json(ws, { 
+  header: 1,
+  raw: true,        // ← dates هتيجي كـ serial numbers
+  defval: null
+});
       const headerRowIndex = rawData.findIndex(row => row.includes("اسم الصنف") && row.includes("المندوب") && row.includes("رقم الفاتورة"));
       if (headerRowIndex === -1) { 
         alert("Could not detect valid headers."); 
@@ -1395,15 +1478,52 @@ const SalesAnalyzer = () => {
       .filter(row => row.productName)
       .map(row => ({
           ...row,
-          salesQty: parseFloat(row.salesQty) || 0,
-          salesValue: parseFloat(row.salesValue) || 0,
-          discountQty: parseFloat(row.discountQty) || 0,
+          salesQty:      parseFloat(row.salesQty)      || 0,
+          salesValue:    parseFloat(row.salesValue)    || 0,
+          discountQty:   parseFloat(row.discountQty)   || 0,
           discountValue: parseFloat(row.discountValue) || 0,
-          returnQty: parseFloat(row.returnQty) || 0,
-          returnValue: parseFloat(row.returnValue) || 0,
-          netQty: parseFloat(row.netQty) || 0,
-          netValue: parseFloat(row.netValue) || 0,
-          invoiceDate: row.invoiceDate instanceof Date ? row.invoiceDate : new Date(row.invoiceDate)
+          returnQty:     parseFloat(row.returnQty)     || 0,
+          returnValue:   parseFloat(row.returnValue)   || 0,
+          netQty:        parseFloat(row.netQty)        || 0,
+          netValue:      parseFloat(row.netValue)      || 0,
+
+     
+invoiceDate: (() => {
+  const raw = row.invoiceDate;
+  if (!raw) return null;
+
+  // With raw:true, Excel dates come as serial numbers
+  // e.g. 46035 = 2026-04-28
+  if (typeof raw === 'number') {
+    // Excel serial: days since 1899-12-30
+    // Use integer part only (strip time fraction)
+    const days = Math.floor(raw);
+    const epoch = new Date(1899, 11, 30); // Dec 30, 1899 LOCAL
+    epoch.setDate(epoch.getDate() + days);
+    return new Date(
+      epoch.getFullYear(),
+      epoch.getMonth(),
+      epoch.getDate(),
+      12, 0, 0  // local noon
+    );
+  }
+
+  // String fallback e.g. "2026-04-28" or "2026-04-28 00:00:00"
+  if (typeof raw === 'string') {
+    const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+      return new Date(+match[1], +match[2]-1, +match[3], 12, 0, 0);
+    }
+    // DD/MM/YYYY
+    const dmy = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (dmy) {
+      return new Date(+dmy[3], +dmy[2]-1, +dmy[1], 12, 0, 0);
+    }
+  }
+
+  return null;
+})()
+
       })).filter(r => r.invoiceNo);
 
       if (parsedRows.length === 0) {
@@ -1465,8 +1585,18 @@ const SalesAnalyzer = () => {
           fileName: file.name,
           rowCount: parsedRows.length,
           mode:     mode,
-          dateFrom: fileDates.length ? new Date(Math.min(...fileDates)) : null,
-          dateTo:   fileDates.length ? new Date(Math.max(...fileDates)) : null,
+          dateFrom: fileDates.length
+            ? (() => {
+                const d = new Date(Math.min(...fileDates));
+                return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0);
+              })()
+            : null,
+          dateTo: fileDates.length
+            ? (() => {
+                const d = new Date(Math.max(...fileDates));
+                return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0);
+              })()
+            : null,
         }];
       });
 
@@ -3070,9 +3200,8 @@ const SalesAnalyzer = () => {
                         {periods.map((p, idx) => {
                           const isMonth = p.type === 'month';
                           const hasNoDates = !p.from || !p.to;
-                          const fromDate = hasNoDates ? null : new Date(p.from);
-                          const toDate = hasNoDates ? null : new Date(p.to);
-                          if (toDate) toDate.setHours(23,59,59);
+                        const fromDate = hasNoDates ? null : (() => { const x = p.from.split('-'); return new Date(+x[0], +x[1]-1, +x[2], 0, 0, 0); })();
+const toDate = hasNoDates ? null : (() => { const x = p.to.split('-'); return new Date(+x[0], +x[1]-1, +x[2], 23, 59, 59); })();
                           
                           const hasData = hasNoDates ? false : filteredData.some(r => r.invoiceDate >= fromDate && r.invoiceDate <= toDate);
                           const isCompact = periods.length > 6;
@@ -3236,9 +3365,10 @@ const SalesAnalyzer = () => {
 
                         const rawCalculations = periods.map(p => {
                           if (!p.from || !p.to) return { ...p, metrics: null, empty: true };
-                          const from = new Date(p.from);
-                          const to   = new Date(p.to);
-                          to.setHours(23,59,59);
+                       const fp = p.from.split('-');
+const tp = p.to.split('-');
+const from = new Date(+fp[0], +fp[1]-1, +fp[2], 0, 0, 0);
+const to = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
                           
                           const pData = filteredData.filter(r => r.invoiceDate >= from && r.invoiceDate <= to);
                           
