@@ -42,6 +42,9 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 
 ## Version History
 
+- **v1.0.526:** Finalized footer accessibility by implementing a truly fixed/sticky footer layout that persists across scrolls on all devices. Refined the sidebar "Need help?" support section with a collapsible details view, highlighting Dr. Peter Ramsis's contact details as text and providing a prominent WhatsApp direct-action button.
+- **v1.0.525:** Refined sidebar "Need help?" section to be collapsible and more compact; replaced call button with direct phone number text and kept WhatsApp as the main action. Optimized global layout to ensure the footer is sticky at the bottom of the viewport on all screen sizes, improving accessibility and branding visibility.
+- **v1.0.524:** Implemented several UX improvements: Added "Need help?" contact section in the sidebar for direct support with Dr. Peter Ramsis; fixed Messages Panel behavior to be closed by default on load and full-screen on mobile (hiding dashboard content); refactored global layout to ensure footer visibility and reachability on mobile devices by transitioning to a more robust flex-based scrolling architecture.
 - **v1.0.522:** Fixed critical "GitHub repository details are not configured" error that prevented the application from loading. Implemented a robust local JSON fallback system for `dashboardConfig.json` and `skillzaty.json` to ensure platform stability in unconfigured environments. Improved admin settings with descriptive alerts regarding GitHub secrets requirements.
 - **v1.0.514:** Implemented advanced Drag & Drop reordering for dashboard categories in Admin Settings using @dnd-kit. Features include vertical axis restriction, secure drag handles, and an unsaved changes indicator with a dedicated save bar.
 - **v1.0.513:** Fixed Admin Settings Dashboard Category Add/Edit functionality. Implemented an inline category creator in the Skill-Zaty "Create Course" modal, allowing administrators to add new categories without exiting the course creation flow.
@@ -136,4 +139,4 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 - **v1.0.001:** Initial release. Authentication, CSV parsing, Analysis tools, and Admin panel implemented.
 
 ---
-© 2026 Data Lens Analytics | version 1.0.522
+© 2026 Data Lens Analytics | version 1.0.526

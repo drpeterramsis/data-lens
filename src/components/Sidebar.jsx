@@ -15,7 +15,9 @@ import {
   GraduationCap, 
   Settings as SettingsIcon,
   Shield,
-  FolderOpen
+  FolderOpen,
+  MessageCircle,
+  HelpCircle
 } from 'lucide-react';
 
 import { SidebarIcon } from './sidebar/SidebarIcon';
@@ -297,6 +299,44 @@ const Sidebar = () => {
             );
           })}
         </nav>
+
+        {/* Help Section */}
+        {(isExpanded || isMobileOpen) && (
+          <div className="mt-auto border-t border-gray-800 bg-gray-900/50">
+            <details className="group">
+              <summary className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-white/5 transition-colors list-none">
+                <div className="flex items-center gap-2">
+                  <HelpCircle size={16} className="text-yellow-400" />
+                  <span className="text-xs font-bold text-gray-300 uppercase tracking-wider">Need help?</span>
+                </div>
+                <span className="text-[10px] text-gray-500 group-open:rotate-180 transition-transform">▼</span>
+              </summary>
+              
+              <div className="px-4 pb-4 space-y-3">
+                <div className="flex flex-col border-l-2 border-yellow-400/30 pl-3">
+                  <span className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">Contact with</span>
+                  <span className="text-[11px] text-white font-bold leading-tight">Dr. Peter Ramsis Tawfeek</span>
+                  <span className="text-[10px] text-yellow-400/80 font-medium pb-1 border-b border-white/5 mb-2">Area Supervisor</span>
+                  
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[9px] text-gray-500 font-bold uppercase tracking-widest">Phone</span>
+                    <span className="text-[11px] text-white/90 font-mono">+20 106 999 6672</span>
+                  </div>
+                </div>
+                
+                <a 
+                  href="https://wa.me/201069996672?text=Hello%20Dr.%20Peter,%20I%20need%20help%20with%20DataLens."
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-xl transition-all text-xs font-black uppercase tracking-widest border-b-4 border-[#128C7E] active:border-b-0 active:translate-y-1"
+                >
+                  <MessageCircle size={14} className="fill-white" />
+                  WhatsApp
+                </a>
+              </div>
+            </details>
+          </div>
+        )}
 
         {/* Bottom Section - User Info */}
         <div className="shrink-0 border-t border-gray-800 relative sidebar-footer">

@@ -27,11 +27,12 @@ const Dashboard = () => {
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   
-  // Panel open/closed — persisted in localStorage
+  // Panel open/closed — persisted in localStorage. Default to "closed" (false) on initial load.
   const [panelOpen, setPanelOpen] = useState(() => {
     try {
-      return localStorage.getItem('dashboard_msg_panel')
-        !== 'closed'
+      const persisted = localStorage.getItem('dashboard_msg_panel');
+      // If we have "open" stored, use it, otherwise default to closed.
+      return persisted === 'open';
     } catch { return false }
   })
 
@@ -186,7 +187,7 @@ const Dashboard = () => {
   return (
     <div className="dashboard-layout">
       {/* ── LEFT: All dashboard content ── */}
-      <div className={`dashboard-main ${panelOpen ? 'panel-is-open' : ''}`}>
+      <div className={`dashboard-main ${panelOpen ? 'panel-is-open' : ''} ${panelOpen ? 'hidden md:block' : 'block'}`}>
         <div className="p-6 md:p-8 space-y-12 max-w-7xl mx-auto flex-1 w-full min-w-0 box-border overflow-x-hidden">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>

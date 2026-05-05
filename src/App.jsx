@@ -51,24 +51,31 @@ const AppLayout = ({ children }) => {
   const { isExpanded } = useSidebar();
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-50 overflow-hidden">
 
       <Sidebar />
 
       {/* Main body — responds to sidebar width on desktop */}
       <div 
-        className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${isExpanded ? 'md:ml-[240px]' : 'md:ml-[80px]'}`}
+        className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${isExpanded ? 'md:ml-[240px]' : 'md:ml-[80px]'} h-screen`}
         style={{ '--sidebar-width': isExpanded ? '240px' : '80px' }}
       >
         <Header />
 
         <main
-          className="flex-1 flex flex-col overflow-auto relative"
+          className="flex-1 flex flex-col relative overflow-auto"
+          style={{ paddingBottom: 'var(--footer-height)' }}
         >
           {children}
         </main>
 
-        <Footer />
+        <div 
+          className="fixed bottom-0 right-0 left-0 md:left-[var(--sidebar-width)] transition-all duration-300 z-40 shadow-2xl"
+          style={{ height: 'var(--footer-height)' }}
+        >
+          <Footer />
+        </div>
+
         <ScrollToTopButton />
       </div>
     </div>
