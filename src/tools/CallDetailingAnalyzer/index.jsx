@@ -20,12 +20,13 @@ import InteractionAnalysis from './InteractionAnalysis';
 import CoachingAnalysis from './CoachingAnalysis';
 import CoachingSection from './CoachingSection';
 import InlineCalendar from './InlineCalendar';
+import MRFullscreenModal from './MRFullscreenModal';
 import MrDropdown from '../../components/MrDropdown';
 
 const APP_VERSION = {
-  version: '1.0.533',
+  version: '1.0.542',
   releaseDate: 'May 2026',
-  label: 'Side Drawer Navigation'
+  label: 'Enhanced Analytics Navigation'
 };
 
 const StickyToolbar = ({
@@ -361,7 +362,7 @@ const CallDetailingAnalyzer = () => {
   const [dateTo,   setDateTo]   = useState("");
   const [selectedMonths, setSelectedMonths] = useState(null); // null = ALL
   const [targets, setTargets] = useState({ hcpPerDay: 0, hcoPerDay: 0, phPerDay: 0 });
-  const [selectedMRForCalendar, setSelectedMRForCalendar] = useState(null);
+  const [selectedMRForFullscreen, setSelectedMRForFullscreen] = useState(null);
   const [activeTab, setActiveTab] = useState('performance');
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [selectedMR, setSelectedMR] = useState('');
@@ -699,20 +700,11 @@ const CallDetailingAnalyzer = () => {
 
   const handleOpenCalendar = (mrObj) => {
     // mrObj is the full MR object from MRCardsGrid
-    const mrName = mrObj?.mrName || mrObj;
-    setSelectedMRForCalendar(mrName);
-    
-    // Jump to the section after state sets
-    setTimeout(() => {
-      scrollToSection("mr-calendar-section");
-    }, 150);
+    setSelectedMRForFullscreen(mrObj);
   };
 
   const handleCloseCalendar = () => {
-    setSelectedMRForCalendar(null);
-    setTimeout(() => {
-      scrollToSection("section-performance");
-    }, 100);
+    setSelectedMRForFullscreen(null);
   };
 
   const handleFullPeriod = () => {
@@ -1273,32 +1265,6 @@ const CallDetailingAnalyzer = () => {
              />
           </div>
 
-          <div id="mr-calendar-section" className="scroll-mt-32">
-             {selectedMRForCalendar && (() => {
-               let defaultMonth = "";
-               const mrStat = mrStats.find(m => m.mrName === selectedMRForCalendar);
-               if (selectedMonths && selectedMonths.size > 0) {
-                 defaultMonth = [...selectedMonths].sort()[0];
-               } else if (mrStat?.lastDate) {
-                 defaultMonth = mrStat.lastDate.substring(0, 7);
-               }
-               
-               return (
-                 <div className="animate-in zoom-in-95 duration-300">
-                    <InlineCalendar 
-                       mr={mrStat} 
-                       targets={targets} 
-                       onClose={handleCloseCalendar}
-                       defaultMonth={defaultMonth}
-                    />
-                 </div>
-               );
-             })()}
-          </div>
-
-          {/* 11. INSIGHTS SECTION (Moved to bottom) */}
-
-          {/* 12. FORECAST SECTION */}
           <div id="section-forecast" className="scroll-mt-32 pt-8">
              <div className="mb-8">
                 <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tight">Growth <span className="text-accent underline decoration-accent/20">Forecast</span></h2>
@@ -1528,6 +1494,14 @@ const CallDetailingAnalyzer = () => {
             )}
           </section>
         </>
+      )}
+
+      {selectedMRForFullscreen && (
+        <MRFullscreenModal 
+          mr={selectedMRForFullscreen}
+          targets={targets}
+          onClose={handleCloseCalendar}
+        />
       )}
 
       {showScrollTop && (

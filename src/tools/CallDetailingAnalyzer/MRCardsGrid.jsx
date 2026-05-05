@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Search, MapPin, Calendar, TrendingUp, GraduationCap } from 'lucide-react';
+import { Search, MapPin, Calendar, TrendingUp, GraduationCap, Maximize2 } from 'lucide-react';
 import { getRateStatus, getStatusInfo, buildStatusTooltip } from '../../utils/mrCalculations';
 import StatusTooltip from '../../components/shared/StatusTooltip';
 import { formatKpi, formatKpiGrouped } from '../../utils/formatNumber';
@@ -140,10 +140,17 @@ const MRCard = ({ mr, isExpanded, onToggle, targets, onOpenCalendar }) => {
         : isExpanded ? "border-yellow-400" : "border-gray-200 hover:border-yellow-300"
       }
     `}>
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => onToggle(mr.mrName)}
-        className="w-full text-left focus:outline-none"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onToggle(mr.mrName);
+          }
+        }}
+        className="w-full text-left focus:outline-none cursor-pointer"
       >
         {/* ── COACHING BANNER (top strip) ── */}
         {isCoached && (
@@ -198,6 +205,18 @@ const MRCard = ({ mr, isExpanded, onToggle, targets, onOpenCalendar }) => {
                 </span>
               </div>
             </div>
+
+            {/* Open Fullscreen Button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenCalendar();
+              }}
+              className="absolute right-4 top-4 p-2 rounded-xl bg-gray-900 text-white hover:bg-black transition-all hover:scale-110 active:scale-95 shadow-lg group-hover:block z-20"
+              title="Open Fullscreen Detail"
+            >
+              <Maximize2 size={16} />
+            </button>
 
             {/* Status badge — top right */}
             {/* Status badge removed as requested */}
@@ -269,7 +288,7 @@ const MRCard = ({ mr, isExpanded, onToggle, targets, onOpenCalendar }) => {
             )}
           </div>
         </div>
-      </button>
+      </div>
 
       {/* ── EXPANDED CONTENT ── */}
       {isExpanded && (
@@ -331,7 +350,8 @@ const MRCard = ({ mr, isExpanded, onToggle, targets, onOpenCalendar }) => {
               </div>
            </div>
 
-           <MRCardSearch mr={mr} />
+           {/* Removing the embedded search as it moves to full screen */}
+           {/* <MRCardSearch mr={mr} /> */}
 
            <div className="flex flex-col sm:flex-row gap-2 pt-2">
               <button
@@ -341,7 +361,7 @@ const MRCard = ({ mr, isExpanded, onToggle, targets, onOpenCalendar }) => {
                 }}
                 className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-gray-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all shadow-sm active:scale-95"
               >
-                 <Calendar size={14}/> Calendar
+                 <Maximize2 size={14}/> Fullscreen Detail
               </button>
               <button
                 onClick={e => {

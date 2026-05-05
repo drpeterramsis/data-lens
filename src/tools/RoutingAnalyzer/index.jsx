@@ -24,7 +24,7 @@ const NAV_H_VAR    = '56px';
 const FOOTER_H     = 48;  // px  must match Footer.jsx
 
 const ROUTING_VERSION = {
-  version: '1.0.533',
+  version: '1.0.540',
   releaseDate: 'May 2026',
   label: 'Navigation Enhancements',
 };

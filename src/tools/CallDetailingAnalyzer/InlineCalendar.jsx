@@ -2,14 +2,15 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { X, Search, ChevronLeft, ChevronRight, GraduationCap, Hospital, Pill, UserRound } from 'lucide-react';
 import { formatKpi } from '../../utils/formatNumber';
 
-export default function InlineCalendar({ mr, targets, onClose }) {
-  const [currentMonth, setCurrentMonth] = useState(() => {
-    const dates = mr?.allDates || [];
-    const lastDate = dates.length > 0 ? dates[dates.length - 1] : null;
-    return lastDate ? new Date(lastDate + "T00:00:00") : new Date();
-  });
-  const [selectedDate, setSelectedDate] = useState(null);
-
+export default function InlineCalendar({ 
+  mr, 
+  targets, 
+  highlightedDates, 
+  currentMonth, 
+  onMonthChange,
+  selectedDate,
+  setSelectedDate
+}) {
   const daysInMonth = useMemo(() => {
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
@@ -47,48 +48,8 @@ export default function InlineCalendar({ mr, targets, onClose }) {
     return days;
   }, [currentMonth, mr?.dateMap]);
 
-  const changeMonth = (offset) => {
-    setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + offset, 1));
-    setSelectedDate(null);
-  };
-
-  const selectedDayData = useMemo(() => {
-    if (!selectedDate || !mr?.dateMap) return null;
-    const data = mr.dateMap[selectedDate];
-    if (!data) return null;
-
-    // We can compute filtered arrays in DayDetailPanel or here. 
-    // We let DayDetailPanel handle it since it doesn't need to filter unless searching is implemented inside the panel.
-    return { ...data };
-  }, [selectedDate, mr.dateMap]);
-
   return (
-    <div id="inline-calendar-section" className="bg-white border-2 border-accent/20 rounded-3xl shadow-2xl overflow-hidden mt-8 mb-12 scroll-mt-24">
-      {/* Header */}
-      <div className="bg-gray-900 text-white p-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center text-black font-black">
-            {mr.mrName.substring(0,2).toUpperCase()}
-          </div>
-          <div>
-            <h3 className="font-black text-lg leading-tight uppercase tracking-tight">{mr.mrName} — Activity Calendar</h3>
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{mr.lineName}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-4">
-           <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-1.5">
-              <button onClick={() => changeMonth(-1)} className="hover:text-accent transition-colors"><ChevronLeft size={18}/></button>
-              <span className="font-black text-sm uppercase tracking-widest min-w-[120px] text-center">
-                {currentMonth.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
-              </span>
-              <button onClick={() => changeMonth(1)} className="hover:text-accent transition-colors"><ChevronRight size={18}/></button>
-           </div>
-           <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-white">
-             <X size={20}/>
-           </button>
-        </div>
-      </div>
-
+    <div id="inline-calendar-section" className="bg-white border-2 border-accent/20 rounded-3xl shadow-2xl overflow-hidden mb-12 scroll-mt-24">
       <div id="inline-calendar-main-layout" className="flex flex-col transition-all duration-300 relative">
         {/*
           CALENDAR GRID SECTION
@@ -110,6 +71,7 @@ export default function InlineCalendar({ mr, targets, onClose }) {
                    dayData={dayObj.stats} 
                    targets={targets} 
                    inMonth={dayObj.month === 'current'} 
+                   isHighlighted={highlightedDates?.has(dayObj.fullDate)}
                  />
                </div>
             ))}
@@ -147,43 +109,12 @@ export default function InlineCalendar({ mr, targets, onClose }) {
              </div>
           </div>
         </div>
-
-        {/* 
-          SIDE MENU DRAWER
-          ID: day-detail-side-drawer
-          Role: Slides from right to show detailed day data without a centered popup
-        */}
-        {selectedDate && selectedDayData && (
-          <>
-            {/* Backdrop for the side drawer */}
-            <div 
-              className="fixed inset-0 z-40 bg-black/30 backdrop-blur-[2px] animate-in fade-in duration-300"
-              onClick={() => setSelectedDate(null)}
-            />
-
-            <div 
-              id="day-detail-side-drawer"
-              className="fixed top-0 right-0 h-full w-[90%] sm:w-[500px] bg-white z-50 shadow-[-10px_0_30px_rgba(0,0,0,0.15)] animate-in slide-in-from-right duration-500 flex flex-col border-l-4 border-yellow-400 side-drawer-container"
-            >
-               {/* Drawer Content */}
-               <div className="flex-1 overflow-y-auto custom-scrollbar p-0">
-                  <DayDetailPanel 
-                    date={selectedDate} 
-                    dayData={selectedDayData} 
-                    targets={targets} 
-                    mrName={mr.mrName} 
-                    onClose={() => setSelectedDate(null)} 
-                  />
-               </div>
-            </div>
-          </>
-        )}
       </div>
     </div>
   );
 }
 
-const DayCell = ({ day, dateStr, dayData, targets, inMonth }) => {
+const DayCell = ({ day, dateStr, dayData, targets, inMonth, isHighlighted }) => {
   if (!inMonth && !dateStr) {
     return (
       <div className="border rounded-lg p-1 min-h-[90px] bg-gray-50 border-gray-200 opacity-30">
@@ -243,6 +174,7 @@ const DayCell = ({ day, dateStr, dayData, targets, inMonth }) => {
       ${dayData?.coached >= 4 ? "ring-1 ring-yellow-400" : ""}
       ${!inMonth ? "opacity-30" : ""}
       ${!isFriday && !isThursday && dayData ? "bg-white border-gray-200" : ""}
+      ${isHighlighted ? "ring-4 ring-yellow-500 ring-offset-1 z-10 scale-[1.03] shadow-xl border-yellow-500 bg-yellow-50/50" : ""}
     `}>
       <div className="flex items-center justify-between mb-0.5">
         <span className="font-bold text-gray-800 text-[10px] sm:text-xs">{day}</span>
@@ -303,7 +235,7 @@ const DayCell = ({ day, dateStr, dayData, targets, inMonth }) => {
   );
 };
 
-const DayDetailPanel = ({ date, dayData, targets, mrName, onClose }) => {
+export const DayDetailPanel = ({ date, dayData, targets, mrName, onClose }) => {
   const [openSections, setOpenSections] = useState({
     hco: false,
     ph:  false,
@@ -340,26 +272,26 @@ const DayDetailPanel = ({ date, dayData, targets, mrName, onClose }) => {
   const coachedList  = dayData.customers.filter(c => c.coached);
 
   return (
-    <div className="mt-4 border border-yellow-200 rounded-2xl bg-white shadow-sm overflow-hidden mb-8">
-      <div className="flex items-center justify-between px-4 py-3 bg-yellow-50 border-b border-yellow-100">
+    <div className="mt-2 border border-yellow-200 rounded-xl bg-white shadow-sm overflow-hidden mb-4">
+      <div className="flex items-center justify-between px-3 py-2 bg-yellow-50 border-b border-yellow-100">
         <div>
-          <h3 className="font-bold text-gray-900">
-            📅 {dayNames[dow]}, {new Date(date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", })}
+          <h3 className="font-bold text-gray-900 text-sm">
+             {dayNames[dow]}, {new Date(date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "long" })}
           </h3>
-          <p className="text-xs text-gray-500 mt-0.5">
-            {mrName} · {totalDone} visits
+          <p className="text-[10px] text-gray-500">
+            {totalDone} visits
             {overallAch !== null && (
-              <span className={`ml-2 font-bold ${achColor(overallAch)}`}>
-               <br /> Overall: {overallAch}% {achIcon(overallAch)}
+              <span className={`ml-2 font-bold ${achColor(overallAch)} uppercase tracking-tighter`}>
+                Ach: {overallAch}%
               </span>
             )}
-            {dayData.coached >= 4 && " · 🎓 Coaching Day"}
+            {dayData.coached >= 4 && " · 🎓 Coaching"}
           </p>
         </div>
-        <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-lg font-bold w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100">✕</button>
+        <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-sm font-bold w-6 h-6 flex items-center justify-center rounded-lg hover:bg-gray-100">✕</button>
       </div>
 
-      <div className="p-4 space-y-2">
+      <div className="p-2 space-y-1.5">
         {!isFriday && (
           <CollapsibleTypeSection
             isOpen={openSections.hco}
@@ -416,15 +348,15 @@ const CollapsibleTypeSection = ({ isOpen, onToggle, icon, label, count, target, 
 
   return (
     <div className={`rounded-xl border overflow-hidden ${sectionBg(ach)}`}>
-      <button type="button" onClick={onToggle} className="w-full flex items-center justify-between px-4 py-3 text-sm hover:opacity-80 transition-opacity">
-        <div className="flex items-center gap-2">
-          <span className="text-base">{icon}</span>
+      <button type="button" onClick={onToggle} className="w-full flex items-center justify-between px-3 py-2 text-[11px] hover:opacity-80 transition-opacity">
+        <div className="flex items-center gap-1.5">
+          <span className="text-sm">{icon}</span>
           <span className="font-bold text-gray-800">{label}</span>
         </div>
-        <div className="flex items-center gap-2 sm:gap-3">
-          <span className="font-bold text-gray-800 text-xs sm:text-sm">{count} visits</span>
-          {ach !== null && target && <span className={`text-[10px] sm:text-xs font-bold ${achColor(ach)}`}>{ach}% <span className="hidden sm:inline">of {target}</span></span>}
-          <span className="text-gray-400 text-xs">{isOpen ? "▲" : "▼"}</span>
+        <div className="flex items-center gap-2">
+          <span className="font-bold text-gray-800 text-[10px] sm:text-xs">{count} visits</span>
+          {ach !== null && target && <span className={`text-[9px] sm:text-[10px] font-bold ${achColor(ach)}`}>{ach}%</span>}
+          <span className="text-gray-400 text-[10px]">{isOpen ? "▲" : "▼"}</span>
         </div>
       </button>
 
@@ -483,14 +415,14 @@ const CollapsibleCoachingSection = ({ isOpen, onToggle, coachedList, dayData }) 
 
   return (
     <div className="rounded-xl border border-yellow-300 overflow-hidden bg-yellow-50">
-      <button type="button" onClick={onToggle} className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-yellow-100 transition-colors">
-        <div className="flex items-center gap-2">
+      <button type="button" onClick={onToggle} className="w-full flex items-center justify-between px-3 py-2 text-[11px] hover:bg-yellow-100 transition-colors">
+        <div className="flex items-center gap-1.5">
           <span>🎓</span>
           <span className="font-bold text-yellow-800">Coaching Sessions</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="bg-yellow-400 text-gray-900 text-xs font-bold px-2 py-0.5 rounded-full">{coachedList.length} coached</span>
-          <span className="text-yellow-700 text-xs">{isOpen ? "▲" : "▼"}</span>
+          <span className="bg-yellow-400 text-gray-900 text-[10px] font-bold px-2 py-0.5 rounded-full">{coachedList.length} coaching</span>
+          <span className="text-yellow-700 text-[10px]">{isOpen ? "▲" : "▼"}</span>
         </div>
       </button>
 
