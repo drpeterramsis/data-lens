@@ -35,7 +35,7 @@ export default function InlineCalendar({ mr, targets, onClose }) {
         day: i, 
         month: 'current', 
         fullDate: dateStr,
-        stats: mr.dateMap[dateStr] || null
+        stats: mr?.dateMap ? mr.dateMap[dateStr] : null
       });
     }
 
@@ -45,7 +45,7 @@ export default function InlineCalendar({ mr, targets, onClose }) {
     }
 
     return days;
-  }, [currentMonth, mr.dateMap]);
+  }, [currentMonth, mr?.dateMap]);
 
   const changeMonth = (offset) => {
     setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + offset, 1));
@@ -53,7 +53,7 @@ export default function InlineCalendar({ mr, targets, onClose }) {
   };
 
   const selectedDayData = useMemo(() => {
-    if (!selectedDate) return null;
+    if (!selectedDate || !mr?.dateMap) return null;
     const data = mr.dateMap[selectedDate];
     if (!data) return null;
 
@@ -89,9 +89,13 @@ export default function InlineCalendar({ mr, targets, onClose }) {
         </div>
       </div>
 
-      <div className={`flex flex-col lg:flex-row transition-all duration-300`}>
-        {/* Calendar Grid */}
-        <div className={`p-2 lg:p-4 ${selectedDate ? 'lg:w-3/5' : 'w-full'} transition-all duration-300`}>
+      <div id="inline-calendar-main-layout" className="flex flex-col transition-all duration-300 relative">
+        {/*
+          CALENDAR GRID SECTION
+          ID: calendar-grid-container
+          Role: Displays the primary monthly activity calendar
+        */}
+        <div id="calendar-grid-container" className="p-2 lg:p-4 w-full transition-all duration-300">
           <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
             {['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map(d => (
               <div key={d} className="text-center py-2 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-gray-400">
@@ -144,38 +148,34 @@ export default function InlineCalendar({ mr, targets, onClose }) {
           </div>
         </div>
 
-        {/* Day Detail Panel */}
+        {/* 
+          SIDE MENU DRAWER
+          ID: day-detail-side-drawer
+          Role: Slides from right to show detailed day data without a centered popup
+        */}
         {selectedDate && selectedDayData && (
           <>
-            {/* Desktop: right panel */}
-            <div className="hidden lg:block lg:w-2/5 bg-gray-50 p-4 border-l border-gray-100 animate-in slide-in-from-right-4 duration-300 overflow-y-auto max-h-[800px] custom-scrollbar">
-               <DayDetailPanel 
-                 date={selectedDate} 
-                 dayData={selectedDayData} 
-                 targets={targets} 
-                 mrName={mr.mrName} 
-                 onClose={() => setSelectedDate(null)} 
-               />
-            </div>
+            {/* Backdrop for the side drawer */}
+            <div 
+              className="fixed inset-0 z-40 bg-black/30 backdrop-blur-[2px] animate-in fade-in duration-300"
+              onClick={() => setSelectedDate(null)}
+            />
 
-            {/* Mobile: bottom sheet */}
-            <div className="lg:hidden fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-2xl shadow-2xl max-h-[75vh] overflow-y-auto border-t-2 border-yellow-400 pb-8 animate-in slide-in-from-bottom-full duration-300">
-              <div className="flex justify-center pt-3 pb-2 sticky top-0 bg-white border-b border-gray-100 z-10 w-full" onClick={() => setSelectedDate(null)}>
-                <div className="w-12 h-1.5 bg-gray-300 rounded-full cursor-pointer"/>
-              </div>
-              <div className="p-4">
-               <DayDetailPanel 
-                 date={selectedDate} 
-                 dayData={selectedDayData} 
-                 targets={targets} 
-                 mrName={mr.mrName} 
-                 onClose={() => setSelectedDate(null)} 
-               />
-              </div>
+            <div 
+              id="day-detail-side-drawer"
+              className="fixed top-0 right-0 h-full w-[90%] sm:w-[500px] bg-white z-50 shadow-[-10px_0_30px_rgba(0,0,0,0.15)] animate-in slide-in-from-right duration-500 flex flex-col border-l-4 border-yellow-400 side-drawer-container"
+            >
+               {/* Drawer Content */}
+               <div className="flex-1 overflow-y-auto custom-scrollbar p-0">
+                  <DayDetailPanel 
+                    date={selectedDate} 
+                    dayData={selectedDayData} 
+                    targets={targets} 
+                    mrName={mr.mrName} 
+                    onClose={() => setSelectedDate(null)} 
+                  />
+               </div>
             </div>
-
-            {/* Mobile backdrop */}
-            <div className="lg:hidden fixed inset-0 z-40 bg-black/40 animate-in fade-in duration-300" onClick={() => setSelectedDate(null)}/>
           </>
         )}
       </div>
@@ -350,7 +350,7 @@ const DayDetailPanel = ({ date, dayData, targets, mrName, onClose }) => {
             {mrName} · {totalDone} visits
             {overallAch !== null && (
               <span className={`ml-2 font-bold ${achColor(overallAch)}`}>
-                Overall: {overallAch}% {achIcon(overallAch)}
+               <br /> Overall: {overallAch}% {achIcon(overallAch)}
               </span>
             )}
             {dayData.coached >= 4 && " · 🎓 Coaching Day"}

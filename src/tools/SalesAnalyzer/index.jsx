@@ -23,9 +23,9 @@ import ReportsTab from '../reports/ReportsTab';
 import { FilterButton } from '../../components/ui/FilterButton';
 
 const APP_VERSION = {
-  version: '1.0.514',
+  version: '1.0.530',
   releaseDate: 'May 2026',
-  label: 'Admin Settings & Dashboard Categories'
+  label: 'Scroll & Navigation Fixes'
 };
 
 const CACHE_KEY = 'atr_sales_v1';
@@ -392,6 +392,7 @@ const SideFilterSection = ({ label, options, selected, onChange }) => {
 };
 
 const ActiveFiltersBar = ({ filters, setFilters }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
   const tags = [];
 
   // Date range — keep as single tag
@@ -409,7 +410,7 @@ const ActiveFiltersBar = ({ filters, setFilters }) => {
   const arrayFilters = [
     { key: 'branch',       label: 'Branch'    },
     { key: 'supervisor',   label: 'Supervisor' },
-    { key: 'mrName',       label: 'MR'        },
+    { key: 'mrName',       label: 'SR'        },
     { key: 'line',         label: 'Line'      },
     { key: 'customerType', label: 'Type'      },
     { key: 'product',      label: 'Product'   },
@@ -435,41 +436,67 @@ const ActiveFiltersBar = ({ filters, setFilters }) => {
   if (tags.length === 0) return null;
 
   return (
-    <div className="flex items-center gap-2 flex-wrap px-6 py-2.5 bg-blue-50 border-b border-blue-100 shrink-0">
-      
-      <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest shrink-0">
-        Filtered by:
-      </span>
-
-      <div className="flex flex-wrap gap-1.5 flex-1">
-        {tags.map(tag => (
-          <div
-            key={tag.id}
-            className="flex items-center gap-1.5 bg-white border border-blue-200 text-blue-700 text-xs font-semibold px-2.5 py-1 rounded-full shadow-sm max-w-[220px]">
-            <span className="truncate" title={tag.label}>
-              {tag.label}
-            </span>
-            <button
-              onClick={tag.clear}
-              className="text-blue-300 hover:text-red-500 transition-colors font-bold shrink-0 leading-none ml-0.5">
-              ✕
+    <div className="px-6 py-2 bg-blue-50 border-b border-blue-100 shrink-0">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3 overflow-hidden">
+          <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest shrink-0">
+            Active Filters ({tags.length}):
+          </span>
+          {!isExpanded && (
+            <div className="flex gap-1 overflow-hidden">
+               {tags.slice(0, 2).map(tag => (
+                 <span key={tag.id} className="text-[10px] bg-white border border-blue-100 px-2 py-0.5 rounded text-blue-600 font-bold truncate max-w-[120px]">
+                   {tag.label}
+                 </span>
+               ))}
+               {tags.length > 2 && <span className="text-[10px] text-blue-400 font-bold">+{tags.length - 2} more</span>}
+            </div>
+          )}
+        </div>
+        
+        <div className="flex items-center gap-2">
+          {tags.length > 0 && (
+            <button 
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="text-[10px] font-black text-blue-600 hover:bg-blue-100 px-2 py-1 rounded uppercase tracking-tighter"
+            >
+              {isExpanded ? 'Collapse' : 'Show All'}
             </button>
-          </div>
-        ))}
+          )}
+          {tags.length > 1 && (
+            <button
+               onClick={() => setFilters({
+                branch:[], supervisor:[],
+                mrName:[], line:[],
+                customerType:[], product:[],
+                customer:[], 
+                fromDate:'', toDate:''
+              })}
+              className="text-[10px] font-black text-red-500 hover:bg-red-50 px-2 py-1 rounded uppercase tracking-tighter"
+            >
+              Clear All
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Clear All */}
-      {tags.length > 1 && (
-        <FilterButton
-          onClick={() => setFilters({
-            branch:[], supervisor:[],
-            mrName:[], line:[],
-            customerType:[], product:[],
-            customer:[], 
-            fromDate:'', toDate:''
-          })}
-          label="Clear All"
-        />
+      {isExpanded && (
+        <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-blue-100/50">
+          {tags.map(tag => (
+            <div
+              key={tag.id}
+              className="flex items-center gap-1.5 bg-white border border-blue-200 text-blue-700 text-[10px] font-semibold px-2 py-0.5 rounded-full shadow-sm max-w-[200px]">
+              <span className="truncate" title={tag.label}>
+                {tag.label}
+              </span>
+              <button
+                onClick={tag.clear}
+                className="text-blue-300 hover:text-red-500 transition-colors font-bold shrink-0 leading-none ml-0.5">
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
@@ -801,6 +828,13 @@ const SideFiltersPanel = ({ isOpen, onClose, filters, setFilters, filterOptions,
             </div>
             <div className="flex items-center gap-2">
               <button 
+                onClick={() => setFilters(f => ({ ...f, fromDate: '', toDate: '' }))}
+                className="text-[10px] font-bold text-blue-600 hover:bg-blue-50 px-2 py-1 rounded transition-colors"
+                title="Reset date range to full period"
+              >
+                Full Period
+              </button>
+              <button 
                 onClick={onManageProfiles}
                 className="text-gray-400 hover:text-blue-600 transition-colors"
                 title="Saved Filters">
@@ -868,7 +902,7 @@ const SideFiltersPanel = ({ isOpen, onClose, filters, setFilters, filterOptions,
           </div>
         </div>
 
-        {[ { label: 'Branch', key: 'branch', options: filterOptions.branches }, { label: 'Supervisor', key: 'supervisor', options: filterOptions.supervisors }, { label: 'MR', key: 'mrName', options: filterOptions.mrNames }, { label: 'Line', key: 'line', options: filterOptions.lines }, { label: 'Customer Type', key: 'customerType', options: filterOptions.customerTypes }, { label: 'Customer', key: 'customer', options: filterOptions.customers }, { label: 'Product', key: 'product', options: filterOptions.products } ].map(({ label, key, options }) => (
+        {[ { label: 'Branch', key: 'branch', options: filterOptions.branches }, { label: 'Supervisor', key: 'supervisor', options: filterOptions.supervisors }, { label: 'SR', key: 'mrName', options: filterOptions.mrNames }, { label: 'Line', key: 'line', options: filterOptions.lines }, { label: 'Customer Type', key: 'customerType', options: filterOptions.customerTypes }, { label: 'Customer', key: 'customer', options: filterOptions.customers }, { label: 'Product', key: 'product', options: filterOptions.products } ].map(({ label, key, options }) => (
           <SideFilterSection key={key} label={label} options={options} selected={filters[key]} onChange={v => setFilters(f => ({...f, [key]: v}))} />
         ))}
       </div>
@@ -2189,7 +2223,7 @@ invoiceDate: (() => {
                         { label: 'Type', 
                           value: activeInvoice
                                   .customerType },
-                        { label: 'MR', 
+                        { label: 'SR', 
                           value: activeInvoice
                                   .mrName },
                         { label: 'Branch', 
@@ -2484,7 +2518,7 @@ invoiceDate: (() => {
   }
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-gray-50">
+    <div className="flex flex-col min-h-screen bg-gray-50">
       {/* Hidden file input */}
       <input
         ref={fileInputRef}
@@ -2590,22 +2624,33 @@ invoiceDate: (() => {
         </div>
       )}
       
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-6 py-3 bg-white border-b border-gray-200 shrink-0 gap-3">
-        <div className="min-w-0 pr-6">
-          <h2 className="text-lg sm:text-xl font-black text-gray-900 uppercase tracking-tight truncate">ATR Sales Analysis</h2>
-          <p className="text-[10px] sm:text-xs text-gray-400 font-medium mt-0.5">
-            {formatKpiGrouped(data.length)} INVOICES · {totalProducts} PRODUCTS · {totalMRs} MRs · {formatDate(startDate)} → {formatDate(endDate)}
-          </p>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-6 py-4 bg-white border-b border-gray-200 shrink-0 gap-4">
+        <div className="min-w-0">
+          <h2 className="text-xl sm:text-2xl font-black text-gray-900 uppercase tracking-tight truncate italic">ATR Sales Analysis</h2>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
+            <span className="flex items-center gap-1.5 px-2 py-0.5 bg-blue-50 text-blue-700 rounded-md text-[10px] font-bold uppercase tracking-wider border border-blue-100">
+              <History size={10} /> {formatKpiGrouped(data.length)} Invoices
+            </span>
+            <span className="flex items-center gap-1.5 px-2 py-0.5 bg-purple-50 text-purple-700 rounded-md text-[10px] font-bold uppercase tracking-wider border border-purple-100">
+              <Package size={10} /> {totalProducts} Products
+            </span>
+            <span className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-md text-[10px] font-bold uppercase tracking-wider border border-emerald-100">
+              <Users size={10} /> {totalMRs} SRs
+            </span>
+            <span className="flex items-center gap-1.5 px-2 py-0.5 bg-amber-50 text-amber-700 rounded-md text-[10px] font-bold uppercase tracking-wider border border-amber-100">
+              <Calendar size={10} /> {formatDate(startDate)} → {formatDate(endDate)}
+            </span>
+          </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <FilterButton
             onClick={() => setIsSidebarOpen(true)}
             isActive={isSidebarOpen}
-            label="Filters"
-            className="shrink-0"
+            className="shrink-0 !px-2.5"
+            title="Open Filters Sidebar"
+            variant="filter"
           >
             <Filter size={14} />
-            Filters
           </FilterButton>
           {/* Always visible upload button */}
           <button
@@ -2614,9 +2659,9 @@ invoiceDate: (() => {
             className="flex items-center gap-2 
                        bg-blue-600 hover:bg-blue-700
                        disabled:bg-blue-300
-                       text-white text-[10px] sm:text-xs font-black 
+                       text-white text-[10px] font-black 
                        uppercase tracking-widest
-                       px-3 sm:px-4 py-2 rounded-xl 
+                       px-3 py-2 rounded-xl 
                        transition-all shadow-sm
                        shrink-0">
             {isLoading 
@@ -2626,13 +2671,16 @@ invoiceDate: (() => {
             {isLoading 
               ? 'Processing...'
               : data.length > 0 
-                ? 'Add / Replace' 
-                : 'Upload File'
+                ? '' 
+                : 'Upload'
             }
           </button>
-          <FilterButton onClick={() => setFilters(f=>({...f, fromDate:'', toDate:''}))} label="📅 Full Period" />
-          <FilterButton onClick={handleReset} label="Reset">
-            <RefreshCw size={12}/> Reset
+          <FilterButton 
+            onClick={handleReset} 
+            className="!px-2.5"
+            title="Reset All Information (Delete Cache)"
+          >
+            <RefreshCw size={13}/>
           </FilterButton>
         </div>
       </div>
@@ -2671,7 +2719,7 @@ invoiceDate: (() => {
       )}
 
 
-      <div className="flex flex-1 overflow-hidden h-[calc(100vh-theme(spacing.24))]">
+      <div className="flex flex-1">
         <SideFiltersPanel 
           isOpen={isSidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
@@ -2682,7 +2730,7 @@ invoiceDate: (() => {
           onManageProfiles={() => setShowProfileManager(true)}
           profiles={filterProfiles}
         />
-        <div className="flex flex-col flex-1 overflow-hidden">
+        <div className="flex flex-col flex-1">
           <ActiveFiltersBar filters={filters} setFilters={setFilters} />
           
           <FilterProfilesManager 
@@ -2703,39 +2751,39 @@ invoiceDate: (() => {
               <ChevronDown size={14} className={`transition-transform ${isSummaryExpanded ? 'rotate-180' : ''}`} />
             </button>
             <div className={`space-y-3 ${isSummaryExpanded ? 'block' : 'hidden md:block'}`}>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-2">
                 {[
-                  { label: 'Net Quantity', value: formatKpiGrouped(kpis.netQty), suffix: 'units', icon: Package, color: 'text-emerald-600', bg: 'bg-emerald-50', negative: kpis.netQty < 0 },
+                  { label: 'Net Qty', value: formatKpiGrouped(kpis.netQty), suffix: 'U', icon: Package, color: 'text-emerald-600', bg: 'bg-emerald-50', negative: kpis.netQty < 0 },
                   { label: 'Net Value', value: formatKpiGrouped(kpis.netValue), suffix: 'EGP', icon: DollarSign, color: 'text-blue-600', bg: 'bg-blue-50', negative: kpis.netValue < 0 },
-                  { label: 'Total Returns', value: formatKpiGrouped(Math.abs(kpis.returnsQty)), suffix: 'units', sub: formatKpiGrouped(Math.abs(kpis.returnsValue)) + ' EGP', icon: RotateCcw, color: 'text-red-500', bg: 'bg-red-50', negative: false },
-                  { label: 'Unique Products', value: kpis.uniqueProducts, suffix: 'products', sub: formatKpiGrouped(filteredData.length) + ' rows', icon: Grid, color: 'text-purple-600', bg: 'bg-purple-50', negative: false },
-                ].map((card, i) => (
-                  <div key={i} className="bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3 flex items-center gap-3">
-                    <div className={`${card.bg} p-2 rounded-lg shrink-0`}><card.icon size={16} className={card.color}/></div>
-                    <div className="min-w-0">
-                        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1 truncate">{card.label}</p>
-                        <p className={`text-lg font-black leading-none truncate ${card.negative ? 'text-red-600' : 'text-gray-900'}`}>{card.value}<span className="text-xs font-semibold text-gray-400 ml-1">{card.suffix}</span></p>
-                        {card.sub && <p className="text-[10px] text-gray-400 mt-0.5 truncate">{card.sub}</p>}
-                    </div>
+                  { label: 'Returns', value: formatKpiGrouped(Math.abs(kpis.returnsQty)), suffix: 'U', sub: formatKpiGrouped(Math.abs(kpis.returnsValue)) + ' EGP', icon: RotateCcw, color: 'text-red-500', bg: 'bg-red-50', negative: false },
+                  { label: 'Products', value: kpis.uniqueProducts, suffix: 'P', sub: formatKpiGrouped(filteredData.length) + ' R', icon: Grid, color: 'text-purple-600', bg: 'bg-purple-50', negative: false },
+              ].map((card, i) => (
+                <div key={i} className="bg-white rounded-lg shadow-sm border border-gray-100 p-2.5 flex items-center gap-2.5 min-w-0">
+                  <div className={`${card.bg} p-1.5 rounded-md shrink-0`}><card.icon size={14} className={card.color}/></div>
+                  <div className="min-w-0 flex-1">
+                      <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-0.5 truncate">{card.label}</p>
+                      <p className={`text-[15px] font-black leading-tight truncate ${card.negative ? 'text-red-600' : 'text-gray-900'}`}>{card.value}<span className="text-[9px] font-semibold text-gray-400 ml-0.5">{card.suffix}</span></p>
+                      {card.sub && <p className="text-[8px] text-gray-400 mt-0.5 truncate font-medium">{card.sub}</p>}
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
+            </div>
 
-              <div className="flex gap-2 pb-3 shrink-0 flex-wrap">
-                {['Overview','By Product','By MR','By Customer','By Branch','Trend', 'Compare', 'Reports'].map(tab => (
-                  <FilterButton 
-                    key={tab} 
-                    onClick={() => setActiveTab(tab)} 
-                    isActive={activeTab === tab}
-                    label={tab}
-                  />
-                ))}
-              </div>
+            <div className="flex gap-2 pb-3 shrink-0 flex-wrap">
+              {['Overview','By Product','By SR','By Customer','By Branch','Trend', 'Compare', 'Reports'].map(tab => (
+                <FilterButton 
+                  key={tab} 
+                  onClick={() => setActiveTab(tab)} 
+                  isActive={activeTab === tab}
+                  label={tab}
+                />
+              ))}
+            </div>
             </div>
           </div>
 
 
-          <div className="flex-1 overflow-y-auto px-6 pb-[200px]">
+          <div className="flex-1 px-6 pb-24">
             <div className="bg-white p-6 rounded-3xl border border-gray-200">
               {activeTab === 'Overview' && (
                 <FullscreenWrapper title="Overview">
@@ -2779,16 +2827,16 @@ invoiceDate: (() => {
                     </div>
                   </FullscreenWrapper>
                 )}
-                {activeTab === 'By MR' && (
-                  <FullscreenWrapper title="By MR">
+                {activeTab === 'By SR' && (
+                  <FullscreenWrapper title="By SR">
                     <div className="space-y-6">
                       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                          <div className="px-5 py-4 border-b border-gray-100"><h3 className="font-bold text-gray-800">MR Breakdown</h3><p className="text-xs text-gray-400 mt-0.5">{filteredData.length} records</p></div>
+                          <div className="px-5 py-4 border-b border-gray-100"><h3 className="font-bold text-gray-800">SR Breakdown</h3><p className="text-xs text-gray-400 mt-0.5">{filteredData.length} records</p></div>
                           <div className="overflow-x-auto max-h-[420px] overflow-y-auto"><table className="w-full text-sm">
                               <thead className="sticky top-0 bg-gray-50 z-10">
                                 <tr className="text-xs text-gray-500 uppercase">
                                   <th className="p-2 text-left">#</th>
-                                  <SortableTH label="MR" sortKey="mrName" currentKey={mrSortKey} dir={mrSortDir} onSort={mrToggle} />
+                                  <SortableTH label="SR" sortKey="mrName" currentKey={mrSortKey} dir={mrSortDir} onSort={mrToggle} />
                                   <SortableTH label="Qty" sortKey="netQty" currentKey={mrSortKey} dir={mrSortDir} onSort={mrToggle} className="text-right" />
                                   <SortableTH label="Value" sortKey="netValue" currentKey={mrSortKey} dir={mrSortDir} onSort={mrToggle} className="text-right" />
                                   <SortableTH label="%" sortKey="pct" currentKey={mrSortKey} dir={mrSortDir} onSort={mrToggle} className="text-right" />
@@ -2812,7 +2860,7 @@ invoiceDate: (() => {
                               ))}</tbody>
                           </table></div>
                       </div>
-                      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 MRs (Net Qty)</h4><ResponsiveContainer height={260}><BarChart data={sortedMR.slice(0,10)} layout="vertical" margin={{left: 60}}><XAxis type="number" fontSize={10} /><YAxis dataKey="mrName" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netQty" fill="#8B5CF6" /></BarChart></ResponsiveContainer></div>
+                      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 SRs (Net Qty)</h4><ResponsiveContainer height={260}><BarChart data={sortedMR.slice(0,10)} layout="vertical" margin={{left: 60}}><XAxis type="number" fontSize={10} /><YAxis dataKey="mrName" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netQty" fill="#8B5CF6" /></BarChart></ResponsiveContainer></div>
                     </div>
                   </FullscreenWrapper>
                 )}
@@ -2827,7 +2875,7 @@ invoiceDate: (() => {
                                   <th className="p-2 text-left">#</th>
                                   <SortableTH label="Name" sortKey="customerName" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} />
                                   <SortableTH label="Type" sortKey="customerType" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} />
-                                  <SortableTH label="MR" sortKey="mrName" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} />
+                                  <SortableTH label="SR" sortKey="mrName" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} />
                                   <SortableTH label="Branch" sortKey="branch" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} />
                                   <SortableTH label="Invoices" sortKey="invoiceCount" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} className="text-right" />
                                   <SortableTH label="First" sortKey="firstDate" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} />
@@ -3467,7 +3515,7 @@ const to = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
                           { key: 'netValue', label: 'Net Value (EGP)', format: 'val' },
                           { key: 'invoices', label: 'Total Invoices', format: 'num' },
                           { key: 'customers', label: 'Active Customers', format: 'num' },
-                          { key: 'mrs', label: 'Active MRs', format: 'num' },
+                          { key: 'mrs', label: 'Active SRs', format: 'num' },
                           { key: 'avgInvoice', label: 'Avg Invoice Value', format: 'val' },
                           { key: 'returnQty', label: 'Return Quantity', format: 'num' },
                           { key: 'returnValue', label: 'Return Value (EGP)', format: 'val' }

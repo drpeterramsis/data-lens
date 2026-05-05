@@ -23,9 +23,9 @@ import InlineCalendar from './InlineCalendar';
 import MrDropdown from '../../components/MrDropdown';
 
 const APP_VERSION = {
-  version: '1.0.514',
+  version: '1.0.533',
   releaseDate: 'May 2026',
-  label: 'Admin Settings & Dashboard Categories'
+  label: 'Side Drawer Navigation'
 };
 
 const StickyToolbar = ({
@@ -34,6 +34,8 @@ const StickyToolbar = ({
   selectedMonths, availableMonths,
   filteredRowCount,
 }) => {
+  const [showMore, setShowMore] = useState(false);
+
   const periodLabel = useMemo(() => {
     if (!periodFrom || !periodTo) return "";
     const fmtShort = (d) => {
@@ -89,22 +91,80 @@ const StickyToolbar = ({
     return `${months.join(" · ")} ${year}`;
   }, [selectedMonths, availableMonths]);
 
+  // Primary tabs to always show
+  const primaryTabs = tabs.slice(0, 4);
+  const secondaryTabs = tabs.slice(4);
+
   return (
-    <div className="sticky top-[60px] z-30 bg-white border-b shadow-sm -mx-4 px-0">
+    <div className="sticky top-0 z-30 bg-white border-b shadow-sm -mx-4 px-0">
       <div className="flex items-center justify-between px-3 sm:px-6">
-        <div className="flex gap-1 overflow-x-auto scrollbar-none py-2 px-1">
-          {tabs.map(tab => (
-            <FilterButton
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              isActive={activeTab === tab.id}
-              label={tab.label}
-              className="flex-shrink-0"
-            >
-              <span>{tab.icon}</span>
-              <span className="hidden xs:inline sm:inline">{tab.label}</span>
-            </FilterButton>
-          ))}
+        <div className="flex items-center gap-1 py-1.5 overflow-visible">
+          {/* Mobile primary tabs */}
+          <div className="flex gap-1 overflow-x-auto scrollbar-none">
+            {primaryTabs.map(tab => (
+              <FilterButton
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                isActive={activeTab === tab.id}
+                className="flex-shrink-0 !py-1.5 !px-3"
+              >
+                <span className="text-sm">{tab.icon}</span>
+                <span className="hidden xs:inline text-[11px] font-bold uppercase tracking-tight">{tab.label}</span>
+              </FilterButton>
+            ))}
+          </div>
+
+          {/* More menu for mobile / remaining tabs for desktop */}
+          <div className="relative">
+            <div className="hidden md:flex gap-1">
+              {secondaryTabs.map(tab => (
+                <FilterButton
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  isActive={activeTab === tab.id}
+                  className="flex-shrink-0 !py-1.5 !px-3"
+                >
+                  <span className="text-sm">{tab.icon}</span>
+                  <span className="text-[11px] font-bold uppercase tracking-tight">{tab.label}</span>
+                </FilterButton>
+              ))}
+            </div>
+
+            <div className="md:hidden">
+              <button 
+                onClick={() => setShowMore(!showMore)}
+                className={`flex items-center justify-center p-1.5 rounded-lg border transition-all ${
+                  showMore || secondaryTabs.some(t => t.id === activeTab)
+                    ? "bg-accent text-black border-accent" 
+                    : "bg-gray-50 text-gray-500 border-gray-200"
+                }`}
+              >
+                <Search size={16} className={showMore ? "rotate-45 transition-transform" : "transition-transform"}/>
+              </button>
+              
+              {showMore && (
+                <>
+                  <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setShowMore(false)} />
+                  <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 shadow-xl rounded-xl p-1.5 z-50 flex flex-col gap-1 min-w-[120px] animate-in fade-in slide-in-from-top-2">
+                    {secondaryTabs.map(tab => (
+                      <button
+                        key={tab.id}
+                        onClick={() => { setActiveTab(tab.id); setShowMore(false); }}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-tight transition-colors ${
+                          activeTab === tab.id 
+                            ? "bg-accent text-black" 
+                            : "text-gray-600 hover:bg-gray-50"
+                        }`}
+                      >
+                        <span>{tab.icon}</span>
+                        <span>{tab.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </div>
 
         {periodLabel && (
@@ -140,6 +200,7 @@ const StickyToolbar = ({
     </div>
   );
 };
+
 
 const KPICard = ({ title, value, unit, sub, icon, color }) => (
   <div
@@ -611,29 +672,40 @@ const CallDetailingAnalyzer = () => {
   const scrollToSection = (id, extraOffset = 0) => {
     const el = document.getElementById(id);
     if (!el) return;
+    
+    // Smooth scroll with offset for header and sticky toolbar
+    const headerH = 56;
+    const toolbarH = 48;
+    const offset = headerH + toolbarH + extraOffset;
+    
+    const bodyRect = document.body.getBoundingClientRect().top;
+    const elementRect = el.getBoundingClientRect().top;
+    const elementPosition = elementRect - bodyRect;
+    const offsetPosition = elementPosition - offset;
 
-    const navHeight = parseInt(
-      getComputedStyle(document.documentElement)
-        .getPropertyValue("--nav-height")
-    ) || 84;
-
-    const top = el.getBoundingClientRect().top
-      + window.scrollY
-      - navHeight
-      - 8
-      - extraOffset;
-
-    window.scrollTo({
-      top,
-      behavior: "smooth",
-    });
+    const scrollContainer = document.querySelector('main');
+    if (scrollContainer) {
+      scrollContainer.scrollTo({
+        top: el.offsetTop - (48 + 16), // toolbar height + some margin
+        behavior: 'smooth'
+      });
+    } else {
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
+      });
+    }
   };
 
-  const handleOpenCalendar = (mr) => {
-    setSelectedMRForCalendar(mr);
+  const handleOpenCalendar = (mrObj) => {
+    // mrObj is the full MR object from MRCardsGrid
+    const mrName = mrObj?.mrName || mrObj;
+    setSelectedMRForCalendar(mrName);
+    
+    // Jump to the section after state sets
     setTimeout(() => {
       scrollToSection("mr-calendar-section");
-    }, 100);
+    }, 150);
   };
 
   const handleCloseCalendar = () => {
@@ -796,9 +868,10 @@ const CallDetailingAnalyzer = () => {
       setInsightsOpen(true);
     }
 
+    // Small timeout to ensure everything is settled
     setTimeout(() => {
       scrollToSection(sectionId);
-    }, tabId === "insights" ? 150 : 50);
+    }, 100);
   };
 
   useEffect(() => {
@@ -848,7 +921,7 @@ const CallDetailingAnalyzer = () => {
   const hasData = rawData.length > 0;
 
   return (
-    <div className="space-y-6 pb-24 relative max-w-7xl mx-auto px-4 w-full overflow-hidden min-w-0">
+    <div className="space-y-6 pb-24 relative max-w-7xl mx-auto px-4 w-full min-w-0">
       
       {/* Hidden file input */}
       <input
@@ -1186,7 +1259,7 @@ const CallDetailingAnalyzer = () => {
           <TargetSettingsPanel data={rawData} dateFrom={dateFrom} dateTo={dateTo} onTargetsChange={setTargets} />
 
           {/* 8-9. PERFORMANCE SECTION */}
-          <div id="section-performance" className="scroll-mt-24 pt-8">
+          <div id="section-performance" className="scroll-mt-32 pt-8">
              <div className="flex items-center justify-between mb-8">
                 <div>
                    <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tight">Performance <span className="text-accent underline decoration-accent/20">Analysis</span></h2>
@@ -1200,7 +1273,7 @@ const CallDetailingAnalyzer = () => {
              />
           </div>
 
-          <div id="mr-calendar-section" className="scroll-mt-24">
+          <div id="mr-calendar-section" className="scroll-mt-32">
              {selectedMRForCalendar && (() => {
                let defaultMonth = "";
                const mrStat = mrStats.find(m => m.mrName === selectedMRForCalendar);
@@ -1213,7 +1286,7 @@ const CallDetailingAnalyzer = () => {
                return (
                  <div className="animate-in zoom-in-95 duration-300">
                     <InlineCalendar 
-                       mr={selectedMRForCalendar} 
+                       mr={mrStat} 
                        targets={targets} 
                        onClose={handleCloseCalendar}
                        defaultMonth={defaultMonth}
@@ -1226,7 +1299,7 @@ const CallDetailingAnalyzer = () => {
           {/* 11. INSIGHTS SECTION (Moved to bottom) */}
 
           {/* 12. FORECAST SECTION */}
-          <div id="section-forecast" className="scroll-mt-24 pt-8">
+          <div id="section-forecast" className="scroll-mt-32 pt-8">
              <div className="mb-8">
                 <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tight">Growth <span className="text-accent underline decoration-accent/20">Forecast</span></h2>
                 <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] mt-1">Predictive achievement modeling</p>
@@ -1235,7 +1308,7 @@ const CallDetailingAnalyzer = () => {
           </div>
 
           {/* 13. GLOBAL SEARCH SECTION */}
-          <div id="section-search" className="scroll-mt-24 pt-8">
+          <div id="section-search" className="scroll-mt-32 pt-8">
              <div className="bg-white border-2 border-gray-100 rounded-[2.5rem] p-8 shadow-sm">
                 <div className="mb-8">
                    <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tight">Global <span className="text-accent underline decoration-accent/20">Discovery</span></h2>
@@ -1341,17 +1414,17 @@ const CallDetailingAnalyzer = () => {
              </div>
           </div>
 
-          {/* 14-18. DATA SECTION */}
-          <div id="section-datatable" className="scroll-mt-24 pt-8 space-y-12">
-             <div className="mb-8">
-                <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tight">Structured <span className="text-accent underline decoration-accent/20">Data</span></h2>
-                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] mt-1">Consolidated reports & raw tables</p>
+          <div id="section-coaching" className="scroll-mt-32 pt-8 space-y-12">
+             <div className="mb-4">
+                <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tight">Coaching <span className="text-accent underline decoration-accent/20">Analysis</span></h2>
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] mt-1">Field visit coaching & feedback reviews</p>
              </div>
-             
-             <TeamOverviewTable data={filteredData} targets={targets} mrStats={mrStats} />
-             <InteractionAnalysis data={filteredData} />
              <CoachingAnalysis data={filteredData} />
              <CoachingSection data={filteredData} />
+          </div>
+
+          {/* 14-18. DATA SECTION */}
+          <div id="section-datatable" className="scroll-mt-32 pt-8 space-y-12">
 
              {/* Raw Data Table */}
              <details className="mt-12 bg-white border border-gray-200 shadow-sm rounded-[2.5rem] overflow-hidden group">

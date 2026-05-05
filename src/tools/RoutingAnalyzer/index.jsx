@@ -20,13 +20,13 @@ import { FilterButton } from '../../components/ui/FilterButton';
 
 // ─── Constants ────────────────────────────────
 const SIDEBAR_W    = 256; // px  (w-64)
-const NAV_H_VAR    = 'var(--nav-height, 64px)';
+const NAV_H_VAR    = '56px';
 const FOOTER_H     = 48;  // px  must match Footer.jsx
 
 const ROUTING_VERSION = {
-  version: '1.0.508',
+  version: '1.0.533',
   releaseDate: 'May 2026',
-  label: 'Advanced Routing Analysis Engine',
+  label: 'Navigation Enhancements',
 };
 
 // ─── CSV Parser ───────────────────────────────
@@ -179,7 +179,7 @@ const CustomerTable = ({
   ].filter(c => !hiddenColumns.includes(c.label));
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden min-h-0">
+    <div className="flex flex-col w-full">
       {/* ── Toolbar ── */}
       <div className="flex-shrink-0 flex flex-col p-4 bg-white border-b border-gray-100 gap-3">
         {/* Row 1: Hide Cols and Search */}
@@ -248,8 +248,8 @@ const CustomerTable = ({
       </div>
 
       {/* ── Table ── */}
-      <div className="flex-1 overflow-auto min-h-0">
-        <table className="w-auto text-sm border-collapse" style={{ minWidth: 'max-content' }}>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm border-collapse">
           <thead>
             <tr>
               {columns.map(({ label, col }) => (
@@ -1244,27 +1244,46 @@ const RoutingAnalyzer = () => {
 
       {/* ── Main wrapper ── */}
       <div
-        className="flex-1 flex flex-col min-w-0 bg-gray-50 overflow-hidden relative"
+        className="flex-1 min-w-0 bg-gray-50 relative pb-12"
       >
-        {/* ══ FIXED TOP HEADER ══ */}
-      <div className="flex-shrink-0 bg-white shadow-sm z-20 w-full overflow-x-hidden">
+        {/* ══ TOP HEADER (Now Static/Relative for full page scroll) ══ */}
+        <div className="bg-white shadow-sm z-20 w-full overflow-x-hidden">
           {/* Header bar */}
-          <div className="flex items-center justify-between px-4 h-[56px] border-b border-gray-100">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+            <div className="flex items-center gap-3">
               <FilterButton
                 onClick={() => setIsSidebarOpen(p => !p)}
                 isActive={isSidebarOpen}
                 label="Filters"
-                className="!py-1.5 !px-3 shadow-none"
+                className="!py-1.5 !px-3 shadow-none shrink-0"
               >
                 <Filter className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Filters</span>
               </FilterButton>
               <div className="min-w-0">
-                <span className="block text-xs font-black text-gray-900 tracking-tight truncate">
-                  ROUTING <span className="text-yellow-500">ANALYZER</span>
-                </span>
-                <p className="hidden sm:block text-[9px] text-gray-400 font-bold flex items-center gap-1">
+                <div className="flex items-center gap-2">
+                  <span className="block text-sm font-black text-gray-900 tracking-tight truncate">
+                    ROUTING <span className="text-yellow-500">ANALYZER</span>
+                  </span>
+                  {availableMonths.length > 0 && (
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                      <div className="flex items-center bg-yellow-400 border border-yellow-500 rounded-full px-3 py-1 whitespace-nowrap overflow-hidden shadow-sm">
+                        <span className="text-[10px] font-black text-black uppercase tracking-tight">
+                          {availableMonths.length > 1 
+                            ? `Period: ${availableMonths[0]} – ${availableMonths[availableMonths.length - 1]}`
+                            : `Month: ${reportMonth}`
+                          }
+                        </span>
+                      </div>
+                      <div className="flex items-center bg-gray-100 border border-gray-200 rounded-full px-3 py-1 whitespace-nowrap">
+                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-tight">
+                          {availableMonths.length * 30} Days Data
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <p className="hidden sm:block text-[9px] text-gray-400 font-bold flex items-center gap-1 mt-0.5">
                   <span className="w-1.5 h-1.5 bg-green-400 rounded-full inline-block" />
                   v{ROUTING_VERSION.version}
                 </p>
@@ -1413,19 +1432,21 @@ const RoutingAnalyzer = () => {
           </div>
         </div>
 
-        {/* ══ SCROLLABLE CONTENT ══ */}
-        {activeTab === 'list' ? (
-          <div className="flex-1 flex flex-col overflow-hidden min-h-0 sm:h-full">
-            <CustomerTable {...tableProps} />
-          </div>
-        ) : (
-          <div className="flex-1 overflow-y-auto pb-4 min-h-0">
-            {activeTab === 'overview' && renderOverview()}
-            {activeTab === 'by-mr'    && renderByMR()}
-            {activeTab === 'by-spec'  && renderBySpecialty()}
-            {activeTab === 'map'      && renderCoverageMap()}
-          </div>
-        )}
+        {/* ══ CONTENT AREA (Static for full page scroll) ══ */}
+        <div className="w-full">
+          {activeTab === 'list' ? (
+            <div className="bg-white">
+              <CustomerTable {...tableProps} />
+            </div>
+          ) : (
+            <div className="pb-8">
+              {activeTab === 'overview' && renderOverview()}
+              {activeTab === 'by-mr'    && renderByMR()}
+              {activeTab === 'by-spec'  && renderBySpecialty()}
+              {activeTab === 'map'      && renderCoverageMap()}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ══ FULL TABLE MODAL ══ */}

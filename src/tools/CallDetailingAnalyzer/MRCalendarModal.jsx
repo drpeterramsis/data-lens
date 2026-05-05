@@ -16,7 +16,7 @@ const MRCalendarModal = ({ mr, targets, onClose }) => {
   const [currentMonth, setCurrentMonth] = useState(() => {
     const d = new Date();
     const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    const last = mr.lastDate || todayStr;
+    const last = mr?.lastDate || todayStr;
     return last.substring(0, 7); // YYYY-MM
   });
   const [selectedDate, setSelectedDate] = useState(null);
@@ -101,7 +101,7 @@ const MRCalendarModal = ({ mr, targets, onClose }) => {
                   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
                   const isCurrentMonth = dateStr.startsWith(currentMonth);
-                  const dayData = mr.dateMap[dateStr];
+                  const dayData = mr?.dateMap?.[dateStr];
                   const isFriday = date.getDay() === 5;
                   const isThursday = date.getDay() === 4;
                   const isCoachingDay = dayData?.coached >= 4;
@@ -165,14 +165,35 @@ const MRCalendarModal = ({ mr, targets, onClose }) => {
             ))}
           </div>
 
-          {selectedDate && mr.dateMap[selectedDate] && (
-            <DayDetailPanel
-              date={selectedDate}
-              dayData={mr.dateMap[selectedDate]}
-              targets={targets}
-              mrName={mr.mrName}
-              onClose={() => setSelectedDate(null)}
-            />
+          {/* 
+            SIDE MENU DRAWER
+            ID: mr-calendar-side-drawer
+            Role: Full-height side panel for detailed daily intelligence
+          */}
+          {selectedDate && mr?.dateMap?.[selectedDate] && (
+            <>
+              {/* Overlay Backdrop */}
+              <div 
+                className="absolute inset-0 z-40 bg-black/40 backdrop-blur-[1px] animate-in fade-in duration-300"
+                onClick={() => setSelectedDate(null)}
+              />
+
+              <div 
+                id="mr-calendar-side-drawer"
+                className="absolute top-0 right-0 h-full w-full sm:w-[500px] bg-white z-50 shadow-[-10px_0_40px_rgba(0,0,0,0.2)] animate-in slide-in-from-right duration-500 flex flex-col border-l-8 border-yellow-400 side-drawer-container"
+              >
+                {/* Scrollable details container */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+                  <DayDetailPanel
+                    date={selectedDate}
+                    dayData={mr.dateMap[selectedDate]}
+                    targets={targets}
+                    mrName={mr.mrName}
+                    onClose={() => setSelectedDate(null)}
+                  />
+                </div>
+              </div>
+            </>
           )}
         </div>
       </div>

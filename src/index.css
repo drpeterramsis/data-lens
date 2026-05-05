@@ -62,7 +62,8 @@
   #section-datatable,
   #section-insights,
   #mr-calendar-section {
-    scroll-margin-top: calc(var(--nav-height) + 8px);
+    /* Header (56px) + Sticky Toolbar (48px) = 104px */
+    scroll-margin-top: calc(var(--nav-height) + 48px + 8px);
   }
 
   * {
