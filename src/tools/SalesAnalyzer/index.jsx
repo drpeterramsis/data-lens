@@ -41,9 +41,9 @@ const TD_NUM =
   `${TD_BASE} whitespace-nowrap tabular-nums font-mono font-bold text-right`;
 
 const APP_VERSION = {
-  version: '1.0.561',
+  version: '1.0.558',
   releaseDate: 'May 2026',
-  label: 'UI Layout Refinement'
+  label: 'Table Enhancements'
 };
 
 const CACHE_KEY = 'atr_sales_v1';
@@ -2902,7 +2902,7 @@ invoiceDate: (() => {
       <thead className={`sticky top-0 z-10 ${THEAD_ROW} bg-gray-50`}>
                                 <tr>
                                   <th className={`${TH_BASE} w-8`}>#</th>
-                                  <th className={`${TH_BASE} min-w-[120px] cursor-pointer hover:bg-gray-200`} onClick={() => mrToggle('mrName')}>SR {mrSortKey === 'mrName' ? (mrSortDir === 'desc' ? '↓' : '↑') : ''}</th>
+                                  <th className={`${TH_BASE} min-w-[120px] cursor-pointer hover:bg-gray-200`} onClick={() => mrToggle('mrName')}>SR {sortDir === 'desc' ? '↓' : '↑'}</th>
                                   {!hiddenCols['By SR'].includes('supervisor') && <th className={`${TH_BASE} min-w-[100px] cursor-pointer hover:bg-gray-200`} onClick={() => mrToggle('supervisor')}>Supervisor</th>}
                                   {!hiddenCols['By SR'].includes('branch') && <th className={`${TH_BASE} min-w-[80px] cursor-pointer hover:bg-gray-200`} onClick={() => mrToggle('branch')}>Branch</th>}
                                   {!hiddenCols['By SR'].includes('customerCount') && <th className={`${TH_BASE} text-right min-w-[50px] cursor-pointer hover:bg-gray-200`} onClick={() => mrToggle('customerCount')}>Cust</th>}
@@ -2956,48 +2956,38 @@ invoiceDate: (() => {
                   >
                     <div className="space-y-6 w-full">
                       <div className="bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
-                          <div className="px-6 py-4 border-b border-gray-100 bg-white">
-                            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                              <div className="shrink-0">
-                                <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">Customer Breakdown</h3>
-                              </div>
-                              <div className="flex flex-1 items-center gap-3 max-w-3xl">
-                                <div className="relative flex-1 group">
-                                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors" size={14} />
-                                  <input 
-                                    value={customerSearch} 
-                                    onChange={e=>setCustomerSearch(e.target.value)} 
-                                    placeholder="Search customer..." 
-                                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-2xl text-xs font-bold outline-none focus:bg-white focus:border-blue-200 focus:ring-4 focus:ring-blue-50 transition-all font-sans" 
-                                  />
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                  <button 
-                                    onClick={() => setCustFullscreen(true)} 
-                                    className="flex items-center gap-2 px-4 py-2.5 text-[10px] font-black text-gray-700 bg-white border border-gray-100 hover:border-gray-200 hover:bg-gray-50 rounded-2xl transition-all active:scale-95 uppercase tracking-widest shadow-sm"
-                                  >
-                                    <Maximize2 size={12} className="text-gray-400" />
-                                    Fullscreen
-                                  </button>
-                                  <ColumnSelectionMenu 
-                                    columns={[
-                                        { id: 'customerType', label: 'Type' },
-                                        { id: 'branch', label: 'Branch' },
-                                        { id: 'invoiceCount', label: 'Invoices' },
-                                        { id: 'firstDate', label: 'First Date' },
-                                        { id: 'lastDate', label: 'Last Date' },
-                                        { id: 'productCount', label: 'Products' },
-                                        { id: 'netQty', label: 'Sales Qty' },
-                                        { id: 'netValue', label: 'Sales Val' },
-                                        { id: 'mrName', label: 'SR' },
-                                    ]}
-                                    hiddenCols={hiddenCols['By Customer']}
-                                    toggleColumn={(colId) => toggleColumn('By Customer', colId)}
-                                  />
-                                </div>
+                          <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between flex-wrap gap-4 bg-white">
+                            <div className="min-w-[250px] flex-1">
+                              <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">Customer Breakdown</h3>
+                              <div className="relative mt-3">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                                <input 
+                                  value={customerSearch} 
+                                  onChange={e=>setCustomerSearch(e.target.value)} 
+                                  placeholder="Search customer..." 
+                                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-2xl text-xs font-bold outline-none font-sans" 
+                                />
                               </div>
                             </div>
-                          </div>
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => setCustFullscreen(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black text-gray-600 bg-gray-50 border border-gray-200 hover:bg-gray-100 rounded-lg transition-colors uppercase tracking-widest">⛶ Fullscreen</button>
+                                <ColumnSelectionMenu 
+                                columns={[
+                                    { id: 'customerType', label: 'Type' },
+                                    { id: 'branch', label: 'Branch' },
+                                    { id: 'invoiceCount', label: 'Invoices' },
+                                    { id: 'firstDate', label: 'First Date' },
+                                    { id: 'lastDate', label: 'Last Date' },
+                                    { id: 'productCount', label: 'Products' },
+                                    { id: 'netQty', label: 'Sales Qty' },
+                                    { id: 'netValue', label: 'Sales Val' },
+                                    { id: 'mrName', label: 'SR' },
+                                ]}
+                                hiddenCols={hiddenCols['By Customer']}
+                                toggleColumn={(colId) => toggleColumn('By Customer', colId)}
+                                />
+                              </div>
+                            </div>
                             <div className="max-h-[60vh] overflow-y-auto no-scrollbar">
                                     <table className={`${TABLE_BASE} table-auto w-full`}>
                                       <thead className={`sticky top-0 z-10 ${THEAD_ROW} bg-gray-50`}>
@@ -3160,7 +3150,7 @@ invoiceDate: (() => {
               )}
             
 {activeTab === 'Compare' && (
-  <FullscreenWrapper title="Compare" showButton={false}>
+  <FullscreenWrapper title="Compare">
     <div className={compareFullscreen ? "fixed inset-0 z-50 bg-gray-50 overflow-y-auto" : "space-y-2.5"}>
       {compareFullscreen && (
         <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-2 bg-white border-b border-gray-100 shadow-sm mb-3">
@@ -3221,6 +3211,17 @@ invoiceDate: (() => {
       )}
 
       <div className={compareFullscreen ? "p-3 space-y-2.5" : "space-y-2.5"}>
+        {!compareFullscreen && (
+          <div className="flex justify-end !mt-0">
+            <button
+              onClick={() => setCompareFullscreen(true)}
+              className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-gray-700 bg-white border border-gray-200 shadow-sm hover:bg-gray-50 rounded-lg transition-colors"
+            >
+              ⛶ Fullscreen
+            </button>
+          </div>
+        )}
+
                       
                       {/* Quick Month Picker Section */}
                     <div className="bg-white rounded-[24px] p-3 md:p-4 border border-amber-100 shadow-sm bg-gradient-to-br from-white to-amber-50/20 max-w-full overflow-hidden">
@@ -3232,31 +3233,20 @@ invoiceDate: (() => {
                           </h3>
                           <p className="text-xs md:text-xs text-gray-400 font-bold uppercase mt-1 leading-tight break-words pr-2">Select months to add as comparison periods instantly</p>
                         </div>
-                        <div className="flex items-center gap-2 self-start sm:self-auto shrink-0 max-w-full">
-                          {!compareFullscreen && (
-                            <button
-                              onClick={() => setCompareFullscreen(true)}
-                              className="flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-gray-700 bg-white border border-gray-100 shadow-sm hover:bg-gray-50 rounded-2xl transition-all active:scale-95"
-                            >
-                              <Maximize2 size={12} />
-                              Fullscreen
-                            </button>
-                          )}
-                          <div className="flex items-center gap-2 bg-white p-1 rounded-2xl border border-gray-100 shadow-sm">
-                             <button 
-                               onClick={() => setSelectedYear(prev => Math.max(2020, prev - 1))}
-                               disabled={selectedYear <= 2020}
-                               className="p-1 md:p-2 hover:bg-gray-50 rounded-xl transition-colors text-gray-400 hover:text-gray-900 disabled:opacity-20 shrink-0">
-                               <ChevronLeft size={16} />
-                             </button>
-                             <span className="text-xs sm:text-xs font-black text-gray-900 w-12 sm:w-16 text-center tabular-nums shrink-0">{selectedYear}</span>
-                             <button 
-                               onClick={() => setSelectedYear(prev => Math.min(2030, prev + 1))}
-                               disabled={selectedYear >= 2030}
-                               className="p-1 md:p-2 hover:bg-gray-50 rounded-xl transition-colors text-gray-400 hover:text-gray-900 disabled:opacity-20 shrink-0">
-                               <ChevronRight size={16} />
-                             </button>
-                          </div>
+                        <div className="flex items-center gap-2 bg-white p-1 rounded-2xl border border-gray-100 shadow-sm self-start sm:self-auto shrink-0 max-w-full">
+                           <button 
+                             onClick={() => setSelectedYear(prev => Math.max(2020, prev - 1))}
+                             disabled={selectedYear <= 2020}
+                             className="p-1 md:p-2 hover:bg-gray-50 rounded-xl transition-colors text-gray-400 hover:text-gray-900 disabled:opacity-20 shrink-0">
+                             <ChevronLeft size={16} />
+                           </button>
+                           <span className="text-xs sm:text-xs font-black text-gray-900 w-12 sm:w-16 text-center tabular-nums shrink-0">{selectedYear}</span>
+                           <button 
+                             onClick={() => setSelectedYear(prev => Math.min(2030, prev + 1))}
+                             disabled={selectedYear >= 2030}
+                             className="p-1 md:p-2 hover:bg-gray-50 rounded-xl transition-colors text-gray-400 hover:text-gray-900 disabled:opacity-20 shrink-0">
+                             <ChevronRight size={16} />
+                           </button>
                         </div>
                       </div>
 
