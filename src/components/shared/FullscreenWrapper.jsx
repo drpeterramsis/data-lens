@@ -8,8 +8,12 @@ const FullscreenWrapper = ({
   showButton = true,
   buttonPosition = 'top-right',
   title = '',
+  // Add controlled props
+  isFullscreen: controlledIsFullscreen,
+  onToggleFullscreen,
 }) => {
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [internalIsFullscreen, setInternalIsFullscreen] = useState(false);
+  const isFullscreen = controlledIsFullscreen !== undefined ? controlledIsFullscreen : internalIsFullscreen;
 
   // Close on Escape key
   useEffect(() => {
@@ -25,6 +29,11 @@ const FullscreenWrapper = ({
       document.body.style.overflow = 'unset';
     };
   }, [isFullscreen]);
+
+  const setIsFullscreen = (val) => {
+      if (onToggleFullscreen) onToggleFullscreen(val);
+      else setInternalIsFullscreen(val);
+  };
 
   return (
     <>

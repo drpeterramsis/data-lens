@@ -22,10 +22,28 @@ import {
 import ReportsTab from '../reports/ReportsTab';
 import { FilterButton } from '../../components/ui/FilterButton';
 
+const TABLE_BASE =
+  "w-full table-auto border-collapse text-[11px] md:text-xs text-gray-700 font-sans";
+
+const THEAD_ROW =
+  "text-[10px] md:text-[11px] font-black uppercase tracking-widest text-gray-500 bg-gray-50";
+
+const TH_BASE =
+  "px-3 py-2 text-left whitespace-normal leading-tight border-b border-gray-200";
+
+const TD_BASE =
+  "px-3 py-2 align-top border-b border-gray-50";
+
+const TD_TEXT =
+  `${TD_BASE} whitespace-normal break-words font-semibold`;
+
+const TD_NUM =
+  `${TD_BASE} whitespace-nowrap tabular-nums font-mono font-bold text-right`;
+
 const APP_VERSION = {
-  version: '1.0.530',
+  version: '1.0.558',
   releaseDate: 'May 2026',
-  label: 'Scroll & Navigation Fixes'
+  label: 'Table Enhancements'
 };
 
 const CACHE_KEY = 'atr_sales_v1';
@@ -82,9 +100,19 @@ const useSortableTable = (data, defaultKey, defaultDir = 'desc') => {
   return { sorted, sortKey, sortDir, toggle };
 };
 
-const SortableTH = ({ label, sortKey, currentKey, dir, onSort, className='' }) => (
-  <th onClick={() => onSort(sortKey)} className={`px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none whitespace-nowrap ${className}`}>
-    <div className="flex items-center gap-1">{label}<span className="text-gray-300">{currentKey === sortKey ? (dir === 'asc' ? '↑' : '↓') : '↕'}</span></div>
+
+
+const SortableTH = ({ label, sortKey, currentKey, dir, onSort, className = '' }) => (
+  <th
+    onClick={() => onSort(sortKey)}
+    className={`${TH_BASE} cursor-pointer hover:bg-gray-100 select-none transition-colors ${className}`}
+  >
+    <div className="flex items-center gap-1">
+      <span>{label}</span>
+      <span className="text-gray-300">
+        {currentKey === sortKey ? (dir === 'asc' ? '↑' : '↓') : '↕'}
+      </span>
+    </div>
   </th>
 );
 
@@ -92,45 +120,38 @@ const fmt = (date) => (!date || !(date instanceof Date)) ? '—' : date.toLocale
 
 const DrilldownPanel = ({ invoices, type }) => {
   const total = invoices.reduce((acc, inv) => ({
-    netQty:      acc.netQty + inv.netQty,
-    netValue:    acc.netValue + inv.netValue,
-    returnQty:   acc.returnQty + inv.returnQty,
-    returnValue: acc.returnValue + inv.returnValue,
+    netQty:      acc.netQty + (inv.salesQty || inv.netQty),
+    netValue:    acc.netValue + (inv.salesValue || inv.netValue),
+    returnQty:   acc.returnQty + (inv.returnQty || Math.abs(inv.netQty < 0 ? inv.netQty : 0)),
+    returnValue: acc.returnValue + (inv.returnValue || Math.abs(inv.netValue < 0 ? inv.netValue : 0)),
   }), { netQty:0, netValue:0, returnQty:0, returnValue:0 });
 
   return (
     <div className="px-6 py-4 border-t-2 border-blue-200">
       <div className="flex gap-6 mb-3 flex-wrap">
-        <div className="text-xs"><span className="text-gray-400">Invoices: </span><span className="font-bold text-gray-800 ml-1">{(invoices || []).length}</span></div>
-        <div className="text-xs"><span className="text-gray-400">Net Qty: </span><span className="font-bold text-emerald-700 ml-1"><FormatNum val={total.netQty} defaultClass="text-emerald-700" /></span></div>
-        <div className="text-xs"><span className="text-gray-400">Net Value: </span><span className="font-bold text-gray-800 ml-1"><FormatNum val={total.netValue} suffix="EGP" defaultClass="text-gray-800" /></span></div>
-        <div className="text-xs"><span className="text-gray-400">Returns: </span><span className="font-bold text-red-500 ml-1"><FormatNum val={total.returnQty} suffix="units" defaultClass="text-red-500" /></span></div>
+        <div className="text-[11px] md:text-xs"><span className="text-gray-400">Invoices: </span><span className="font-bold text-gray-800 ml-1">{(invoices || []).length}</span></div>
+        <div className="text-[11px] md:text-xs"><span className="text-gray-400">Sales Qty: </span><span className="font-bold text-emerald-700 ml-1"><FormatNum val={total.netQty} defaultClass="text-emerald-700" /></span></div>
+        <div className="text-[11px] md:text-xs"><span className="text-gray-400">Sales Value: </span><span className="font-bold text-gray-800 ml-1"><FormatNum val={total.netValue} suffix="EGP" defaultClass="text-gray-800" /></span></div>
       </div>
-      <div className="overflow-x-auto max-h-[280px] overflow-y-auto rounded-lg border border-blue-100">
-        <table className="w-full text-xs border-collapse">
+      <div className="overflow-x-hidden rounded-lg border border-blue-100">
+        <table className="w-full text-left table-auto text-[11px] md:text-[12px] border-collapse font-sans">
           <thead className="sticky top-0 bg-blue-100">
             <tr>
-              <th className="px-3 py-2 text-left text-[10px] font-bold text-blue-700 uppercase">Invoice #</th>
-              <th className="px-3 py-2 text-left text-[10px] font-bold text-blue-700 uppercase">Date</th>
-              {type === 'mr' && (<th className="px-3 py-2 text-left text-[10px] font-bold text-blue-700 uppercase">Customer</th>)}
-              {type === 'customer' && (<th className="px-3 py-2 text-left text-[10px] font-bold text-blue-700 uppercase">Line</th>)}
-              <th className="px-3 py-2 text-right text-[10px] font-bold text-blue-700 uppercase">Products</th>
-              <th className="px-3 py-2 text-right text-[10px] font-bold text-blue-700 uppercase">Net Qty</th>
-              <th className="px-3 py-2 text-right text-[10px] font-bold text-blue-700 uppercase">Net Value</th>
-              <th className="px-3 py-2 text-right text-[10px] font-bold text-blue-700 uppercase">Return Qty</th>
+              <th className="px-3 py-2 font-bold text-blue-700 uppercase whitespace-nowrap text-[11px] md:text-[12px] tabular-nums">Invoice #</th>
+              <th className="px-3 py-2 font-bold text-blue-700 uppercase whitespace-nowrap text-[11px] md:text-[12px]">Customer</th>
+              <th className="px-3 py-2 font-bold text-blue-700 uppercase whitespace-nowrap text-[11px] md:text-[12px]">Date</th>
+              <th className="px-3 py-2 text-right font-bold text-blue-700 uppercase whitespace-nowrap text-[11px] md:text-[12px] tabular-nums">Sales Qty</th>
+              <th className="px-3 py-2 text-right font-bold text-blue-700 uppercase whitespace-nowrap text-[11px] md:text-[12px] tabular-nums">Sales Value</th>
             </tr>
           </thead>
           <tbody>
             {invoices.map((inv, i) => (
               <tr key={inv.invoiceNo} className={i % 2 === 0 ? 'bg-white' : 'bg-blue-50/40'}>
-                <td className="px-3 py-1.5 font-mono text-gray-700">{inv.invoiceNo}</td>
-                <td className="px-3 py-1.5 text-gray-500">{fmt(inv.invoiceDate)}</td>
-                {type === 'mr' && (<td className="px-3 py-1.5 text-gray-700 max-w-[180px] truncate">{inv.customerName}</td>)}
-                {type === 'customer' && (<td className="px-3 py-1.5 text-gray-700">{inv.lineName}</td>)}
-                <td className="px-3 py-1.5 text-right text-gray-500">{inv.productCount}</td>
-                <td className="px-3 py-1.5 text-right font-semibold text-emerald-700"><FormatNum val={inv.netQty} defaultClass="text-emerald-700 font-semibold" /></td>
-                <td className="px-3 py-1.5 text-right text-gray-700"><FormatNum val={inv.netValue} defaultClass="text-gray-700" /></td>
-                <td className="px-3 py-1.5 text-right text-red-500">{inv.returnQty > 0 ? <FormatNum val={inv.returnQty} defaultClass="text-red-500" /> : '—'}</td>
+                <td className="px-3 py-2 font-mono text-gray-700 whitespace-nowrap text-[11px] md:text-[12px]">{inv.invoiceNo}</td>
+                <td className="px-3 py-2 text-gray-700 whitespace-normal break-words text-[11px] md:text-[12px]">{inv.customerName}</td>
+                <td className="px-3 py-2 text-gray-500 whitespace-nowrap text-[11px] md:text-[12px]">{fmt(inv.invoiceDate)}</td>
+                <td className="px-3 py-2 text-right font-semibold text-emerald-700 tabular-nums text-[11px] md:text-[12px]"><FormatNum val={inv.netQty} defaultClass="text-emerald-700 font-semibold" /></td>
+                <td className="px-3 py-2 text-right text-gray-700 tabular-nums text-[11px] md:text-[12px]"><FormatNum val={inv.netValue} defaultClass="text-gray-700" /></td>
               </tr>
             ))}
           </tbody>
@@ -149,9 +170,55 @@ const FormatNum = ({ val, defaultClass = "", prefix = "", suffix = "" }) => {
   const cls = isNeg ? `text-[#8b0000] bg-[#ffe6e6] px-1 rounded font-bold inline-block` : defaultClass;
   
   return (
-    <span className={cls}>
-      {prefix}{formatKpiGrouped(num)}{suffix && ` ${suffix}`}
+    <span className={`${cls} tabular-nums whitespace-nowrap`}>
+      {prefix}<span className="text-[1.12em] font-bold">{formatKpiGrouped(num)}</span>
+      {suffix && <span className="text-[0.9em] opacity-50 ml-0.5">{suffix}</span>}
     </span>
+  );
+};
+
+const ColumnSelectionMenu = ({ columns = [], hiddenCols = [], toggleColumn }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const menuRef = useRef(null);
+  
+  // Ensure hiddenCols is not undefined even if it was explicitly passed as undefined
+  const effectiveHiddenCols = hiddenCols || [];
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setIsOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={menuRef}>
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-gray-200 text-xs font-black text-gray-600 hover:bg-gray-50 transition-all shadow-sm uppercase tracking-tighter"
+      >
+        <Filter className="w-3 h-3" /> Columns
+      </button>
+      {isOpen && (
+        <div className="absolute top-full left-0 mt-2 bg-white border border-gray-100 shadow-xl rounded-2xl p-3 w-52 z-[100] animate-in fade-in slide-in-from-top-2">
+          <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3 border-b border-gray-50 pb-2">Show/Hide Columns</p>
+          <div className="space-y-1 max-h-[350px] overflow-y-auto pr-1">
+            {(columns || []).map(col => col && (
+              <label key={col.id} className="flex items-center gap-3 px-2 py-1.5 hover:bg-blue-50 rounded-lg cursor-pointer transition-colors group">
+                <input 
+                  type="checkbox" 
+                  checked={!effectiveHiddenCols.includes(col.id)} 
+                  onChange={() => toggleColumn(col.id)}
+                  className="w-3.5 h-3.5 rounded border-gray-200 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                />
+                <span className={`text-xs font-black uppercase tracking-tight ${!effectiveHiddenCols.includes(col.id) ? 'text-gray-900' : 'text-gray-400'} group-hover:text-blue-600`}>{col.label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -330,11 +397,11 @@ const SideFilterSection = ({ label, options, selected, onChange }) => {
         }}
         className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-gray-50 transition-colors">
         <div className="flex items-center gap-2">
-          <span className="text-[11px] font-bold text-gray-600 uppercase tracking-widest">
+          <span className="text-xs font-bold text-gray-600 uppercase tracking-widest">
             {label}
           </span>
           {(selected || []).length > 0 && (
-            <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+            <span className="bg-blue-100 text-blue-700 text-xs font-bold px-1.5 py-0.5 rounded-full">
               {(selected || []).length}
             </span>
           )}
@@ -361,18 +428,18 @@ const SideFilterSection = ({ label, options, selected, onChange }) => {
                 <FilterButton
                   onClick={() => onChange(options)}
                   label="All"
-                  className="!px-2 !py-0.5 !text-[10px]"
+                  className="!px-2 !py-0.5 !text-xs"
                 />
                 <FilterButton
                   onClick={() => onChange([])}
                   label="None"
-                  className="!px-2 !py-0.5 !text-[10px]"
+                  className="!px-2 !py-0.5 !text-xs"
                 />
             </div>
 
             <div className="max-h-[180px] overflow-y-auto space-y-1 mt-1">
                 {(visibleOptions || []).length === 0 ? (
-                    <p className="text-[11px] text-gray-300 py-2 text-center">No results</p>
+                    <p className="text-xs text-gray-300 py-2 text-center">No results</p>
                 ) : (
                     visibleOptions.map(opt => (
                         <FilterButton
@@ -439,17 +506,17 @@ const ActiveFiltersBar = ({ filters, setFilters }) => {
     <div className="px-6 py-2 bg-blue-50 border-b border-blue-100 shrink-0">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3 overflow-hidden">
-          <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest shrink-0">
+          <span className="text-xs font-black text-blue-400 uppercase tracking-widest shrink-0">
             Active Filters ({tags.length}):
           </span>
           {!isExpanded && (
             <div className="flex gap-1 overflow-hidden">
                {tags.slice(0, 2).map(tag => (
-                 <span key={tag.id} className="text-[10px] bg-white border border-blue-100 px-2 py-0.5 rounded text-blue-600 font-bold truncate max-w-[120px]">
+                 <span key={tag.id} className="text-xs bg-white border border-blue-100 px-2 py-0.5 rounded text-blue-600 font-bold truncate max-w-[120px]">
                    {tag.label}
                  </span>
                ))}
-               {tags.length > 2 && <span className="text-[10px] text-blue-400 font-bold">+{tags.length - 2} more</span>}
+               {tags.length > 2 && <span className="text-xs text-blue-400 font-bold">+{tags.length - 2} more</span>}
             </div>
           )}
         </div>
@@ -458,7 +525,7 @@ const ActiveFiltersBar = ({ filters, setFilters }) => {
           {tags.length > 0 && (
             <button 
               onClick={() => setIsExpanded(!isExpanded)}
-              className="text-[10px] font-black text-blue-600 hover:bg-blue-100 px-2 py-1 rounded uppercase tracking-tighter"
+              className="text-xs font-black text-blue-600 hover:bg-blue-100 px-2 py-1 rounded uppercase tracking-tighter"
             >
               {isExpanded ? 'Collapse' : 'Show All'}
             </button>
@@ -472,7 +539,7 @@ const ActiveFiltersBar = ({ filters, setFilters }) => {
                 customer:[], 
                 fromDate:'', toDate:''
               })}
-              className="text-[10px] font-black text-red-500 hover:bg-red-50 px-2 py-1 rounded uppercase tracking-tighter"
+              className="text-xs font-black text-red-500 hover:bg-red-50 px-2 py-1 rounded uppercase tracking-tighter"
             >
               Clear All
             </button>
@@ -485,7 +552,7 @@ const ActiveFiltersBar = ({ filters, setFilters }) => {
           {tags.map(tag => (
             <div
               key={tag.id}
-              className="flex items-center gap-1.5 bg-white border border-blue-200 text-blue-700 text-[10px] font-semibold px-2 py-0.5 rounded-full shadow-sm max-w-[200px]">
+              className="flex items-center gap-1.5 bg-white border border-blue-200 text-blue-700 text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm max-w-[200px]">
               <span className="truncate" title={tag.label}>
                 {tag.label}
               </span>
@@ -617,7 +684,7 @@ const FilterProfilesManager = ({
                   <Filter size={32} />
                 </div>
                 <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">No profiles found</p>
-                <p className="text-[10px] text-gray-400 mt-1">Start by saving your current filters</p>
+                <p className="text-xs text-gray-400 mt-1">Start by saving your current filters</p>
               </div>
             ) : (
               filteredProfiles.map(profile => {
@@ -647,7 +714,7 @@ const FilterProfilesManager = ({
                         <div className={`w-3 h-3 rounded-full ${colorObj.dot}`} />
                         <h4 className="font-black text-gray-800 uppercase tracking-tight">{profile.name}</h4>
                         {JSON.stringify(profile.filters) === JSON.stringify(currentFilters) && (
-                          <span className="text-[8px] bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded-full font-black uppercase tracking-tighter">Active</span>
+                          <span className="text-xs bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded-full font-black uppercase tracking-tighter">Active</span>
                         )}
                       </div>
                       <div className="flex gap-1">
@@ -675,34 +742,34 @@ const FilterProfilesManager = ({
                     </div>
 
                     {profile.description && (
-                      <p className="text-[10px] text-gray-500 mb-3 line-clamp-2 leading-relaxed italic">
+                      <p className="text-xs text-gray-500 mb-3 line-clamp-2 leading-relaxed italic">
                         "{profile.description}"
                       </p>
                     )}
 
                     <div className="flex flex-wrap gap-1 mb-2">
                       {visibleTags.map((tag, idx) => (
-                        <span key={idx} className="text-[9px] font-bold bg-gray-50 text-gray-500 border border-gray-100 px-2 py-0.5 rounded-md uppercase flex items-center gap-1 shrink-0">
+                        <span key={idx} className="text-xs font-bold bg-gray-50 text-gray-500 border border-gray-100 px-2 py-0.5 rounded-md uppercase flex items-center gap-1 shrink-0">
                           <span className="text-gray-300 font-black">{tag.key}:</span> {tag.value}
                         </span>
                       ))}
                       {allFilterTags.length > 3 && (
                         <button 
                           onClick={() => toggleExpand(profile.id)}
-                          className="text-[9px] font-black text-blue-600 hover:underline uppercase px-1">
+                          className="text-xs font-black text-blue-600 hover:underline uppercase px-1">
                           {isExpanded ? 'Show Less' : `+ ${allFilterTags.length - 3} more`}
                         </button>
                       )}
                     </div>
                     
                     <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-50">
-                      <div className="text-[9px] font-bold text-gray-300 uppercase flex items-center gap-1">
+                      <div className="text-xs font-bold text-gray-300 uppercase flex items-center gap-1">
                         <Clock size={10} />
                         {new Date(profile.savedAt).toLocaleDateString()}
                       </div>
                       <button 
                         onClick={() => onLoad(profile)}
-                        className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${JSON.stringify(profile.filters) === JSON.stringify(currentFilters) ? 'bg-gray-100 text-gray-400 cursor-default' : 'bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white'}`}>
+                        className={`px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${JSON.stringify(profile.filters) === JSON.stringify(currentFilters) ? 'bg-gray-100 text-gray-400 cursor-default' : 'bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white'}`}>
                         Load Profile
                       </button>
                     </div>
@@ -729,7 +796,7 @@ const FilterProfilesManager = ({
           <div className="flex-1 p-6 space-y-6 overflow-y-auto">
             {/* Filter Preview */}
             <div className="bg-blue-50/50 rounded-2xl p-4 border border-blue-100/50">
-              <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-3 block">
+              <span className="text-xs font-black text-blue-400 uppercase tracking-widest mb-3 block">
                 Current Filter Preview
               </span>
               {activeFiltersOnly.length === 0 ? (
@@ -738,8 +805,8 @@ const FilterProfilesManager = ({
                 <div className="flex flex-wrap gap-1.5">
                   {activeFiltersOnly.map(([k, v]) => (
                     <div key={k} className="bg-white border border-blue-100 px-2 py-1 rounded-lg shadow-sm">
-                      <span className="text-[10px] font-bold text-blue-700 capitalize">{k}: </span>
-                      <span className="text-[10px] text-gray-500 font-medium">
+                      <span className="text-xs font-bold text-blue-700 capitalize">{k}: </span>
+                      <span className="text-xs text-gray-500 font-medium">
                         {Array.isArray(v) ? v.join(', ') : v}
                       </span>
                     </div>
@@ -750,7 +817,7 @@ const FilterProfilesManager = ({
 
             <div className="space-y-4">
               <div>
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">Profile Name</label>
+                <label className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 block">Profile Name</label>
                 <input 
                   type="text" 
                   value={name}
@@ -761,7 +828,7 @@ const FilterProfilesManager = ({
               </div>
 
               <div>
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">Description (Optional)</label>
+                <label className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 block">Description (Optional)</label>
                 <textarea 
                   value={desc}
                   onChange={e => setDesc(e.target.value)}
@@ -772,7 +839,7 @@ const FilterProfilesManager = ({
               </div>
 
               <div>
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Choose Profile Color</label>
+                <label className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2 block">Choose Profile Color</label>
                 <div className="flex flex-wrap gap-3">
                   {PRESET_COLORS.map(c => (
                     <button
@@ -797,7 +864,7 @@ const FilterProfilesManager = ({
               {localEditing ? 'Update Selected Profile' : 'Save As Profile'}
             </button>
             {profiles.length >= 20 && !localEditing && (
-              <p className="text-center text-[10px] text-red-500 font-bold uppercase mt-3">
+              <p className="text-center text-xs text-red-500 font-bold uppercase mt-3">
                 Profile limit reached (Max 20)
               </p>
             )}
@@ -823,13 +890,13 @@ const SideFiltersPanel = ({ isOpen, onClose, filters, setFilters, filterOptions,
               <Filter size={14} className="text-gray-500"/>
               <span className="text-sm font-bold text-gray-700 uppercase tracking-wider">Filters</span>
               {activeFilterCount > 0 && (
-                <span className="bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{activeFilterCount}</span>
+                <span className="bg-blue-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">{activeFilterCount}</span>
               )}
             </div>
             <div className="flex items-center gap-2">
               <button 
                 onClick={() => setFilters(f => ({ ...f, fromDate: '', toDate: '' }))}
-                className="text-[10px] font-bold text-blue-600 hover:bg-blue-50 px-2 py-1 rounded transition-colors"
+                className="text-xs font-bold text-blue-600 hover:bg-blue-50 px-2 py-1 rounded transition-colors"
                 title="Reset date range to full period"
               >
                 Full Period
@@ -865,7 +932,7 @@ const SideFiltersPanel = ({ isOpen, onClose, filters, setFilters, filterOptions,
         
         {/* Quick Load Profiles Chips */}
         {profiles.length > 0 && (
-          <div className="flex overflow-x-auto gap-2 no-scrollbar scroll-smooth">
+          <div className="flex overflow-x-hidden gap-2 no-scrollbar scroll-smooth">
             {profiles.map(p => {
               const colorObj = PRESET_COLORS.find(c => c.id === p.color) || PRESET_COLORS[0];
               const isActive = JSON.stringify(p.filters) === JSON.stringify(filters);
@@ -875,7 +942,7 @@ const SideFiltersPanel = ({ isOpen, onClose, filters, setFilters, filterOptions,
                   onClick={() => setFilters(p.filters)}
                   isActive={isActive}
                   label={p.name}
-                  className={`shrink-0 !text-[9px] !px-2.5 !py-1 rounded-full border transition-all flex items-center gap-1.5 ${!isActive ? `${colorObj.bg} ${colorObj.text} ${colorObj.border} hover:scale-105 shadow-sm` : ''}`}
+                  className={`shrink-0 !text-xs !px-2.5 !py-1 rounded-full border transition-all flex items-center gap-1.5 ${!isActive ? `${colorObj.bg} ${colorObj.text} ${colorObj.border} hover:scale-105 shadow-sm` : ''}`}
                 >
                   {!isActive && <div className={`w-1.5 h-1.5 rounded-full ${colorObj.dot}`} />}
                   {isActive && <div className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />}
@@ -888,15 +955,15 @@ const SideFiltersPanel = ({ isOpen, onClose, filters, setFilters, filterOptions,
       
         <div className="px-4 py-3 border-b border-gray-100">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Date Range</p>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Date Range</p>
           </div>
           <div className="flex flex-col gap-2">
             <div>
-              <label className="text-[10px] text-gray-400 mb-1 block">From</label>
+              <label className="text-xs text-gray-400 mb-1 block">From</label>
               <input type="date" value={filters.fromDate} onChange={e => setFilters(f => ({...f, fromDate: e.target.value}))} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 outline-none"/>
             </div>
             <div>
-              <label className="text-[10px] text-gray-400 mb-1 block">To</label>
+              <label className="text-xs text-gray-400 mb-1 block">To</label>
               <input type="date" value={filters.toDate} onChange={e => setFilters(f => ({...f, toDate: e.target.value}))} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 outline-none"/>
             </div>
           </div>
@@ -1035,6 +1102,10 @@ const SalesAnalyzer = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
   const [smartLoadAlert, setSmartLoadAlert] = useState(null);
+  const [prodFullscreen, setProdFullscreen] = useState(false);
+  const [mrFullscreen, setMrFullscreen] = useState(false);
+  const [custFullscreen, setCustFullscreen] = useState(false);
+  const [branchFullscreen, setBranchFullscreen] = useState(false);
   const PROFILES_KEY = 'salesAnalyzer_filterProfiles';
 
   // Load profiles from local storage
@@ -1175,13 +1246,45 @@ const SalesAnalyzer = () => {
   });
   const toggleCompareCollapse = (key) => setCompareCollapsed(prev => ({ ...prev, [key]: !prev[key] }));
 
-  const [compareFontSize, setCompareFontSize] = useState('text-[12px]');
+  const [compareFontSize, setCompareFontSize] = useState('text-xs');
   const FONT_OPTIONS = [
-    { label: 'Small', value: 'text-[9px]' },
-    { label: 'Medium', value: 'text-[10px]' },
-    { label: 'Large', value: 'text-[11px]' },
-    { label: 'X-Large', value: 'text-[12px]' }
+    { label: 'Small', value: 'text-xs' },
+    { label: 'Medium', value: 'text-sm' },
+    { label: 'Large', value: 'text-base' },
+    { label: 'X-Large', value: 'text-lg' }
   ];
+
+  const [hiddenCols, setHiddenCols] = useState(() => {
+    const saved = localStorage.getItem('salesAnalyzer_hiddenCols');
+    try {
+      return saved ? JSON.parse(saved) : {
+        'By Product': [],
+        'By SR': [],
+        'By Customer': [],
+        'By Branch': [],
+        'Overview': []
+      };
+    } catch(e) {
+      return {
+        'By Product': [],
+        'By SR': [],
+        'By Customer': [],
+        'By Branch': [],
+        'Overview': []
+      };
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('salesAnalyzer_hiddenCols', JSON.stringify(hiddenCols));
+  }, [hiddenCols]);
+
+  const toggleColumn = (tab, colId) => {
+    setHiddenCols(prev => ({
+      ...prev,
+      [tab]: prev[tab].includes(colId) ? prev[tab].filter(c => c !== colId) : [...prev[tab], colId]
+    }));
+  };
 
   useEffect(() => {
     if (compareFullscreen) {
@@ -1374,13 +1477,21 @@ if (filters.toDate) {
 
   const valColor = (n) => (n < 0 ? 'text-red-600' : 'text-gray-900');
   const kpis = useMemo(() => {
-    const netValue = filteredData.reduce((acc, row) => acc + row.netValue, 0);
-    const netQty = filteredData.reduce((acc, row) => acc + row.netQty, 0);
-    const returnsValue = filteredData.reduce((acc, row) => acc + Math.abs(row.returnValue), 0);
-    const returnsQty = filteredData.reduce((acc, row) => acc + Math.abs(row.returnQty), 0);
-    const uniqueProducts = new Set(filteredData.map(d => d.productName)).size;
-    return { netValue, netQty, returnsValue, returnsQty, uniqueProducts };
+    let netValue = 0, netQty = 0, returnsValue = 0, returnsQty = 0, salesValue = 0, salesQty = 0;
+    if (filteredData && filteredData.length > 0) {
+      filteredData.forEach(row => {
+        netValue += row.netValue || 0;
+        netQty += row.netQty || 0;
+        returnsValue += Math.abs(row.returnValue || 0);
+        returnsQty += Math.abs(row.returnQty || 0);
+        salesValue += row.salesValue || 0;
+        salesQty += row.salesQty || 0;
+      });
+    }
+    const uniqueProducts = new Set((filteredData || []).map(d => d.productName)).size;
+    return { netValue, netQty, returnsValue, returnsQty, salesValue, salesQty, uniqueProducts };
   }, [filteredData]);
+
 
   const [trendGroup, setTrendGroup] = useState('monthly');
   const [customerSearch, setCustomerSearch] = useState('');
@@ -1404,12 +1515,20 @@ const endDate = useMemo(() => {
     const map = {};
     filteredData.forEach(row => {
       if (!map[row.productName]) {
-        map[row.productName] = { productName: row.productName, netQty: 0, netValue: 0, returnQty: 0, returnValue: 0, invoices: new Set() };
+        map[row.productName] = { 
+          productName: row.productName, 
+          salesQty: 0, salesValue: 0,
+          returnQty: 0, returnValue: 0,
+          netQty: 0, netValue: 0, 
+          invoices: new Set() 
+        };
       }
-      map[row.productName].netQty += row.netQty;
-      map[row.productName].netValue += row.netValue;
+      map[row.productName].salesQty += row.salesQty;
+      map[row.productName].salesValue += row.salesValue;
       map[row.productName].returnQty += Math.abs(row.returnQty);
       map[row.productName].returnValue += Math.abs(row.returnValue);
+      map[row.productName].netQty += row.netQty;
+      map[row.productName].netValue += row.netValue;
       map[row.productName].invoices.add(row.invoiceNo);
     });
     const total = Object.values(map).reduce((s,r) => s + r.netValue, 0);
@@ -1427,13 +1546,21 @@ const endDate = useMemo(() => {
     const map = {};
     filteredData.forEach(row => {
         if (!map[row.mrName]) {
-            map[row.mrName] = { mrName: row.mrName, supervisor: row.supervisor, branch: row.branch, netQty: 0, netValue: 0, returnQty: 0, returnValue: 0, customers: new Set(), invoices: new Set() };
+            map[row.mrName] = { 
+                mrName: row.mrName, supervisor: row.supervisor, branch: row.branch, 
+                salesQty: 0, salesValue: 0,
+                returnQty: 0, returnValue: 0,
+                netQty: 0, netValue: 0, 
+                customers: new Set(), invoices: new Set() 
+            };
         }
         const m = map[row.mrName];
-        m.netQty += row.netQty;
-        m.netValue += row.netValue;
+        m.salesQty += row.salesQty;
+        m.salesValue += row.salesValue;
         m.returnQty += Math.abs(row.returnQty);
         m.returnValue += Math.abs(row.returnValue);
+        m.netQty += row.netQty;
+        m.netValue += row.netValue;
         m.customers.add(row.customerName);
         m.invoices.add(row.invoiceNo);
     });
@@ -1456,10 +1583,9 @@ const endDate = useMemo(() => {
               branch: row.branch, 
               supervisor: row.supervisor,
               line: row.lineName,
-              netQty: 0, 
-              netValue: 0, 
-              returnQty: 0, 
-              returnValue: 0, 
+              salesQty: 0, salesValue: 0,
+              returnQty: 0, returnValue: 0,
+              netQty: 0, netValue: 0, 
               products: new Set(), 
               lines: new Set(),
               supervisors: new Set(),
@@ -1469,10 +1595,12 @@ const endDate = useMemo(() => {
             };
         }
         const c = map[key];
-        c.netQty += row.netQty;
-        c.netValue += row.netValue;
+        c.salesQty += row.salesQty;
+        c.salesValue += row.salesValue;
         c.returnQty += Math.abs(row.returnQty);
         c.returnValue += Math.abs(row.returnValue);
+        c.netQty += row.netQty;
+        c.netValue += row.netValue;
         c.products.add(row.productName);
         c.lines.add(row.lineName);
         c.supervisors.add(row.supervisor);
@@ -1484,9 +1612,8 @@ const endDate = useMemo(() => {
       ...r, 
       productCount: r.products.size, 
       invoiceCount: r.invoices.size, 
-
-firstDate: r.dates.length > 0 ? (() => { const d = new Date(Math.min(...r.dates)); return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0); })() : null,
-lastDate: r.dates.length > 0 ? (() => { const d = new Date(Math.max(...r.dates)); return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0); })() : null
+      firstDate: r.dates.length > 0 ? (() => { const d = new Date(Math.min(...r.dates)); return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0); })() : null,
+      lastDate: r.dates.length > 0 ? (() => { const d = new Date(Math.max(...r.dates)); return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0); })() : null
     }));
   }, [filteredData]);
 
@@ -1555,16 +1682,26 @@ const rawData = XLSX.utils.sheet_to_json(ws, {
           return rowObj;
       })
       .filter(row => row.productName)
-      .map(row => ({
-          ...row,
-          salesQty:      parseFloat(row.salesQty)      || 0,
-          salesValue:    parseFloat(row.salesValue)    || 0,
-          discountQty:   parseFloat(row.discountQty)   || 0,
-          discountValue: parseFloat(row.discountValue) || 0,
-          returnQty:     parseFloat(row.returnQty)     || 0,
-          returnValue:   parseFloat(row.returnValue)   || 0,
-          netQty:        parseFloat(row.netQty)        || 0,
-          netValue:      parseFloat(row.netValue)      || 0,
+      .map(row => {
+          let netQty = parseFloat(row.netQty) || 0;
+          let netValue = parseFloat(row.netValue) || 0;
+
+          let salesQty = netQty > 0 ? netQty : 0;
+          let returnQty = netQty < 0 ? Math.abs(netQty) : 0;
+
+          let salesValue = netValue > 0 ? netValue : 0;
+          let returnValue = netValue < 0 ? Math.abs(netValue) : 0;
+
+          return {
+              ...row,
+              salesQty,
+              salesValue,
+              discountQty:   parseFloat(row.discountQty)   || 0,
+              discountValue: parseFloat(row.discountValue) || 0,
+              returnQty,
+              returnValue,
+              netQty,
+              netValue,
 
      
 invoiceDate: (() => {
@@ -1602,8 +1739,8 @@ invoiceDate: (() => {
 
   return null;
 })()
-
-      })).filter(r => r.invoiceNo);
+          };
+      }).filter(r => r.invoiceNo);
 
       if (parsedRows.length === 0) {
         alert('No valid data found in file.');
@@ -1757,6 +1894,7 @@ invoiceDate: (() => {
   
     const [activeInvoice, setActiveInvoice] = 
       useState(null);
+    const [viewMode, setViewMode] = useState('split'); // 'split', 'list', 'bill'
   
     const [invSort, setInvSort] = useState({
       key: 'invoiceDate', dir: 'desc'
@@ -1952,8 +2090,8 @@ invoiceDate: (() => {
           </div>
   
           {/* ── SUMMARY STRIP ── */}
-          <div className="grid grid-cols-3 
-                          md:grid-cols-6 
+          <div className="grid grid-cols-2 
+                          md:grid-cols-4 
                           gap-0 
                           border-b border-gray-100
                           shrink-0">
@@ -1961,30 +2099,20 @@ invoiceDate: (() => {
               { label: 'Invoices', 
                 value: formatKpiGrouped(invoices?.length || 0),
                 color: 'text-gray-900' },
-              { label: 'Sales Qty',
-                value: formatKpiGrouped(totals.salesQty),
-                color: 'text-blue-700' },
-              { label: 'Net Qty',
-                value: formatKpiGrouped(totals.netQty),
+              { label: 'Sales QTY',
+                value: formatKpiGrouped(totals.salesQty || totals.netQty),
                 color: 'text-emerald-700' },
-              { label: 'Net Value',
-                value: formatKpiGrouped(totals.netValue),
+              { label: 'Sales Value',
+                value: formatKpiGrouped(totals.salesValue || totals.netValue),
                 color: 'text-gray-900',
-                suffix: 'EGP' },
-              { label: 'Return Qty',
-                value: formatKpiGrouped(totals.returnQty),
-                color: 'text-red-600' },
-              { label: 'Return Value',
-                value: formatKpiGrouped(totals.returnValue),
-                color: 'text-red-500',
                 suffix: 'EGP' },
             ].map((s, i) => (
               <div key={s.label}
                 className={`px-4 py-3 
-                  ${i < 5 
+                  ${i < 3 
                     ? 'border-r border-gray-100' 
                     : ''}`}>
-                <p className="text-[9px] font-bold 
+                <p className="text-xs font-bold 
                               text-gray-400 uppercase 
                               tracking-widest">
                   {s.label}
@@ -2007,50 +2135,57 @@ invoiceDate: (() => {
   
           {/* ── BODY: INVOICE LIST + DETAIL ── */}
           <div className="flex flex-1 
-                          overflow-hidden">
+                          overflow-hidden relative">
   
             {/* LEFT — Invoice List */}
-            <div className="w-[600px] shrink-0 lg:w-[50%]
-                            border-r border-gray-100
-                            overflow-y-auto">
+            <div className={`transition-all duration-300 border-r border-gray-100 overflow-y-auto flex flex-col
+                            ${viewMode === 'list' ? 'flex-[3]' : viewMode === 'bill' ? 'w-0 opacity-0 overflow-hidden border-r-0' : 'w-[500px] shrink-0 lg:w-[45%]'}`}>
               
               {/* Search bar */}
               <div className="px-3 py-2.5 
                               border-b border-gray-100 
                               bg-white sticky top-0 z-20">
-                <div className="relative">
-                  <Search 
-                    size={12} 
-                    className="absolute left-2.5 top-1/2 
-                               -translate-y-1/2 
-                               text-gray-300"/>
-                  <input
-                    type="text"
-                    value={invoiceSearch}
-                    onChange={e => 
-                      setInvoiceSearch(e.target.value)}
-                    placeholder="Search invoices, customers..."
-                    className="w-full pl-7 pr-7 py-1.5 
-                               text-xs border border-gray-200 
-                               rounded-lg outline-none
-                               focus:border-blue-400
-                               placeholder:text-gray-300"/>
-                  {invoiceSearch && (
-                    <button
-                      onClick={() => setInvoiceSearch('')}
-                      className="absolute right-2 top-1/2 
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Search 
+                      size={12} 
+                      className="absolute left-2.5 top-1/2 
                                  -translate-y-1/2 
-                                 text-gray-300 
-                                 hover:text-gray-600">
-                      ✕
-                    </button>
-                  )}
+                                 text-gray-300"/>
+                    <input
+                      type="text"
+                      value={invoiceSearch}
+                      onChange={e => 
+                        setInvoiceSearch(e.target.value)}
+                      placeholder="Search invoices, customers..."
+                      className="w-full pl-7 pr-7 py-1.5 
+                                 text-xs border border-gray-200 
+                                 rounded-lg outline-none
+                                 focus:border-blue-400
+                                 placeholder:text-gray-300"/>
+                    {invoiceSearch && (
+                      <button
+                        onClick={() => setInvoiceSearch('')}
+                        className="absolute right-2 top-1/2 
+                                   -translate-y-1/2 
+                                   text-gray-300 
+                                   hover:text-gray-600">
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                  <button 
+                    onClick={() => setViewMode(v => v === 'list' ? 'split' : 'list')}
+                    className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 transition-colors"
+                    title={viewMode === 'list' ? 'Restore Split View' : 'Expand List'}>
+                    {viewMode === 'list' ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                  </button>
                 </div>
                 
                 {/* Result count */}
                 <div className="flex items-center 
                                 justify-between mt-1.5">
-                  <p className="text-[10px] text-gray-400">
+                  <p className="text-xs text-gray-400">
                     {invoiceSearch 
                       ? `${visibleInvoices.length} of ${sortedInvoices.length} invoices`
                       : `${sortedInvoices.length} invoices`
@@ -2058,7 +2193,7 @@ invoiceDate: (() => {
                   </p>
                   {invoiceSearch && 
                    visibleInvoices.length === 0 && (
-                    <p className="text-[10px] 
+                    <p className="text-xs 
                                   text-red-400 font-semibold">
                       No results
                     </p>
@@ -2067,40 +2202,29 @@ invoiceDate: (() => {
               </div>
 
               {/* Table header */}
-              <table className="w-full text-xs 
-                                border-collapse">
-                <thead className="sticky top-0 
-                                  bg-gray-50 z-10">
-                  <tr>
+              <div className="overflow-x-hidden">
+              <table className="w-full text-left table-auto border-collapse">
+                <thead className="sticky top-0 bg-gray-50 z-10">
+                  <tr className="bg-gray-100/80">
                     {[
-                      { label: 'Invoice #', 
-                        key: 'invoiceNo' },
-                      { label: 'Date',      
-                        key: 'invoiceDate' },
-                      type === 'mr'
-                        ? { label: 'Customer',  
-                            key: 'customerName' }
-                        : { label: 'MR',        
-                            key: 'mrName' },
-                      { label: 'Net Qty',   
-                        key: 'netQty' },
-                      { label: 'Net Val',   
-                        key: 'netValue' },
+                      { label: 'Invoice #', key: 'invoiceNo' },
+                      { label: type === 'customer' ? 'SR' : 'Customer', key: type === 'customer' ? 'mrName' : 'customerName' },
+                      { label: 'Date',      key: 'invoiceDate' },
+                      { label: 'Sales Qty',  key: 'salesQty', className: 'text-right' },
+                      { label: 'Sales Val',  key: 'salesValue', className: 'text-right' },
                     ].map(col => (
                       <th
                         key={col.key}
-                        onClick={() => 
-                          toggleSort(col.key)}
-                        className="px-3 py-2.5 
-                          text-left text-[10px] 
-                          font-bold text-gray-500 
-                          uppercase tracking-wider
+                        onClick={() => toggleSort(col.key)}
+                        className={`px-3 py-2
+                          text-left text-[11px] md:text-xs 
+                          font-black text-gray-500 
+                          uppercase tracking-widest
                           cursor-pointer 
-                          hover:bg-gray-100
+                          hover:bg-gray-200
                           select-none
-                          whitespace-nowrap">
-                        <div className="flex 
-                          items-center gap-1">
+                          whitespace-nowrap border-b border-gray-200 ${col.className || ''}`}>
+                        <div className={`flex items-center gap-1 ${col.className?.includes('right') ? 'justify-end' : ''}`}>
                           {col.label}
                           <span className="text-gray-300">
                             {invSort.key === col.key
@@ -2122,59 +2246,38 @@ invoiceDate: (() => {
                           activeInvoice?.invoiceNo === 
                           inv.invoiceNo ? null : inv
                         )}
-                      className={`border-b 
-                        border-gray-50 
-                        cursor-pointer 
-                        transition-colors
-                        ${activeInvoice?.invoiceNo === 
-                          inv.invoiceNo
-                          ? 'bg-blue-50 border-l-2 border-l-blue-500'
+                      className={`border-b border-gray-50 cursor-pointer transition-colors group
+                        ${activeInvoice?.invoiceNo === inv.invoiceNo
+                          ? 'bg-blue-50 border-l-4 border-l-blue-600'
                           : i % 2 === 0 
-                            ? 'bg-white hover:bg-blue-50/50'
-                            : 'bg-gray-50/50 hover:bg-blue-50/50'
+                            ? 'bg-white hover:bg-blue-50/30'
+                            : 'bg-gray-50/30 hover:bg-blue-50/30'
                         }`}>
-                      <td className="px-3 py-2 
-                                     font-mono 
-                                     text-gray-700
-                                     whitespace-nowrap">
+                      <td className="px-3 py-2.5 font-mono text-gray-900 font-bold text-[11px] md:text-xs whitespace-nowrap tabular-nums">
                         {highlight(inv.invoiceNo, invoiceSearch)}
                       </td>
-                      <td className="px-3 py-2 
-                                     text-gray-500
-                                     whitespace-nowrap">
+                      <td className="px-3 py-2.5 text-gray-700 font-bold text-[11px] md:text-xs whitespace-normal break-words">
+                        {highlight(type === 'customer' ? inv.mrName : inv.customerName, invoiceSearch)}
+                      </td>
+                      <td className="px-3 py-2.5 text-gray-500 font-medium text-[11px] md:text-xs whitespace-nowrap tabular-nums">
                         {fmt(inv.invoiceDate)}
                       </td>
-                      <td className="px-3 py-2 
-                                     text-gray-700 
-                                     max-w-[130px] 
-                                     truncate">
-                        {highlight(
-                          type === 'mr' 
-                            ? inv.customerName 
-                            : inv.mrName,
-                          invoiceSearch
-                        )}
+                      <td className="px-3 py-2.5 text-right font-black text-gray-900 text-[11px] md:text-xs tabular-nums whitespace-nowrap">
+                        <FormatNum val={inv.netQty} defaultClass="text-emerald-700" />
                       </td>
-                      <td className="px-3 py-2 
-                                     text-right 
-                                     font-semibold 
-                                     text-emerald-700">
-                        {formatKpiGrouped(inv.netQty)}
-                      </td>
-                      <td className="px-3 py-2 
-                                     text-right 
-                                     text-gray-700">
-                        {formatKpiGrouped(inv.netValue)}
+                      <td className="px-3 py-2.5 text-right font-black text-gray-900 text-[11px] md:text-xs tabular-nums whitespace-nowrap">
+                        <FormatNum val={inv.netValue} />
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
   
             {/* RIGHT — Invoice Detail */}
-            <div className="flex-1 overflow-y-auto 
-                            p-5">
+            <div className={`transition-all duration-300 flex-1 overflow-y-auto p-0 flex flex-col bg-gray-50/50
+                            ${viewMode === 'bill' ? 'flex-[3]' : viewMode === 'list' ? 'w-0 opacity-0 overflow-hidden' : ''}`}>
               {!activeInvoice ? (
                 <div className="h-full flex 
                   items-center justify-center 
@@ -2193,235 +2296,128 @@ invoiceDate: (() => {
                   </div>
                 </div>
               ) : (
-                <div className="flex flex-col gap-4">
-  
-                  {/* Invoice Meta */}
-                  <div className="bg-gray-50 
-                                  rounded-2xl p-4">
-                    <div className="flex items-center 
-                      justify-between mb-3">
-                      <h3 className="font-black 
-                                     text-gray-900">
-                        Invoice {activeInvoice.invoiceNo}
-                      </h3>
-                      <span className="text-xs 
-                        text-gray-500 bg-white 
-                        px-3 py-1 rounded-full 
-                        border border-gray-200">
-                        {fmt(activeInvoice.invoiceDate)}
-                      </span>
+                <div className="flex flex-col h-full bg-white">
+                  {/* Bill Layout Header */}
+                  <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-20">
+                    <div className="flex items-center gap-3">
+                       <button 
+                         onClick={() => setViewMode(v => v === 'bill' ? 'split' : 'bill')}
+                         className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"
+                         title={viewMode === 'bill' ? 'Restore Split View' : 'Expand Bill Details'}>
+                         {viewMode === 'bill' ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                       </button>
+                       <div>
+                         <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">Invoice Detail View</h3>
+                         <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-0.5">#{activeInvoice.invoiceNo} · {fmt(activeInvoice.invoiceDate)}</p>
+                       </div>
                     </div>
-                    <div className="grid grid-cols-2 
-                                    gap-2">
+                    <button 
+                      onClick={() => setActiveInvoice(null)}
+                      className="text-gray-400 hover:text-red-500 p-2 hover:bg-red-50 rounded-xl transition-all">
+                      ✕ Close Bill
+                    </button>
+                  </div>
+
+                  <div className="p-6 space-y-6">
+                    {/* Invoice Meta Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-gray-50/50 p-6 rounded-3xl border border-gray-100">
                       {[
-                        { label: 'Customer', 
-                          value: activeInvoice
-                                  .customerName },
-                        { label: 'Customer ID', 
-                          value: activeInvoice
-                                  .customerId || '—' },
-                        { label: 'Type', 
-                          value: activeInvoice
-                                  .customerType },
-                        { label: 'SR', 
-                          value: activeInvoice
-                                  .mrName },
-                        { label: 'Branch', 
-                          value: activeInvoice
-                                  .branch },
-                        { label: 'Line', 
-                          value: activeInvoice
-                                  .lineName },
-                        { label: 'Address', 
-                          value: activeInvoice
-                                  .address || '—' },
-                        { label: 'Supervisor', 
-                          value: activeInvoice
-                                  .supervisor },
-                      ].map(item => (
-                        <div key={item.label}
-                          className="bg-white 
-                                     rounded-xl 
-                                     px-3 py-2">
-                          <p className="text-[9px] 
-                            font-bold text-gray-400 
-                            uppercase tracking-widest">
-                            {item.label}
-                          </p>
-                          <p className="text-xs 
-                            font-semibold 
-                            text-gray-800 mt-0.5">
-                            {item.value}
+                        { label: 'Customer', value: activeInvoice.customerName, span: 'md:col-span-2' },
+                        { label: 'Customer ID', value: activeInvoice.customerId || '—' },
+                        { label: 'Type', value: activeInvoice.customerType },
+                        { label: 'SR (Sales Rep)', value: activeInvoice.mrName, color: 'text-blue-600 font-black' },
+                        { label: 'Branch', value: activeInvoice.branch },
+                        { label: 'Line', value: activeInvoice.lineName },
+                        { label: 'Supervisor', value: activeInvoice.supervisor },
+                      ].map((item, idx) => (
+                        <div key={idx} className={`bg-white p-4 rounded-2xl border border-gray-50 shadow-sm ${item.span || ''}`}>
+                          <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5">{item.label}</p>
+                          <p className={`text-xs font-bold ${item.color || 'text-gray-800'}`}>{item.value}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Detailed Metrics Strip */}
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        { label: 'Sales Qty', val: activeInvoice.netQty, icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+                        { label: 'Sales Val', val: activeInvoice.netValue, suffix: 'EGP', color: 'text-blue-900', bg: 'bg-blue-100/50' },
+                      ].map((m, i) => (
+                        <div key={i} className={`${m.bg} p-4 rounded-2xl border border-white/50 flex flex-col justify-between shadow-sm`}>
+                          <div className="flex items-center justify-between mb-2">
+                             <p className="text-xs font-black uppercase text-gray-400 tracking-widest">{m.label}</p>
+                             {m.icon && <m.icon size={12} className={m.color} />}
+                          </div>
+                          <p className={`text-lg font-black tabular-nums ${m.color}`}>
+                            <FormatNum val={m.val} showColor={false} />
+                            {m.suffix && <span className="text-xs ml-1 font-bold text-gray-400">{m.suffix}</span>}
                           </p>
                         </div>
                       ))}
                     </div>
-                  </div>
   
-                  {/* Products Breakdown */}
-                  <div className="bg-white rounded-2xl 
-                                  border border-gray-100 
-                                  overflow-hidden">
-                    <div className="px-4 py-3 
-                                    border-b 
-                                    border-gray-100">
-                      <h4 className="font-bold 
-                                     text-sm 
-                                     text-gray-800">
-                        Products Breakdown
-                      </h4>
-                      <p className="text-[10px] 
-                                    text-gray-400">
-                        {activeInvoice.products.length} 
-                        products in this invoice
-                      </p>
-                    </div>
-
-                    {/* Product Search */}
-                    <div className="px-4 py-2.5 
-                                    border-b border-gray-100">
-                      <div className="relative">
-                        <Search 
-                          size={12} 
-                          className="absolute left-2.5 top-1/2 
-                                     -translate-y-1/2 
-                                     text-gray-300"/>
-                        <input
-                          type="text"
-                          value={productSearch}
-                          onChange={e => 
-                            setProductSearch(e.target.value)}
-                          placeholder="Search products..."
-                          className="w-full pl-7 pr-7 py-1.5 
-                                     text-xs border border-gray-200 
-                                     rounded-lg outline-none
-                                     focus:border-blue-400
-                                     placeholder:text-gray-300"/>
-                        {productSearch && (
-                          <button
-                            onClick={() => setProductSearch('')}
-                            className="absolute right-2 top-1/2 
-                                       -translate-y-1/2 
-                                       text-gray-300 
-                                       hover:text-gray-600">
-                            ✕
-                          </button>
-                        )}
+                    {/* Products Breakdown */}
+                    <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
+                      <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0 z-10">
+                        <div>
+                          <h4 className="font-black text-gray-900 uppercase tracking-tight">Products Breakdown</h4>
+                          <p className="text-xs text-gray-400 font-bold uppercase mt-0.5">{activeInvoice.products.length} unique items</p>
+                        </div>
+                        <div className="relative">
+                          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
+                          <input
+                            type="text"
+                            value={productSearch}
+                            onChange={e => setProductSearch(e.target.value)}
+                            placeholder="Filter products..."
+                            className="pl-10 pr-4 py-2 border border-gray-100 rounded-xl text-xs outline-none focus:border-blue-400 bg-gray-50 focus:bg-white transition-all w-64"
+                          />
+                        </div>
                       </div>
-                      {productSearch && (
-                        <p className="text-[10px] text-gray-400 mt-1">
-                          {visibleProducts.length} of{' '}
-                          {(activeInvoice?.products ?? []).length} 
-                          {' '}products
-                        </p>
-                      )}
-                    </div>
 
-                    <table className="w-full text-xs 
-                                      border-collapse">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          {['Product','Code',
-                            'Sales Qty','Net Qty',
-                            'Net Value','Return Qty']
-                            .map(h => (
-                            <th key={h}
-                              className="px-3 py-2 
-                                text-left text-[10px] 
-                                font-bold text-gray-500 
-                                uppercase tracking-wider
-                                whitespace-nowrap">
-                              {h}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {visibleProducts.length === 0 && (
-                          <tr>
-                            <td colSpan={6}
-                              className="text-center py-6 
-                                         text-gray-300 text-xs">
-                              No products match "{productSearch}"
-                            </td>
-                          </tr>
-                        )}
-                        {visibleProducts
-                          .map((p, i) => (
-                          <tr key={i}
-                            className={i % 2 === 0
-                              ? 'bg-white'
-                              : 'bg-gray-50'}>
-                            <td className="px-3 py-2 
-                              text-gray-800 font-medium
-                              max-w-[160px] truncate"
-                              title={p.productName}>
-                              {highlight(p.productName, productSearch)}
-                            </td>
-                            <td className="px-3 py-2 
-                              font-mono text-gray-500 
-                              text-[10px]">
-                              {highlight(p.productCode, productSearch)}
-                            </td>
-                            <td className="px-3 py-2 
-                              text-right text-blue-700 
-                              font-semibold">
-                              {formatKpiGrouped(p.salesQty)}
-                            </td>
-                            <td className="px-3 py-2 
-                              text-right 
-                              text-emerald-700 
-                              font-semibold">
-                              {formatKpiGrouped(p.netQty)}
-                            </td>
-                            <td className="px-3 py-2 
-                              text-right text-gray-700">
-                              {formatKpiGrouped(p.netValue)}
-                            </td>
-                            <td className="px-3 py-2 
-                              text-right text-red-500">
-                              {p.returnQty > 0
-                                ? formatKpiGrouped(p.returnQty)
-                                : '—'}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                      {/* Totals row */}
-                      <tfoot className="bg-gray-100 
-                                        font-bold 
-                                        border-t-2 
-                                        border-gray-200">
-                        <tr>
-                          <td className="px-3 py-2 
-                            font-black text-gray-700" 
-                            colSpan={2}>
-                            TOTAL
-                          </td>
-                          <td className="px-3 py-2 
-                            text-right text-blue-700">
-                            {formatKpiGrouped(activeInvoice.salesQty)}
-                          </td>
-                          <td className="px-3 py-2 
-                            text-right 
-                            text-emerald-700">
-                            {formatKpiGrouped(activeInvoice.netQty)}
-                          </td>
-                          <td className="px-3 py-2 
-                            text-right text-gray-800">
-                            {formatKpiGrouped(activeInvoice.netValue)}
-                          </td>
-                          <td className="px-3 py-2 
-                            text-right text-red-500">
-                            {activeInvoice.returnQty > 0
-                              ? formatKpiGrouped(activeInvoice.returnQty)
-                              : '—'}
-                          </td>
-                        </tr>
-                      </tfoot>
-                    </table>
+                      <div className="overflow-x-hidden">
+                        <table className="w-full text-left font-sans">
+                          <thead className="bg-gray-100/50">
+                            <tr className="text-[11px] md:text-[12px] font-black text-gray-500 uppercase tracking-widest">
+                              <th className="px-3 py-2">#</th>
+                              <th className="px-3 py-2">Product Name</th>
+                              <th className="px-3 py-2">Code</th>
+                              <th className="px-3 py-2 text-right">Sales Qty</th>
+                              <th className="px-3 py-2 text-right">Sales Value</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {visibleProducts.map((p, i) => (
+                              <tr key={i} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                                <td className="px-3 py-2 text-gray-300 font-mono text-[11px] md:text-[12px] tabular-nums">{i + 1}</td>
+                                <td className="px-3 py-2">
+                                  <p className="text-[11px] md:text-[12px] font-black text-gray-800 uppercase tracking-tight">{highlight(p.productName, productSearch)}</p>
+                                </td>
+                                <td className="px-3 py-2 font-mono text-[11px] md:text-[12px] text-gray-500 tabular-nums">{highlight(p.productCode, productSearch)}</td>
+                                <td className="px-3 py-2 text-right font-black text-gray-900 text-[11px] md:text-[12px] tabular-nums">
+                                  <FormatNum val={p.netQty} defaultClass="text-emerald-700" />
+                                </td>
+                                <td className="px-3 py-2 text-right font-black text-gray-900 text-[11px] md:text-[12px] tabular-nums border-l border-gray-50 bg-blue-50/20">
+                                  <FormatNum val={p.netValue} />
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                          <tfoot className="bg-gray-100/80 font-black">
+                            <tr className="border-t-2 border-gray-200">
+                               <td colSpan={3} className="px-3 py-2 text-gray-900 uppercase tracking-widest text-[11px] md:text-[12px]">Grand Totals</td>
+                               <td className="px-3 py-2 text-right text-emerald-700 text-[11px] md:text-[12px] tabular-nums">
+                                 {formatKpiGrouped(activeInvoice.netQty)}
+                               </td>
+                               <td className="px-3 py-2 text-right text-blue-900 text-[11px] md:text-[12px] tabular-nums bg-blue-100/30">
+                                 {formatKpiGrouped(activeInvoice.netValue)}
+                               </td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                    </div>
                   </div>
-  
                 </div>
               )}
             </div>
@@ -2438,12 +2434,21 @@ invoiceDate: (() => {
     const map = {};
     filteredData.forEach(row => {
         if (!map[row.branch]) {
-            map[row.branch] = { branch: row.branch, netQty: 0, netValue: 0, returnQty: 0, mrs: new Set(), customers: new Set(), invoices: new Set() };
+            map[row.branch] = { 
+              branch: row.branch, 
+              salesQty: 0, salesValue: 0,
+              returnQty: 0, returnValue: 0,
+              netQty: 0, netValue: 0, 
+              mrs: new Set(), customers: new Set(), invoices: new Set() 
+            };
         }
         const b = map[row.branch];
+        b.salesQty += row.salesQty;
+        b.salesValue += row.salesValue;
+        b.returnQty += Math.abs(row.returnQty);
+        b.returnValue += Math.abs(row.returnValue);
         b.netQty += row.netQty;
         b.netValue += row.netValue;
-        b.returnQty += Math.abs(row.returnQty);
         b.mrs.add(row.mrName);
         b.customers.add(row.customerName);
         b.invoices.add(row.invoiceNo);
@@ -2461,9 +2466,11 @@ invoiceDate: (() => {
           const d = row.invoiceDate;
           if (!(d instanceof Date) || isNaN(d)) return;
           const key = trendGroup === 'monthly' ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}` : `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-          if (!map[key]) map[key] = { period: key, netQty: 0, netValue: 0, invoices: new Set() };
+          if (!map[key]) map[key] = { period: key, netQty: 0, netValue: 0, salesQty: 0, salesValue: 0, invoices: new Set() };
           map[key].netQty += row.netQty;
           map[key].netValue += row.netValue;
+          map[key].salesQty += row.salesQty || 0;
+          map[key].salesValue += row.salesValue || 0;
           map[key].invoices.add(row.invoiceNo);
       });
       return Object.values(map).map(r => ({ ...r, invoiceCount: r.invoices.size })).sort((a,b) => a.period.localeCompare(b.period));
@@ -2562,12 +2569,12 @@ invoiceDate: (() => {
             
             {smartLoadAlert.missing && smartLoadAlert.missing.length > 0 && (
               <div className="p-4 bg-white max-h-[200px] overflow-y-auto">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">
                   Missing Filter Values:
                 </p>
                 <div className="space-y-1.5">
                   {smartLoadAlert.missing.map((m, i) => (
-                    <div key={i} className="flex items-start gap-2 text-[10px] text-gray-500 font-medium">
+                    <div key={i} className="flex items-start gap-2 text-xs text-gray-500 font-medium">
                       <span className="text-red-400 mt-1 shrink-0">•</span>
                       <span>{m}</span>
                     </div>
@@ -2579,7 +2586,7 @@ invoiceDate: (() => {
             <div className="px-4 py-2 bg-gray-50 flex justify-end">
               <button 
                 onClick={() => setSmartLoadAlert(null)}
-                className="text-[9px] font-black text-gray-400 uppercase tracking-widest hover:text-gray-900 transition-colors">
+                className="text-xs font-black text-gray-400 uppercase tracking-widest hover:text-gray-900 transition-colors">
                 Dismiss (Auto-close in 8s)
               </button>
             </div>
@@ -2628,16 +2635,16 @@ invoiceDate: (() => {
         <div className="min-w-0">
           <h2 className="text-xl sm:text-2xl font-black text-gray-900 uppercase tracking-tight truncate italic">ATR Sales Analysis</h2>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
-            <span className="flex items-center gap-1.5 px-2 py-0.5 bg-blue-50 text-blue-700 rounded-md text-[10px] font-bold uppercase tracking-wider border border-blue-100">
+            <span className="flex items-center gap-1.5 px-2 py-0.5 bg-blue-50 text-blue-700 rounded-md text-xs font-bold uppercase tracking-wider border border-blue-100">
               <History size={10} /> {formatKpiGrouped(data.length)} Invoices
             </span>
-            <span className="flex items-center gap-1.5 px-2 py-0.5 bg-purple-50 text-purple-700 rounded-md text-[10px] font-bold uppercase tracking-wider border border-purple-100">
+            <span className="flex items-center gap-1.5 px-2 py-0.5 bg-purple-50 text-purple-700 rounded-md text-xs font-bold uppercase tracking-wider border border-purple-100">
               <Package size={10} /> {totalProducts} Products
             </span>
-            <span className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-md text-[10px] font-bold uppercase tracking-wider border border-emerald-100">
+            <span className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-md text-xs font-bold uppercase tracking-wider border border-emerald-100">
               <Users size={10} /> {totalMRs} SRs
             </span>
-            <span className="flex items-center gap-1.5 px-2 py-0.5 bg-amber-50 text-amber-700 rounded-md text-[10px] font-bold uppercase tracking-wider border border-amber-100">
+            <span className="flex items-center gap-1.5 px-2 py-0.5 bg-amber-50 text-amber-700 rounded-md text-xs font-bold uppercase tracking-wider border border-amber-100">
               <Calendar size={10} /> {formatDate(startDate)} → {formatDate(endDate)}
             </span>
           </div>
@@ -2659,7 +2666,7 @@ invoiceDate: (() => {
             className="flex items-center gap-2 
                        bg-blue-600 hover:bg-blue-700
                        disabled:bg-blue-300
-                       text-white text-[10px] font-black 
+                       text-white text-xs font-black 
                        uppercase tracking-widest
                        px-3 py-2 rounded-xl 
                        transition-all shadow-sm
@@ -2686,19 +2693,19 @@ invoiceDate: (() => {
       </div>
 
       {dataSources.length > 0 && (
-        <div className="flex items-center gap-2 px-6 py-2 bg-gray-50 border-b border-gray-100 shrink-0 overflow-x-auto rounded-3xl mt-4">
+        <div className="flex items-center gap-2 px-6 py-2 bg-gray-50 border-b border-gray-100 shrink-0 overflow-x-hidden rounded-3xl mt-4">
           <button 
             onClick={() => setIsSidebarOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-[10px] font-black uppercase tracking-widest hover:border-blue-500 hover:text-blue-600 transition-all shadow-sm shrink-0"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-black uppercase tracking-widest hover:border-blue-500 hover:text-blue-600 transition-all shadow-sm shrink-0"
           >
             <Filter size={12} />
             Filters
           </button>
-          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest shrink-0">
+          <span className="text-xs font-black text-gray-400 uppercase tracking-widest shrink-0">
             Files:
           </span>
           {dataSources.map((src, i) => (
-            <span key={i} className="flex items-center gap-1.5 bg-white border border-gray-200 px-3 py-1 rounded-full shrink-0 text-[11px] shadow-sm">
+            <span key={i} className="flex items-center gap-1.5 bg-white border border-gray-200 px-3 py-1 rounded-full shrink-0 text-xs shadow-sm">
               <span>{src.mode === 'append' ? '➕' : '📄'}</span>
               <span className="font-semibold text-gray-700 max-w-[100px] truncate" title={src.fileName}>
                 {src.fileName.replace(/\.(xlsx|xls|csv)$/i, '')}
@@ -2711,7 +2718,7 @@ invoiceDate: (() => {
             </span>
           ))}
           {dataSources.length > 1 && (
-            <span className="text-[11px] font-black text-emerald-600 ml-2">
+            <span className="text-xs font-black text-emerald-600 ml-2">
               {formatKpiGrouped(data.length)} total rows
             </span>
           )}
@@ -2719,18 +2726,19 @@ invoiceDate: (() => {
       )}
 
 
-      <div className="flex flex-1">
-        <SideFiltersPanel 
-          isOpen={isSidebarOpen}
-          onClose={() => setIsSidebarOpen(false)}
-          filters={filters} 
-          setFilters={setFilters} 
-          filterOptions={filterOptions} 
-          activeFilterCount={activeFilterCount}
-          onManageProfiles={() => setShowProfileManager(true)}
-          profiles={filterProfiles}
-        />
-        <div className="flex flex-col flex-1">
+      
+<div className="flex flex-1 min-w-0 overflow-x-hidden">
+  <SideFiltersPanel 
+    isOpen={isSidebarOpen}
+    onClose={() => setIsSidebarOpen(false)}
+    filters={filters} 
+    setFilters={setFilters} 
+    filterOptions={filterOptions} 
+    activeFilterCount={activeFilterCount}
+    onManageProfiles={() => setShowProfileManager(true)}
+    profiles={filterProfiles}
+  />
+  <div className="flex flex-col flex-1 min-w-0 overflow-x-hidden">
           <ActiveFiltersBar filters={filters} setFilters={setFilters} />
           
           <FilterProfilesManager 
@@ -2745,7 +2753,7 @@ invoiceDate: (() => {
           <div className="px-4 py-2">
             <button 
               onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}
-              className="md:hidden w-full flex items-center justify-between text-[10px] font-black uppercase text-gray-400 hover:text-gray-600 transition-colors"
+              className="md:hidden w-full flex items-center justify-between text-xs font-black uppercase text-gray-400 hover:text-gray-600 transition-colors"
             >
               {isSummaryExpanded ? 'Hide Summary & Tools' : 'Show Summary & Tools'}
               <ChevronDown size={14} className={`transition-transform ${isSummaryExpanded ? 'rotate-180' : ''}`} />
@@ -2753,17 +2761,17 @@ invoiceDate: (() => {
             <div className={`space-y-3 ${isSummaryExpanded ? 'block' : 'hidden md:block'}`}>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-2">
                 {[
-                  { label: 'Net Qty', value: formatKpiGrouped(kpis.netQty), suffix: 'U', icon: Package, color: 'text-emerald-600', bg: 'bg-emerald-50', negative: kpis.netQty < 0 },
-                  { label: 'Net Value', value: formatKpiGrouped(kpis.netValue), suffix: 'EGP', icon: DollarSign, color: 'text-blue-600', bg: 'bg-blue-50', negative: kpis.netValue < 0 },
-                  { label: 'Returns', value: formatKpiGrouped(Math.abs(kpis.returnsQty)), suffix: 'U', sub: formatKpiGrouped(Math.abs(kpis.returnsValue)) + ' EGP', icon: RotateCcw, color: 'text-red-500', bg: 'bg-red-50', negative: false },
-                  { label: 'Products', value: kpis.uniqueProducts, suffix: 'P', sub: formatKpiGrouped(filteredData.length) + ' R', icon: Grid, color: 'text-purple-600', bg: 'bg-purple-50', negative: false },
+                  { label: 'Sales Units', value: formatKpiGrouped(kpis.salesQty), suffix: 'U', sub: formatKpiGrouped(kpis.salesValue) + ' EGP', icon: Package, color: 'text-emerald-600', bg: 'bg-emerald-50', negative: false },
+                  { label: 'Return Units', value: formatKpiGrouped(kpis.returnsQty), suffix: 'U', sub: formatKpiGrouped(kpis.returnsValue) + ' EGP', icon: Package, color: 'text-red-600', bg: 'bg-red-50', negative: true },
+                  { label: 'Sales Value', value: formatKpiGrouped(kpis.salesValue), suffix: 'EGP', icon: DollarSign, color: 'text-blue-600', bg: 'bg-blue-50', negative: false },
+                  { label: 'Products', value: kpis.uniqueProducts, suffix: 'P', sub: formatKpiGrouped(filteredData.length) + ' Invs', icon: Grid, color: 'text-purple-600', bg: 'bg-purple-50', negative: false },
               ].map((card, i) => (
                 <div key={i} className="bg-white rounded-lg shadow-sm border border-gray-100 p-2.5 flex items-center gap-2.5 min-w-0">
                   <div className={`${card.bg} p-1.5 rounded-md shrink-0`}><card.icon size={14} className={card.color}/></div>
                   <div className="min-w-0 flex-1">
-                      <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-0.5 truncate">{card.label}</p>
-                      <p className={`text-[15px] font-black leading-tight truncate ${card.negative ? 'text-red-600' : 'text-gray-900'}`}>{card.value}<span className="text-[9px] font-semibold text-gray-400 ml-0.5">{card.suffix}</span></p>
-                      {card.sub && <p className="text-[8px] text-gray-400 mt-0.5 truncate font-medium">{card.sub}</p>}
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest leading-none mb-0.5 truncate">{card.label}</p>
+                      <p className={`text-[15px] font-black leading-tight truncate ${card.negative ? 'text-red-600' : 'text-gray-900'}`}>{card.value}<span className="text-xs font-semibold text-gray-400 ml-0.5">{card.suffix}</span></p>
+                      {card.sub && <p className="text-xs text-gray-400 mt-0.5 truncate font-medium">{card.sub}</p>}
                   </div>
                 </div>
               ))}
@@ -2782,15 +2790,14 @@ invoiceDate: (() => {
             </div>
           </div>
 
-
-          <div className="flex-1 px-6 pb-24">
-            <div className="bg-white p-6 rounded-3xl border border-gray-200">
+<div className="flex-1 px-3 md:px-4 pb-16 min-w-0 overflow-x-hidden">
+          <div className="bg-white p-3 md:p-4 rounded-3xl border border-gray-200">
               {activeTab === 'Overview' && (
                 <FullscreenWrapper title="Overview">
                   <div className="space-y-8">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                           <div className="h-[300px]">
-                              <h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 Products (Net Value)</h4>
+                              <h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 Products (Sales Value)</h4>
                               <ResponsiveContainer><BarChart data={topProductsByVal}><XAxis dataKey="name" fontSize={10} /><YAxis fontSize={10} /><Tooltip /><Bar dataKey="val" fill="#3B82F6" /></BarChart></ResponsiveContainer>
                           </div>
                           <div className="h-[300px]">
@@ -2802,152 +2809,289 @@ invoiceDate: (() => {
                 </FullscreenWrapper>
               )}
                       {activeTab === 'By Product' && (
-                  <FullscreenWrapper title="By Product">
+                  <FullscreenWrapper 
+                    title="By Product"
+                    isFullscreen={prodFullscreen}
+                    onToggleFullscreen={setProdFullscreen}
+                    showButton={false}
+                  >
                     <div className="space-y-6">
-                      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                          <div className="px-5 py-4 border-b border-gray-100"><h3 className="font-bold text-gray-800">Product Breakdown</h3><p className="text-xs text-gray-400 mt-0.5">{filteredData.length} records</p></div>
-                          <div className="overflow-x-auto max-h-[420px] overflow-y-auto"><table className="w-full text-sm">
-                              <thead className="sticky top-0 bg-gray-50 z-10">
-                                <tr className="text-xs text-gray-500 uppercase">
-                                  <th className="p-2 text-left">#</th>
-                                  <SortableTH label="Product" sortKey="productName" currentKey={prodSortKey} dir={prodSortDir} onSort={prodToggle} />
-                                  <SortableTH label="Qty" sortKey="netQty" currentKey={prodSortKey} dir={prodSortDir} onSort={prodToggle} className="text-right" />
-                                  <SortableTH label="Value" sortKey="netValue" currentKey={prodSortKey} dir={prodSortDir} onSort={prodToggle} className="text-right" />
-                                  <SortableTH label="%" sortKey="pct" currentKey={prodSortKey} dir={prodSortDir} onSort={prodToggle} className="text-right" />
-                                </tr>
-                              </thead>
-                              <tbody>{sortedProducts.map((p, i) => <tr key={p.productName} className={`border-b ${i<3 ? (i===0?'border-l-4 border-l-yellow-400':i===1?'border-l-4 border-l-gray-400':'border-l-4 border-l-orange-400'):''} hover:bg-blue-50`}>
-                                  <td className="p-2">{i+1}</td><td className="p-2 font-semibold">{p.productName}</td><td className="p-2 text-right"><FormatNum val={p.netQty} /></td><td className="p-2 text-right"><FormatNum val={p.netValue} /></td><td className="p-2 text-right">{p.pct}</td></tr>)}</tbody>
-                          </table></div>
+                      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                          <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-4">
+                            <div>
+                              <h3 className="text-sm font-black text-gray-900 uppercase tracking-tight">Product Breakdown</h3>
+                              <p className="text-[10px] text-gray-400 mt-0.5">{filteredData.length} records</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => setProdFullscreen(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black text-gray-600 bg-gray-50 border border-gray-200 hover:bg-gray-100 rounded-lg transition-colors uppercase tracking-widest">⛶ Fullscreen</button>
+                                <ColumnSelectionMenu 
+                                columns={[
+                                    { id: 'netQty', label: 'Sales Qty' },
+                                    { id: 'netValue', label: 'Sales Val' },
+                                    { id: 'pct', label: '%' },
+                                ]}
+                                hiddenCols={hiddenCols['By Product']}
+                                toggleColumn={(colId) => toggleColumn('By Product', colId)}
+                                />
+                            </div>
+                          </div>
+                        
+<div className="overflow-x-auto w-full max-w-full no-scrollbar">
+  <table className={`${TABLE_BASE} table-auto w-full`}>
+                               <thead className={`sticky top-0 z-10 ${THEAD_ROW}`}>
+                                 <tr>
+                                   <th className={`${TH_BASE} w-8`}>#</th>
+                                   <th className={`${TH_BASE} min-w-[120px] cursor-pointer hover:bg-gray-200`} onClick={() => prodToggle('productName')}>Product {prodSortKey === 'productName' ? (prodSortDir === 'desc' ? '↓' : '↑') : ''}</th>
+                                   {!hiddenCols['By Product'].includes('netQty') && <th className={`${TH_BASE} text-right min-w-[70px] cursor-pointer hover:bg-gray-200`} onClick={() => prodToggle('netQty')}>Sales QTY</th>}
+                                   {!hiddenCols['By Product'].includes('netValue') && <th className={`${TH_BASE} text-right min-w-[80px] cursor-pointer hover:bg-gray-200`} onClick={() => prodToggle('netValue')}>Sales VAL</th>}
+                                   {!hiddenCols['By Product'].includes('pct') && <th className={`${TH_BASE} text-right min-w-[50px] cursor-pointer hover:bg-gray-200`} onClick={() => prodToggle('pct')}>%</th>}
+                                 </tr>
+                               </thead>
+                               <tbody>{sortedProducts.map((p, i) => <tr key={p.productName} className={`border-b ${i<3 ? (i===0?'border-l-4 border-l-yellow-400':i===1?'border-l-4 border-l-gray-400':'border-l-4 border-l-orange-400'):''} hover:bg-blue-50/50 transition-colors`}>
+                                   <td className={`${TD_BASE} w-8`}>{i+1}</td>
+                                   <td className={`${TD_TEXT} min-w-[120px]`} title={p.productName}>{p.productName}</td>
+                                   {!hiddenCols['By Product'].includes('netQty') && <td className={`${TD_NUM}`}><FormatNum val={p.salesQty || p.netQty} defaultClass="text-emerald-700" /></td>}
+                                   {!hiddenCols['By Product'].includes('netValue') && <td className={`${TD_NUM}`}><FormatNum val={p.salesValue || p.netValue} defaultClass="text-blue-700" /></td>}
+                                   {!hiddenCols['By Product'].includes('pct') && <td className={`${TD_NUM}`}>{p.pct}%</td>}
+                                 </tr>)}</tbody>
+                           </table></div>
                       </div>
                       <div className="grid grid-cols-2 gap-4">
-                          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 Products (Qty)</h4><ResponsiveContainer height={260}><BarChart data={sortedProducts.slice(0,10)} layout="vertical" margin={{left: 40}}><XAxis type="number" fontSize={10} /><YAxis dataKey="productName" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netQty" fill="#10B981" /></BarChart></ResponsiveContainer></div>
-                          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 Products (Value)</h4><ResponsiveContainer height={260}><BarChart data={sortedProducts.slice(0,10)} layout="vertical" margin={{left: 40}}><XAxis type="number" fontSize={10} /><YAxis dataKey="productName" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netValue" fill="#3B82F6" /></BarChart></ResponsiveContainer></div>
+                          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 Products (Sales Qty)</h4><ResponsiveContainer height={260}><BarChart data={sortedProducts.slice(0,10)} layout="vertical" margin={{left: 40}}><XAxis type="number" fontSize={10} /><YAxis dataKey="productName" type="category" fontSize={10} /><Tooltip /><Bar dataKey="salesQty" fill="#10B981" /></BarChart></ResponsiveContainer></div>
+                          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 Products (Sales Value)</h4><ResponsiveContainer height={260}><BarChart data={sortedProducts.slice(0,10)} layout="vertical" margin={{left: 40}}><XAxis type="number" fontSize={10} /><YAxis dataKey="productName" type="category" fontSize={10} /><Tooltip /><Bar dataKey="salesValue" fill="#3B82F6" /></BarChart></ResponsiveContainer></div>
                       </div>
                     </div>
                   </FullscreenWrapper>
                 )}
                 {activeTab === 'By SR' && (
-                  <FullscreenWrapper title="By SR">
+                  <FullscreenWrapper 
+                    title="By SR"
+                    isFullscreen={mrFullscreen}
+                    onToggleFullscreen={setMrFullscreen}
+                    showButton={false}
+                  >
                     <div className="space-y-6">
-                      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                          <div className="px-5 py-4 border-b border-gray-100"><h3 className="font-bold text-gray-800">SR Breakdown</h3><p className="text-xs text-gray-400 mt-0.5">{filteredData.length} records</p></div>
-                          <div className="overflow-x-auto max-h-[420px] overflow-y-auto"><table className="w-full text-sm">
-                              <thead className="sticky top-0 bg-gray-50 z-10">
-                                <tr className="text-xs text-gray-500 uppercase">
-                                  <th className="p-2 text-left">#</th>
-                                  <SortableTH label="SR" sortKey="mrName" currentKey={mrSortKey} dir={mrSortDir} onSort={mrToggle} />
-                                  <SortableTH label="Qty" sortKey="netQty" currentKey={mrSortKey} dir={mrSortDir} onSort={mrToggle} className="text-right" />
-                                  <SortableTH label="Value" sortKey="netValue" currentKey={mrSortKey} dir={mrSortDir} onSort={mrToggle} className="text-right" />
-                                  <SortableTH label="%" sortKey="pct" currentKey={mrSortKey} dir={mrSortDir} onSort={mrToggle} className="text-right" />
+                      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                          <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-4">
+                            <div>
+                              <h3 className="text-sm font-black text-gray-900 uppercase tracking-tight">SR Breakdown</h3>
+                              <p className="text-[10px] text-gray-400 mt-0.5">{filteredData.length} records</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => setMrFullscreen(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black text-gray-600 bg-gray-50 border border-gray-200 hover:bg-gray-100 rounded-lg transition-colors uppercase tracking-widest">⛶ Fullscreen</button>
+                                <ColumnSelectionMenu 
+                                columns={[
+                                    { id: 'mrName', label: 'SR' },
+                                    { id: 'supervisor', label: 'Supervisor' },
+                                    { id: 'branch', label: 'Branch' },
+                                    { id: 'customerCount', label: 'Customers' },
+                                    { id: 'invoiceCount', label: 'Invoices' },
+                                    { id: 'netQty', label: 'Sales Qty' },
+                                    { id: 'netValue', label: 'Sales Val' },
+                                    { id: 'pct', label: '%' },
+                                ]}
+                                hiddenCols={hiddenCols['By SR']}
+                                toggleColumn={(colId) => toggleColumn('By SR', colId)}
+                                />
+                            </div>
+                          </div>
+                          
+<div className="w-full max-w-full overflow-x-auto no-scrollbar">
+  <div className="max-h-[60vh] overflow-y-auto">
+    <table className={`${TABLE_BASE} table-auto w-full`}>
+      <thead className={`sticky top-0 z-10 ${THEAD_ROW} bg-gray-50`}>
+                                <tr>
+                                  <th className={`${TH_BASE} w-8`}>#</th>
+                                  <th className={`${TH_BASE} min-w-[120px] cursor-pointer hover:bg-gray-200`} onClick={() => mrToggle('mrName')}>SR {sortDir === 'desc' ? '↓' : '↑'}</th>
+                                  {!hiddenCols['By SR'].includes('supervisor') && <th className={`${TH_BASE} min-w-[100px] cursor-pointer hover:bg-gray-200`} onClick={() => mrToggle('supervisor')}>Supervisor</th>}
+                                  {!hiddenCols['By SR'].includes('branch') && <th className={`${TH_BASE} min-w-[80px] cursor-pointer hover:bg-gray-200`} onClick={() => mrToggle('branch')}>Branch</th>}
+                                  {!hiddenCols['By SR'].includes('customerCount') && <th className={`${TH_BASE} text-right min-w-[50px] cursor-pointer hover:bg-gray-200`} onClick={() => mrToggle('customerCount')}>Cust</th>}
+                                  {!hiddenCols['By SR'].includes('invoiceCount') && <th className={`${TH_BASE} text-right min-w-[50px] cursor-pointer hover:bg-gray-200`} onClick={() => mrToggle('invoiceCount')}>Inv</th>}
+                                  {!hiddenCols['By SR'].includes('netQty') && <th className={`${TH_BASE} text-right min-w-[70px] cursor-pointer hover:bg-gray-200`} onClick={() => mrToggle('netQty')}>Sales QTY</th>}
+                                  {!hiddenCols['By SR'].includes('netValue') && <th className={`${TH_BASE} text-right min-w-[80px] cursor-pointer hover:bg-gray-200`} onClick={() => mrToggle('netValue')}>Sales VAL</th>}
+                                  {!hiddenCols['By SR'].includes('pct') && <th className={`${TH_BASE} text-right min-w-[50px] cursor-pointer hover:bg-gray-200`} onClick={() => mrToggle('pct')}>%</th>}
                                 </tr>
                               </thead>
                               <tbody>{sortedMR.map((m, i) => (
                                 <tr key={m.mrName} 
                                   onClick={() => setDrillModal({ open: true, type: 'mr', data: m })}
-                                  className="border-b hover:bg-blue-50 cursor-pointer">
-                                  <td className="p-2">
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-gray-300 text-xs">⊕</span>
-                                      {i+1}
-                                    </div>
-                                  </td>
-                                  <td className="p-2 font-semibold">{m.mrName}</td>
-                                  <td className="p-2 text-right"><FormatNum val={m.netQty} /></td>
-                                  <td className="p-2 text-right"><FormatNum val={m.netValue} /></td>
-                                  <td className="p-2 text-right">{m.pct}</td>
+                                  className="border-b hover:bg-blue-50/50 cursor-pointer transition-colors">
+                                  <td className={`${TD_BASE} w-8`}>{i+1}</td>
+                                  <td className={`${TD_TEXT} min-w-[120px]`} title={m.mrName}>{m.mrName}</td>
+                                  {!hiddenCols['By SR'].includes('supervisor') && <td className={`${TD_TEXT} min-w-[100px]`} title={m.supervisor}>{m.supervisor}</td>}
+                                  {!hiddenCols['By SR'].includes('branch') && <td className={`${TD_TEXT} min-w-[80px]`} title={m.branch}>{m.branch}</td>}
+                                  {!hiddenCols['By SR'].includes('customerCount') && <td className={`${TD_NUM}`}>{m.customerCount}</td>}
+                                  {!hiddenCols['By SR'].includes('invoiceCount') && <td className={`${TD_NUM}`}>{m.invoiceCount}</td>}
+                                  {!hiddenCols['By SR'].includes('netQty') && <td className={`${TD_NUM}`}><FormatNum val={m.salesQty || m.netQty} defaultClass="text-emerald-700" /></td>}
+                                  {!hiddenCols['By SR'].includes('netValue') && <td className={`${TD_NUM}`}><FormatNum val={m.salesValue || m.netValue} defaultClass="text-blue-700" /></td>}
+                                  {!hiddenCols['By SR'].includes('pct') && <td className={`${TD_NUM}`}>{m.pct}%</td>}
                                 </tr>
                               ))}</tbody>
-                          </table></div>
+                  
+    </table>
+  </div>
+</div>
+
                       </div>
-                      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 SRs (Net Qty)</h4><ResponsiveContainer height={260}><BarChart data={sortedMR.slice(0,10)} layout="vertical" margin={{left: 60}}><XAxis type="number" fontSize={10} /><YAxis dataKey="mrName" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netQty" fill="#8B5CF6" /></BarChart></ResponsiveContainer></div>
+                      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+                          <h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 SRs (Sales Qty)</h4>
+                          <ResponsiveContainer height={260}>
+                              <BarChart data={sortedMR.slice(0,10)} layout="vertical" margin={{left: 60}}>
+                                  <XAxis type="number" fontSize={10} />
+                                  <YAxis dataKey="mrName" type="category" fontSize={10} />
+                                  <Tooltip />
+                                  <Bar dataKey="netQty" fill="#8B5CF6" />
+                              </BarChart>
+                          </ResponsiveContainer>
+                      </div>
                     </div>
                   </FullscreenWrapper>
                 )}
               {activeTab === 'By Customer' && (
-                  <FullscreenWrapper title="By Customer">
-                    <div className="space-y-6">
-                      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                          <div className="px-5 py-4 border-b border-gray-100"><h3 className="font-bold text-gray-800">Customer Breakdown</h3><input value={customerSearch} onChange={e=>setCustomerSearch(e.target.value)} placeholder="Search customer..." className="p-2 border rounded-lg w-full text-xs mt-2" /></div>
-                          <div className="overflow-x-auto max-h-[420px] overflow-y-auto"><table className="w-full text-sm">
-                              <thead className="sticky top-0 bg-gray-50 z-10">
-                                <tr className="text-xs text-gray-500 uppercase">
-                                  <th className="p-2 text-left">#</th>
-                                  <SortableTH label="Name" sortKey="customerName" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} />
-                                  <SortableTH label="Type" sortKey="customerType" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} />
-                                  <SortableTH label="SR" sortKey="mrName" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} />
-                                  <SortableTH label="Branch" sortKey="branch" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} />
-                                  <SortableTH label="Invoices" sortKey="invoiceCount" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} className="text-right" />
-                                  <SortableTH label="First" sortKey="firstDate" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} />
-                                  <SortableTH label="Last" sortKey="lastDate" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} />
-                                  <SortableTH label="Prods" sortKey="productCount" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} className="text-right" />
-                                  <SortableTH label="Qty" sortKey="netQty" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} className="text-right" />
-                                  <SortableTH label="Value" sortKey="netValue" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} className="text-right" />
-                                  <SortableTH label="Ret.Qty" sortKey="returnQty" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} className="text-right" />
-                                  <SortableTH label="Ret.Val" sortKey="returnValue" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} className="text-right" />
-                                </tr>
-                              </thead>
-                              <tbody>{(sortedCustomers || []).filter(c => {
-                                const s = customerSearch.toLowerCase();
-                                if (!s) return true;
-                                return (
-                                  (c.customerName || '').toLowerCase().includes(s) ||
-                                  (c.customerType || '').toLowerCase().includes(s) ||
-                                  (c.mrName || '').toLowerCase().includes(s) ||
-                                  (c.branch || '').toLowerCase().includes(s) ||
-                                  (c.line || '').toLowerCase().includes(s) ||
-                                  (c.supervisor || '').toLowerCase().includes(s) ||
-                                  Array.from(c.products || []).some(p => (p || '').toLowerCase().includes(s)) ||
-                                  Array.from(c.lines || []).some(l => (l || '').toLowerCase().includes(s)) ||
-                                  Array.from(c.supervisors || []).some(sup => (sup || '').toLowerCase().includes(s)) ||
-                                  Array.from(c.mrs || []).some(mr => (mr || '').toLowerCase().includes(s))
-                                );
-                              }).slice(0, 50).map((c, i) => (
-                                <tr key={i}
-                                  onClick={() => setDrillModal({ open: true, type: 'customer', data: c })}
-                                  className="border-b hover:bg-blue-50 cursor-pointer">
-                                  <td className="p-2">
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-gray-300 text-xs">⊕</span>
-                                      {i+1}
-                                    </div>
-                                  </td>
-                                  <td className="p-2">{c.customerName}</td>
-                                  <td className="p-2">{c.customerType}</td>
-                                  <td className="p-2">{c.mrName}</td>
-                                  <td className="p-2">{c.branch}</td>
-                                  <td className="p-2 text-right font-mono">{formatKpiGrouped(c.invoiceCount)}</td>
-                                  <td className="p-2">{fmt(c.firstDate)}</td>
-                                  <td className="p-2">{fmt(c.lastDate)}</td>
-                                  <td className="p-2 text-right font-mono">{c.productCount}</td>
-                                  <td className="p-2 text-right font-mono font-semibold"><FormatNum val={c.netQty} defaultClass="text-emerald-700" /></td>
-                                  <td className="p-2 text-right font-mono"><FormatNum val={c.netValue} /></td>
-                                  <td className="p-2 text-right font-mono text-red-500"><FormatNum val={c.returnQty} defaultClass="text-red-500" /></td>
-                                  <td className="p-2 text-right font-mono text-red-400"><FormatNum val={c.returnValue} defaultClass="text-red-400" /></td>
-                                </tr>
-                              ))}</tbody>
-                          </table></div>
+                  <FullscreenWrapper 
+                    title="By Customer"
+                    isFullscreen={custFullscreen}
+                    onToggleFullscreen={setCustFullscreen}
+                    showButton={false}
+                  >
+                    <div className="space-y-6 w-full">
+                      <div className="bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
+                          <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between flex-wrap gap-4 bg-white">
+                            <div className="min-w-[250px] flex-1">
+                              <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">Customer Breakdown</h3>
+                              <div className="relative mt-3">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                                <input 
+                                  value={customerSearch} 
+                                  onChange={e=>setCustomerSearch(e.target.value)} 
+                                  placeholder="Search customer..." 
+                                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-2xl text-xs font-bold outline-none font-sans" 
+                                />
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => setCustFullscreen(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black text-gray-600 bg-gray-50 border border-gray-200 hover:bg-gray-100 rounded-lg transition-colors uppercase tracking-widest">⛶ Fullscreen</button>
+                                <ColumnSelectionMenu 
+                                columns={[
+                                    { id: 'customerType', label: 'Type' },
+                                    { id: 'branch', label: 'Branch' },
+                                    { id: 'invoiceCount', label: 'Invoices' },
+                                    { id: 'firstDate', label: 'First Date' },
+                                    { id: 'lastDate', label: 'Last Date' },
+                                    { id: 'productCount', label: 'Products' },
+                                    { id: 'netQty', label: 'Sales Qty' },
+                                    { id: 'netValue', label: 'Sales Val' },
+                                    { id: 'mrName', label: 'SR' },
+                                ]}
+                                hiddenCols={hiddenCols['By Customer']}
+                                toggleColumn={(colId) => toggleColumn('By Customer', colId)}
+                                />
+                              </div>
+                            </div>
+                            <div className="max-h-[60vh] overflow-y-auto no-scrollbar">
+                                    <table className={`${TABLE_BASE} table-auto w-full`}>
+                                      <thead className={`sticky top-0 z-10 ${THEAD_ROW} bg-gray-50`}>
+                                        <tr>
+                                          <th className={`${TH_BASE} w-8`}>#</th>
+                                          <th className={`${TH_BASE} min-w-[150px] cursor-pointer hover:bg-gray-200`} onClick={() => custToggle('customerName')}>Customer Name {custSortKey === 'customerName' ? (custSortDir === 'desc' ? '↓' : '↑') : ''}</th>
+                                          {!hiddenCols['By Customer'].includes('customerType') && <th className={`${TH_BASE} min-w-[80px] cursor-pointer hover:bg-gray-200`} onClick={() => custToggle('customerType')}>Type</th>}
+                                          {!hiddenCols['By Customer'].includes('branch') && <th className={`${TH_BASE} min-w-[80px] cursor-pointer hover:bg-gray-200`} onClick={() => custToggle('branch')}>Branch</th>}
+                                          {!hiddenCols['By Customer'].includes('invoiceCount') && <th className={`${TH_BASE} text-right min-w-[50px] cursor-pointer hover:bg-gray-200`} onClick={() => custToggle('invoiceCount')}>Invs</th>}
+                                          {!hiddenCols['By Customer'].includes('firstDate') && <th className={`${TH_BASE} min-w-[80px] cursor-pointer hover:bg-gray-200`} onClick={() => custToggle('firstDate')}>First Seen</th>}
+                                          {!hiddenCols['By Customer'].includes('lastDate') && <th className={`${TH_BASE} min-w-[80px] cursor-pointer hover:bg-gray-200`} onClick={() => custToggle('lastDate')}>Last Seen</th>}
+                                          {!hiddenCols['By Customer'].includes('productCount') && <th className={`${TH_BASE} text-right min-w-[50px] cursor-pointer hover:bg-gray-200`} onClick={() => custToggle('productCount')}>Prods</th>}
+                                          {!hiddenCols['By Customer'].includes('netQty') && <th className={`${TH_BASE} text-right min-w-[70px] cursor-pointer hover:bg-gray-200`} onClick={() => custToggle('netQty')}>Sales QTY</th>}
+                                          {!hiddenCols['By Customer'].includes('netValue') && <th className={`${TH_BASE} text-right min-w-[80px] cursor-pointer hover:bg-gray-200`} onClick={() => custToggle('netValue')}>Sales VAL</th>}
+                                          {!hiddenCols['By Customer'].includes('mrName') && <th className={`${TH_BASE} min-w-[120px] cursor-pointer hover:bg-gray-200`} onClick={() => custToggle('mrName')}>SR {custSortKey === 'mrName' ? (custSortDir === 'desc' ? '↓' : '↑') : ''}</th>}
+                                        </tr>
+                                      </thead>
+                              <tbody>
+                                {(sortedCustomers || []).slice(0, 50).map((c, i) => (
+                                  <tr key={c.customerName || i} 
+                                    onClick={() => setDrillModal({ open: true, type: 'customer', data: c })}
+                                    className="border-b border-gray-50 hover:bg-blue-50/50 cursor-pointer transition-colors">
+                                    <td className={`${TD_BASE} w-8`}>{i+1}</td>
+                                    <td className={`${TD_TEXT} min-w-[150px]`} title={c.customerName}>{c.customerName || '—'}</td>
+                                    {!hiddenCols['By Customer'].includes('customerType') && <td className={`${TD_TEXT} min-w-[80px]`} title={c.customerType}>{c.customerType || '—'}</td>}
+                                    {!hiddenCols['By Customer'].includes('branch') && <td className={`${TD_TEXT} min-w-[80px]`} title={c.branch}>{c.branch || '—'}</td>}
+                                    {!hiddenCols['By Customer'].includes('invoiceCount') && <td className={`${TD_NUM}`}><FormatNum val={c.invoiceCount} /></td>}
+                                    {!hiddenCols['By Customer'].includes('firstDate') && <td className={`${TD_NUM} min-w-[80px]`}>{fmt(c.firstDate)}</td>}
+                                    {!hiddenCols['By Customer'].includes('lastDate') && <td className={`${TD_NUM} min-w-[80px]`}>{fmt(c.lastDate)}</td>}
+                                    {!hiddenCols['By Customer'].includes('productCount') && <td className={`${TD_NUM}`}>{c.productCount}</td>}
+                                    {!hiddenCols['By Customer'].includes('netQty') && <td className={`${TD_NUM}`}><FormatNum val={c.salesQty || c.netQty} defaultClass="text-emerald-700" /></td>}
+                                    {!hiddenCols['By Customer'].includes('netValue') && <td className={`${TD_NUM}`}><FormatNum val={c.salesValue || c.netValue} defaultClass="text-blue-700" /></td>}
+                                    {!hiddenCols['By Customer'].includes('mrName') && <td className={`${TD_TEXT} min-w-[120px]`} title={c.mrName}>{c.mrName || '—'}</td>}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </FullscreenWrapper>
+                    </FullscreenWrapper>
                 )}
                 {activeTab === 'By Branch' && (
-                  <FullscreenWrapper title="By Branch">
+                  <FullscreenWrapper 
+                    title="By Branch"
+                    isFullscreen={branchFullscreen}
+                    onToggleFullscreen={setBranchFullscreen}
+                    showButton={false}
+                  >
                     <div className="space-y-6">
-                      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                          <div className="px-5 py-4 border-b border-gray-100"><h3 className="font-bold text-gray-800">Branch Breakdown</h3><p className="text-xs text-gray-400 mt-0.5">{filteredData.length} records</p></div>
-                          <div className="overflow-x-auto max-h-[420px] overflow-y-auto"><table className="w-full text-sm">
-                              <thead className="sticky top-0 bg-gray-50 z-10">
-                                <tr className="text-xs text-gray-500 uppercase">
-                                  <SortableTH label="Branch" sortKey="branch" currentKey={branchSortKey} dir={branchSortDir} onSort={branchToggle} />
-                                  <SortableTH label="Qty" sortKey="netQty" currentKey={branchSortKey} dir={branchSortDir} onSort={branchToggle} className="text-right" />
-                                  <SortableTH label="%" sortKey="pct" currentKey={branchSortKey} dir={branchSortDir} onSort={branchToggle} className="text-right" />
+                      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                          <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-4">
+                            <div>
+                              <h3 className="text-sm font-black text-gray-900 uppercase tracking-tight">Branch Breakdown</h3>
+                              <p className="text-[10px] text-gray-400 mt-0.5">{filteredData.length} records</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => setBranchFullscreen(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black text-gray-600 bg-gray-50 border border-gray-200 hover:bg-gray-100 rounded-lg transition-colors uppercase tracking-widest">⛶ Fullscreen</button>
+                                <ColumnSelectionMenu 
+                                columns={[
+                                    { id: 'mrCount', label: 'SRs' },
+                                    { id: 'customerCount', label: 'Customers' },
+                                    { id: 'invoiceCount', label: 'Invoices' },
+                                    { id: 'netQty', label: 'Sales Qty' },
+                                    { id: 'netValue', label: 'Sales Val' },
+                                    { id: 'pct', label: '%' },
+                                ]}
+                                hiddenCols={hiddenCols['By Branch']}
+                                toggleColumn={(colId) => toggleColumn('By Branch', colId)}
+                                />
+                            </div>
+                          </div>
+                         
+<div className="w-full max-w-full overflow-x-auto no-scrollbar">
+  <div className="max-h-[60vh] overflow-y-auto">
+  <table className={`${TABLE_BASE} table-auto w-full`}>
+      <thead className={`sticky top-0 z-10 ${THEAD_ROW} bg-gray-50`}>
+ 
+                                <tr className="text-xs text-gray-500 uppercase font-black tracking-widest">
+                                  <th className={`${TH_BASE} min-w-[100px] cursor-pointer hover:bg-gray-200`} onClick={() => branchToggle('branch')}>Branch</th>
+                                  {!hiddenCols['By Branch'].includes('mrCount') && <th className={`${TH_BASE} text-right min-w-[50px] cursor-pointer hover:bg-gray-200`} onClick={() => branchToggle('mrCount')}>SRs</th>}
+                                  {!hiddenCols['By Branch'].includes('customerCount') && <th className={`${TH_BASE} text-right min-w-[50px] cursor-pointer hover:bg-gray-200`} onClick={() => branchToggle('customerCount')}>Cust</th>}
+                                  {!hiddenCols['By Branch'].includes('invoiceCount') && <th className={`${TH_BASE} text-right min-w-[50px] cursor-pointer hover:bg-gray-200`} onClick={() => branchToggle('invoiceCount')}>Inv</th>}
+                                  {!hiddenCols['By Branch'].includes('netQty') && <th className={`${TH_BASE} text-right min-w-[70px] cursor-pointer hover:bg-gray-200`} onClick={() => branchToggle('netQty')}>Sales Qty</th>}
+                                  {!hiddenCols['By Branch'].includes('netValue') && <th className={`${TH_BASE} text-right min-w-[80px] cursor-pointer hover:bg-gray-200`} onClick={() => branchToggle('netValue')}>Sales Val</th>}
+                                  {!hiddenCols['By Branch'].includes('pct') && <th className={`${TH_BASE} text-right min-w-[50px] cursor-pointer hover:bg-gray-200`} onClick={() => branchToggle('pct')}>%</th>}
                                 </tr>
                               </thead>
-                              <tbody>{sortedBranch.map(b => <tr key={b.branch} className="border-b hover:bg-blue-50"><td className="p-2 font-semibold">{b.branch}</td><td className="p-2 text-right"><FormatNum val={b.netQty} /></td><td className="p-2 text-right">{b.pct}</td></tr>)}</tbody>
-                          </table></div>
-                      </div>
-                      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Branch vs Net Qty</h4><ResponsiveContainer height={260}><BarChart data={sortedBranch} layout="vertical" margin={{left: 60}}><XAxis type="number" fontSize={10} /><YAxis dataKey="branch" type="category" fontSize={10} /><Tooltip /><Bar dataKey="netQty" fill="#F59E0B" /></BarChart></ResponsiveContainer></div>
+                              <tbody>{sortedBranch.map(b => (
+                                <tr key={b.branch} className="border-b hover:bg-blue-50/50 cursor-pointer transition-colors">
+                                  <td className={`${TD_BASE} font-black text-gray-800 tracking-tight min-w-[100px]`}>{b.branch}</td>
+                                  {!hiddenCols['By Branch'].includes('mrCount') && <td className={`${TD_NUM}`}><FormatNum val={b.mrCount} /></td>}
+                                  {!hiddenCols['By Branch'].includes('customerCount') && <td className={`${TD_NUM}`}><FormatNum val={b.customerCount} /></td>}
+                                  {!hiddenCols['By Branch'].includes('invoiceCount') && <td className={`${TD_NUM}`}><FormatNum val={b.invoiceCount} /></td>}
+                                  {!hiddenCols['By Branch'].includes('netQty') && <td className={`${TD_NUM}`}><FormatNum val={b.salesQty || b.netQty} defaultClass="text-emerald-700" /></td>}
+                                  {!hiddenCols['By Branch'].includes('netValue') && <td className={`${TD_NUM}`}><FormatNum val={b.salesValue || b.netValue} defaultClass="text-blue-700" /></td>}
+                                  {!hiddenCols['By Branch'].includes('pct') && <td className={`${TD_NUM}`}>{b.pct}%</td>}
+                                </tr>
+                              ))}</tbody>
+                    
+    </table>
+  </div>
+</div></div>
+                      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Branch vs Sales Qty</h4><ResponsiveContainer height={260}><BarChart data={sortedBranch} layout="vertical" margin={{left: 60}}><XAxis type="number" fontSize={10} /><YAxis dataKey="branch" type="category" fontSize={10} /><Tooltip /><Bar dataKey="salesQty" fill="#F59E0B" /></BarChart></ResponsiveContainer></div>
                     </div>
                   </FullscreenWrapper>
                 )}
@@ -2955,9 +3099,9 @@ invoiceDate: (() => {
                   <div className="space-y-6">
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                         <div className="px-5 py-4 border-b border-gray-100"><h3 className="font-bold text-gray-800">Trend Data</h3><div className="flex gap-2 mt-2"><button onClick={()=>setTrendGroup('daily')} className={`px-3 py-1 rounded text-xs ${trendGroup==='daily'?'bg-blue-600 text-white':'bg-gray-200'}`}>Daily</button><button onClick={()=>setTrendGroup('monthly')} className={`px-3 py-1 rounded text-xs ${trendGroup==='monthly'?'bg-blue-600 text-white':'bg-gray-200'}`}>Monthly</button></div></div>
-                        <div className="overflow-x-auto max-h-[420px] overflow-y-auto"><table className="w-full text-sm">
-                            <thead className="sticky top-0 bg-gray-50 z-10"><tr className="text-xs text-gray-500 uppercase"><th className="p-2 text-left">Period</th><th className="p-2 text-right">Invoices</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">Value</th></tr></thead>
-                            <tbody>{trendData.map(t => <tr key={t.period} className="border-b hover:bg-blue-50"><td className="p-2 font-semibold">{t.period}</td><td className="p-2 text-right">{formatKpiGrouped(t.invoiceCount)}</td><td className="p-2 text-right"><FormatNum val={t.netQty} /></td><td className="p-2 text-right"><FormatNum val={t.netValue} /></td></tr>)}</tbody>
+                        <div className="overflow-x-hidden w-full"><table className="w-full text-left table-auto text-[11px] md:text-xs">
+                            <thead className="sticky top-0 bg-gray-50 z-10"><tr className="text-xs text-gray-500 uppercase"><th className="p-2 text-left">Period</th><th className="p-2 text-right">Invoices</th><th className="p-2 text-right">Sales Qty</th><th className="p-2 text-right">Sales Value</th></tr></thead>
+                            <tbody>{trendData.map(t => <tr key={t.period} className="border-b hover:bg-blue-50"><td className="p-2 font-semibold whitespace-nowrap">{t.period}</td><td className="p-2 text-right tabular-nums whitespace-nowrap">{formatKpiGrouped(t.invoiceCount)}</td><td className="p-2 text-right tabular-nums whitespace-nowrap"><FormatNum val={t.salesQty || t.netQty} defaultClass="text-emerald-700" /></td><td className="p-2 text-right tabular-nums whitespace-nowrap"><FormatNum val={t.salesValue || t.netValue} /></td></tr>)}</tbody>
                         </table></div>
                     </div>
                     <div className="bg-white rounded-[32px] shadow-sm border border-gray-100 p-8"><h4 className="text-sm font-black uppercase text-gray-900 tracking-widest mb-6 flex items-center gap-2"><TrendingUp className="text-blue-600" size={18} /> Sales Trend Analysis</h4><ResponsiveContainer height={350}>
@@ -3004,70 +3148,80 @@ invoiceDate: (() => {
                       </ResponsiveContainer></div>
                   </div>
               )}
-              {activeTab === 'Compare' && (
-                  <div className={compareFullscreen ? "fixed inset-0 z-50 bg-gray-50 overflow-y-auto" : "space-y-2.5"}>
-                    {compareFullscreen && (
-                      <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-2 bg-white border-b border-gray-100 shadow-sm mb-3">
-                        <div className="flex items-center gap-3 overflow-hidden">
-                          <span className="text-[10px] font-black text-gray-900 border-r border-gray-200 pr-3 mr-1 uppercase shrink-0">⚖️ Compare Tool</span>
-                          <div className="flex gap-1 overflow-x-auto no-scrollbar scroll-smooth active:cursor-grabbing">
-                             {/* Periods */}
-                             {periods.map(p => (
-                               <div key={p.id} className="flex items-center gap-1.5 px-2 py-1 rounded-full border border-gray-100 bg-gray-50/50 shadow-sm whitespace-nowrap">
-                                  <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: p.color || '#CBD5E1' }}></div>
-                                  <span className="text-[9px] font-black text-gray-600 uppercase">{p.label}</span>
-                               </div>
-                             ))}
+            
+{activeTab === 'Compare' && (
+  <FullscreenWrapper title="Compare">
+    <div className={compareFullscreen ? "fixed inset-0 z-50 bg-gray-50 overflow-y-auto" : "space-y-2.5"}>
+      {compareFullscreen && (
+        <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-2 bg-white border-b border-gray-100 shadow-sm mb-3">
+          <div className="flex items-center gap-3 overflow-hidden">
+            <span className="text-xs font-black text-gray-900 border-r border-gray-200 pr-3 mr-1 uppercase shrink-0">
+              ⚖️ Compare Tool
+            </span>
+            <div className="flex gap-1 overflow-x-hidden no-scrollbar scroll-smooth active:cursor-grabbing">
+              {periods.map(p => (
+                <div key={p.id} className="flex items-center gap-1.5 px-2 py-1 rounded-full border border-gray-100 bg-gray-50/50 shadow-sm whitespace-nowrap">
+                  <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: p.color || '#CBD5E1' }} />
+                  <span className="text-xs font-black text-gray-600 uppercase">{p.label}</span>
+                </div>
+              ))}
 
-                             {/* Filters Divider */}
-                             {(filters.branch?.length > 0 || filters.supervisor?.length > 0 || filters.mrName?.length > 0 || filters.line?.length > 0 || filters.customer?.length > 0 || filters.product?.length > 0 || filters.customerType?.length > 0) && (
-                               <div className="w-px h-4 bg-gray-200 mx-1 self-center shrink-0" />
-                             )}
+              {(filters.branch?.length > 0 || filters.supervisor?.length > 0 || filters.mrName?.length > 0 || filters.line?.length > 0 || filters.customer?.length > 0 || filters.product?.length > 0 || filters.customerType?.length > 0) && (
+                <div className="w-px h-4 bg-gray-200 mx-1 self-center shrink-0" />
+              )}
 
-                             {/* Active Filters */}
-                             {[
-                               { key: 'branch', label: 'Branches', icon: '🏢' },
-                               { key: 'supervisor', label: 'Supervisors', icon: '👮' },
-                               { key: 'mrName', label: 'MRs', icon: '👨‍💼' },
-                               { key: 'line', label: 'Lines', icon: '🛣️' },
-                               { key: 'customer', label: 'Customers', icon: '👤' },
-                               { key: 'product', label: 'Products', icon: '📦' },
-                               { key: 'customerType', label: 'Types', icon: '🏷️' }
-                             ].map(f => {
-                               if (!filters[f.key] || filters[f.key].length === 0) return null;
-                               return (
-                                 <div key={f.key} className="flex items-center gap-1.5 px-2 py-1 rounded-full border border-blue-50 bg-blue-50/30 whitespace-nowrap">
-                                    <span className="text-[10px]">{f.icon}</span>
-                                    <span className="text-[9px] font-black text-blue-600 uppercase">
-                                      {filters[f.key].length === 1 ? filters[f.key][0] : `${filters[f.key].length} ${f.label}`}
-                                    </span>
-                                 </div>
-                               );
-                             })}
+              {[
+                { key: 'branch', label: 'Branches', icon: '🏢' },
+                { key: 'supervisor', label: 'Supervisors', icon: '👮' },
+                { key: 'mrName', label: 'MRs', icon: '👨‍💼' },
+                { key: 'line', label: 'Lines', icon: '🛣️' },
+                { key: 'customer', label: 'Customers', icon: '👤' },
+                { key: 'product', label: 'Products', icon: '📦' },
+                { key: 'customerType', label: 'Types', icon: '🏷️' }
+              ].map(f => {
+                if (!filters[f.key] || filters[f.key].length === 0) return null;
+                return (
+                  <div key={f.key} className="flex items-center gap-1.5 px-2 py-1 rounded-full border border-blue-50 bg-blue-50/30 whitespace-nowrap">
+                    <span className="text-xs">{f.icon}</span>
+                    <span className="text-xs font-black text-blue-600 uppercase">
+                      {filters[f.key].length === 1 ? filters[f.key][0] : `${filters[f.key].length} ${f.label}`}
+                    </span>
+                  </div>
+                );
+              })}
 
-                             {/* Date Range if set */}
-                             {(filters.fromDate || filters.toDate) && (
-                               <div className="flex items-center gap-1.5 px-2 py-1 rounded-full border border-emerald-50 bg-emerald-50/30 whitespace-nowrap">
-                                  <Calendar size={10} className="text-emerald-600" />
-                                  <span className="text-[9px] font-black text-emerald-600 uppercase">
-                                    {filters.fromDate ? new Date(filters.fromDate).toLocaleDateString('en-GB', {day:'2-digit', month:'short'}) : '...'} - {filters.toDate ? new Date(filters.toDate).toLocaleDateString('en-GB', {day:'2-digit', month:'short'}) : '...'}
-                                  </span>
-                               </div>
-                             )}
-                          </div>
-                        </div>
-                        <button onClick={() => setCompareFullscreen(false)} className="px-3 py-1.5 text-[10px] font-black bg-gray-900 text-white hover:bg-red-600 rounded-xl transition-all shadow-md active:scale-95 uppercase shrink-0">✕ Exit Fullscreen</button>
-                      </div>
-                    )}
-                    
-                    <div className={compareFullscreen ? "p-3 space-y-2.5" : "space-y-2.5"}>
-                      {!compareFullscreen && (
-                        <div className="flex justify-end !mt-0">
-                           <button onClick={() => setCompareFullscreen(true)} className="flex items-center gap-2 px-3 py-1.5 text-[10px] font-bold text-gray-700 bg-white border border-gray-200 shadow-sm hover:bg-gray-50 rounded-lg transition-colors">
-                              ⛶ Fullscreen
-                           </button>
-                        </div>
-                      )}
+              {(filters.fromDate || filters.toDate) && (
+                <div className="flex items-center gap-1.5 px-2 py-1 rounded-full border border-emerald-50 bg-emerald-50/30 whitespace-nowrap">
+                  <Calendar size={10} className="text-emerald-600" />
+                  <span className="text-xs font-black text-emerald-600 uppercase">
+                    {filters.fromDate ? new Date(filters.fromDate).toLocaleDateString('en-GB', {day:'2-digit', month:'short'}) : '...'} - {filters.toDate ? new Date(filters.toDate).toLocaleDateString('en-GB', {day:'2-digit', month:'short'}) : '...'}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <button
+            onClick={() => setCompareFullscreen(false)}
+            className="px-3 py-1.5 text-xs font-black bg-gray-900 text-white hover:bg-red-600 rounded-xl transition-all shadow-md active:scale-95 uppercase shrink-0"
+          >
+            ✕ Exit Fullscreen
+          </button>
+        </div>
+      )}
+
+      <div className={compareFullscreen ? "p-3 space-y-2.5" : "space-y-2.5"}>
+        {!compareFullscreen && (
+          <div className="flex justify-end !mt-0">
+            <button
+              onClick={() => setCompareFullscreen(true)}
+              className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-gray-700 bg-white border border-gray-200 shadow-sm hover:bg-gray-50 rounded-lg transition-colors"
+            >
+              ⛶ Fullscreen
+            </button>
+          </div>
+        )}
+
                       
                       {/* Quick Month Picker Section */}
                     <div className="bg-white rounded-[24px] p-3 md:p-4 border border-amber-100 shadow-sm bg-gradient-to-br from-white to-amber-50/20 max-w-full overflow-hidden">
@@ -3077,7 +3231,7 @@ invoiceDate: (() => {
                              <Calendar size={18} className="text-amber-500 shrink-0" />
                              <span className="truncate">Quick Month Picker</span>
                           </h3>
-                          <p className="text-[9px] md:text-[10px] text-gray-400 font-bold uppercase mt-1 leading-tight break-words pr-2">Select months to add as comparison periods instantly</p>
+                          <p className="text-xs md:text-xs text-gray-400 font-bold uppercase mt-1 leading-tight break-words pr-2">Select months to add as comparison periods instantly</p>
                         </div>
                         <div className="flex items-center gap-2 bg-white p-1 rounded-2xl border border-gray-100 shadow-sm self-start sm:self-auto shrink-0 max-w-full">
                            <button 
@@ -3086,7 +3240,7 @@ invoiceDate: (() => {
                              className="p-1 md:p-2 hover:bg-gray-50 rounded-xl transition-colors text-gray-400 hover:text-gray-900 disabled:opacity-20 shrink-0">
                              <ChevronLeft size={16} />
                            </button>
-                           <span className="text-[10px] sm:text-xs font-black text-gray-900 w-12 sm:w-16 text-center tabular-nums shrink-0">{selectedYear}</span>
+                           <span className="text-xs sm:text-xs font-black text-gray-900 w-12 sm:w-16 text-center tabular-nums shrink-0">{selectedYear}</span>
                            <button 
                              onClick={() => setSelectedYear(prev => Math.min(2030, prev + 1))}
                              disabled={selectedYear >= 2030}
@@ -3139,7 +3293,7 @@ invoiceDate: (() => {
                                   saveComparePreset(newPeriods);
                                 }}
                                 className={`
-                                  flex-1 min-w-[36px] sm:min-w-[42px] max-w-[60px] h-8 sm:h-10 rounded uppercase text-[9px] sm:text-[10px] font-black border transition-all flex items-center justify-center shrink-0
+                                  flex-1 min-w-[36px] sm:min-w-[42px] max-w-[60px] h-8 sm:h-10 rounded uppercase text-xs sm:text-xs font-black border transition-all flex items-center justify-center shrink-0
                                   ${!isAvailable 
                                     ? 'bg-gray-100 border-gray-100 text-gray-300 cursor-not-allowed' 
                                     : 'bg-white border-gray-200 text-gray-500 hover:border-blue-500 hover:text-blue-600 cursor-pointer'}
@@ -3151,13 +3305,13 @@ invoiceDate: (() => {
                           });
 
                           return renderedCards.length === 0 ? (
-                            <div className="w-full py-4 text-center bg-gray-50 rounded-xl border border-gray-100 text-[10px] font-black uppercase text-gray-500 tracking-widest">
+                            <div className="w-full py-4 text-center bg-gray-50 rounded-xl border border-gray-100 text-xs font-black uppercase text-gray-500 tracking-widest">
                                ✅ All months of {selectedYear} already added
                             </div>
                           ) : (
                             <div className="w-full">
                               <div className="flex flex-wrap gap-1 sm:gap-1.5 w-full">{renderedCards}</div>
-                              <div className="w-full text-[8px] sm:text-[9px] font-semibold text-gray-400 uppercase mt-2 text-right">
+                              <div className="w-full text-xs sm:text-xs font-semibold text-gray-400 uppercase mt-2 text-right">
                                 * Inactive months have no data
                               </div>
                             </div>
@@ -3171,7 +3325,7 @@ invoiceDate: (() => {
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 md:mb-8">
                         <div className="min-w-0 mb-2 sm:mb-0">
                           <h3 className="text-base md:text-2xl font-black text-gray-900 uppercase tracking-tighter truncate">Period Management</h3>
-                          <p className="text-[9px] md:text-[10px] text-gray-400 font-medium mt-1 leading-tight break-words pr-2">Manage up to 12 date ranges for deep comparative analysis</p>
+                          <p className="text-xs md:text-xs text-gray-400 font-medium mt-1 leading-tight break-words pr-2">Manage up to 12 date ranges for deep comparative analysis</p>
                         </div>
                         <div className="flex flex-wrap gap-2 relative items-center self-start sm:self-auto shrink-0 max-w-full pb-1 sm:pb-0">
                           <div className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-xl px-1.5 md:px-2 py-1 md:py-1.5 shadow-sm shrink-0">
@@ -3179,7 +3333,7 @@ invoiceDate: (() => {
                             <select 
                               value={compareFontSize} 
                               onChange={(e) => setCompareFontSize(e.target.value)}
-                              className="bg-transparent text-gray-700 text-[9px] md:text-[10px] font-bold uppercase outline-none cursor-pointer"
+                              className="bg-transparent text-gray-700 text-xs md:text-xs font-bold uppercase outline-none cursor-pointer"
                             >
                               {FONT_OPTIONS.map(opt => (
                                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -3209,15 +3363,15 @@ invoiceDate: (() => {
                           <div className="w-[1px] h-6 bg-gray-200 mx-0.5 md:mx-1 shrink-0"></div>
                           <button
                             onClick={() => setShowLoadModal(!showLoadModal)}
-                            className="flex items-center gap-1 md:gap-2 bg-white text-gray-700 border border-gray-200 px-2 md:px-3 py-1.5 md:py-2 rounded-xl text-[9px] md:text-[10px] font-black uppercase hover:bg-gray-50 transition-colors shadow-sm shrink-0"
+                            className="flex items-center gap-1 md:gap-2 bg-white text-gray-700 border border-gray-200 px-2 md:px-3 py-1.5 md:py-2 rounded-xl text-xs md:text-xs font-black uppercase hover:bg-gray-50 transition-colors shadow-sm shrink-0"
                           >
                             <Download size={14} /> Load
                           </button>
                           {showLoadModal && (
                             <div className="absolute top-10 right-24 z-50 w-64 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden p-2 flex flex-col gap-1">
-                               <h4 className="text-[10px] font-black uppercase text-gray-400 p-1 mb-1">Load Preset</h4>
+                               <h4 className="text-xs font-black uppercase text-gray-400 p-1 mb-1">Load Preset</h4>
                                {savedConfigs.length === 0 ? (
-                                   <div className="p-4 text-center text-[10px] text-gray-400 font-bold bg-gray-50 rounded-lg">No saved presets</div>
+                                   <div className="p-4 text-center text-xs text-gray-400 font-bold bg-gray-50 rounded-lg">No saved presets</div>
                                ) : (
                                    savedConfigs.map(cfg => (
                                      <button 
@@ -3226,7 +3380,7 @@ invoiceDate: (() => {
                                        className="w-full text-left p-2 text-xs font-semibold hover:bg-blue-50 hover:text-blue-600 rounded-lg group flex justify-between"
                                      >
                                          <span>{cfg.name}</span>
-                                         <span className="text-[10px] text-gray-400 group-hover:text-blue-400">{cfg.periods?.length} periods</span>
+                                         <span className="text-xs text-gray-400 group-hover:text-blue-400">{cfg.periods?.length} periods</span>
                                      </button>
                                    ))
                                )}
@@ -3234,13 +3388,13 @@ invoiceDate: (() => {
                           )}
                           <button
                             onClick={() => setShowSaveModal(!showSaveModal)}
-                            className="flex items-center gap-1 md:gap-2 bg-white text-gray-700 border border-gray-200 px-2 md:px-3 py-1.5 md:py-2 rounded-xl text-[9px] md:text-[10px] font-black uppercase hover:bg-gray-50 transition-colors shadow-sm shrink-0"
+                            className="flex items-center gap-1 md:gap-2 bg-white text-gray-700 border border-gray-200 px-2 md:px-3 py-1.5 md:py-2 rounded-xl text-xs md:text-xs font-black uppercase hover:bg-gray-50 transition-colors shadow-sm shrink-0"
                           >
                             <Save size={14} /> Save
                           </button>
                           {showSaveModal && (
                             <div className="absolute top-10 right-0 z-50 w-64 bg-white border border-gray-200 rounded-xl shadow-xl p-3 flex flex-col gap-2">
-                               <h4 className="text-[10px] font-black uppercase text-gray-400 mb-1">Save Current Periods</h4>
+                               <h4 className="text-xs font-black uppercase text-gray-400 mb-1">Save Current Periods</h4>
                                <input 
                                  type="text" 
                                  placeholder="Preset name..." 
@@ -3251,7 +3405,7 @@ invoiceDate: (() => {
                                <button 
                                  onClick={handleSaveConfig}
                                  disabled={!newConfigName.trim()}
-                                 className="bg-gray-900 text-white rounded-lg px-3 py-2 text-[10px] font-black uppercase tracking-widest disabled:opacity-50 hover:bg-blue-600 transition-colors w-full"
+                                 className="bg-gray-900 text-white rounded-lg px-3 py-2 text-xs font-black uppercase tracking-widest disabled:opacity-50 hover:bg-blue-600 transition-colors w-full"
                                >
                                   Save Preset
                                </button>
@@ -3263,7 +3417,7 @@ invoiceDate: (() => {
                                setSelectedMonths([]);
                              }}
                              disabled={periods.length === 0}
-                             className="flex items-center gap-1 md:gap-2 bg-red-50 text-red-600 px-2 md:px-3 py-1.5 md:py-2 rounded-xl text-[9px] md:text-[10px] font-black uppercase hover:bg-red-100 transition-colors shadow-sm disabled:opacity-30 shrink-0">
+                             className="flex items-center gap-1 md:gap-2 bg-red-50 text-red-600 px-2 md:px-3 py-1.5 md:py-2 rounded-xl text-xs md:text-xs font-black uppercase hover:bg-red-100 transition-colors shadow-sm disabled:opacity-30 shrink-0">
                             <Trash2 size={14} /> Clear All
                           </button>
                           <button 
@@ -3283,7 +3437,7 @@ invoiceDate: (() => {
                                }
                              }}
                              disabled={periods.length >= 12}
-                             className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-all shadow-md disabled:opacity-30">
+                             className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-600 transition-all shadow-md disabled:opacity-30">
                             <Plus size={16} />
                             Add Period
                           </button>
@@ -3310,7 +3464,7 @@ const toDate = hasNoDates ? null : (() => { const x = p.to.split('-'); return ne
                                  <div className="flex items-center gap-2 relative">
                                    <div 
                                      onClick={() => isCompact && setColorPopoverIdx(colorPopoverIdx === idx ? null : idx)}
-                                     className={`w-6 h-6 rounded-xl flex items-center justify-center font-black text-white text-[10px] shadow-md ${isCompact ? 'cursor-pointer hover:ring-2 hover:ring-offset-1 hover:ring-gray-300' : ''}`}
+                                     className={`w-6 h-6 rounded-xl flex items-center justify-center font-black text-white text-xs shadow-md ${isCompact ? 'cursor-pointer hover:ring-2 hover:ring-offset-1 hover:ring-gray-300' : ''}`}
                                      style={{ backgroundColor: p.color }}
                                    >
                                      {idx + 1}
@@ -3342,7 +3496,7 @@ const toDate = hasNoDates ? null : (() => { const x = p.to.split('-'); return ne
                                            up[idx].label = e.target.value;
                                            saveComparePreset(up);
                                         }}
-                                        className={`bg-transparent border-none font-black text-gray-900 uppercase tracking-tight text-[10px] focus:outline-none ${isCompact ? 'w-20' : 'w-24'}`}
+                                        className={`bg-transparent border-none font-black text-gray-900 uppercase tracking-tight text-xs focus:outline-none ${isCompact ? 'w-20' : 'w-24'}`}
                                       />
                                       <input 
                                         type="text" 
@@ -3353,15 +3507,15 @@ const toDate = hasNoDates ? null : (() => { const x = p.to.split('-'); return ne
                                            up[idx].description = e.target.value;
                                            saveComparePreset(up);
                                         }}
-                                        className={`bg-transparent border-none font-medium text-gray-500 tracking-tight text-[9px] mt-0.5 focus:outline-none ${isCompact ? 'w-20' : 'w-24'}`}
+                                        className={`bg-transparent border-none font-medium text-gray-500 tracking-tight text-xs mt-0.5 focus:outline-none ${isCompact ? 'w-20' : 'w-24'}`}
                                       />
                                       {!isCompact && (
                                           <div className="flex gap-1 mt-1">
-                                            <span className={`text-[8px] font-black uppercase px-1 rounded-sm ${isMonth ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'}`}>
+                                            <span className={`text-xs font-black uppercase px-1 rounded-sm ${isMonth ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'}`}>
                                               {isMonth ? '📅 Month' : '✏️ Custom'}
                                             </span>
                                             {!hasData && !hasNoDates && (
-                                              <span className="text-[8px] font-black uppercase px-1 rounded-sm bg-red-100 text-red-600 flex items-center gap-0.5">
+                                              <span className="text-xs font-black uppercase px-1 rounded-sm bg-red-100 text-red-600 flex items-center gap-0.5">
                                                 <AlertCircle size={8} /> No Data
                                               </span>
                                             )}
@@ -3383,7 +3537,7 @@ const toDate = hasNoDates ? null : (() => { const x = p.to.split('-'); return ne
 
                                <div className={isCompact ? "flex flex-col gap-1 mt-2" : "space-y-3"}>
                                  <div className={isCompact ? "flex flex-col" : ""}>
-                                   {!isCompact && <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">Start Date</label>}
+                                   {!isCompact && <label className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 block">Start Date</label>}
                                    <input 
                                      type="date" 
                                      value={p.from}
@@ -3392,11 +3546,11 @@ const toDate = hasNoDates ? null : (() => { const x = p.to.split('-'); return ne
                                         up[idx].from = e.target.value;
                                         saveComparePreset(up);
                                      }}
-                                     className="w-full bg-white border border-gray-200 rounded-xl px-2 py-1 text-[10px] font-semibold focus:border-blue-500 outline-none"
+                                     className="w-full bg-white border border-gray-200 rounded-xl px-2 py-1 text-xs font-semibold focus:border-blue-500 outline-none"
                                    />
                                  </div>
                                  <div className={isCompact ? "flex flex-col" : ""}>
-                                   {!isCompact && <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">End Date</label>}
+                                   {!isCompact && <label className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 block">End Date</label>}
                                    <input 
                                      type="date" 
                                      value={p.to}
@@ -3405,7 +3559,7 @@ const toDate = hasNoDates ? null : (() => { const x = p.to.split('-'); return ne
                                         up[idx].to = e.target.value;
                                         saveComparePreset(up);
                                      }}
-                                     className="w-full bg-white border border-gray-200 rounded-xl px-2 py-1 text-[10px] font-semibold focus:border-blue-500 outline-none"
+                                     className="w-full bg-white border border-gray-200 rounded-xl px-2 py-1 text-xs font-semibold focus:border-blue-500 outline-none"
                                    />
                                  </div>
                                  {!isCompact ? (
@@ -3441,7 +3595,7 @@ const toDate = hasNoDates ? null : (() => { const x = p.to.split('-'); return ne
                                <Calendar size={48} className="mx-auto mb-4 text-gray-300" />
                                <p className="font-black text-gray-900 uppercase text-lg tracking-widest">No periods selected yet</p>
                                <p className="text-sm text-gray-400 mt-2 font-medium">Use the Quick Month Picker or "+ Add Period" to get started</p>
-                               <p className="text-[11px] font-black text-gray-500 bg-gray-100 inline-block px-4 py-1.5 rounded-full mt-4 uppercase tracking-widest">You need at least 2 periods to begin comparison</p>
+                               <p className="text-xs font-black text-gray-500 bg-gray-100 inline-block px-4 py-1.5 rounded-full mt-4 uppercase tracking-widest">You need at least 2 periods to begin comparison</p>
                             </div>
                           );
                         }
@@ -3474,14 +3628,14 @@ const to = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
                             data: pData,
                             empty: false,
                             metrics: {
-                              netQty:      pData.reduce((s,r) => s + r.netQty, 0),
-                              netValue:    pData.reduce((s,r) => s + r.netValue, 0),
+                              salesQty:    pData.reduce((s,r) => s + (r.salesQty || 0), 0),
+                              salesValue:  pData.reduce((s,r) => s + (r.salesValue || 0), 0),
                               invoices:    invoices,
                               customers:   new Set(pData.map(r => r.customerName)).size,
                               mrs:         new Set(pData.map(r => r.mrName)).size,
-                              returnQty:   pData.reduce((s,r) => s + Math.abs(r.returnQty), 0),
-                              returnValue: pData.reduce((s,r) => s + Math.abs(r.returnValue), 0),
-                              avgInvoice:  invoices > 0 ? pData.reduce((s,r) => s + r.netValue, 0) / invoices : 0
+                              returnQty:   pData.reduce((s,r) => s + Math.abs(r.returnQty || 0), 0),
+                              returnValue: pData.reduce((s,r) => s + Math.abs(r.returnValue || 0), 0),
+                              avgInvoice:  invoices > 0 ? pData.reduce((s,r) => s + (r.salesValue || 0), 0) / invoices : 0
                             }
                           };
                         });
@@ -3511,14 +3665,12 @@ const to = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
                         }
 
                         const metricsList = [
-                          { key: 'netQty', label: 'Net Quantity', format: 'num' },
-                          { key: 'netValue', label: 'Net Value (EGP)', format: 'val' },
+                          { key: 'salesQty', label: 'Sales Quantity', format: 'num' },
+                          { key: 'salesValue', label: 'Sales Value (EGP)', format: 'val' },
                           { key: 'invoices', label: 'Total Invoices', format: 'num' },
                           { key: 'customers', label: 'Active Customers', format: 'num' },
                           { key: 'mrs', label: 'Active SRs', format: 'num' },
                           { key: 'avgInvoice', label: 'Avg Invoice Value', format: 'val' },
-                          { key: 'returnQty', label: 'Return Quantity', format: 'num' },
-                          { key: 'returnValue', label: 'Return Value (EGP)', format: 'val' }
                         ];
 
                         return (
@@ -3526,7 +3678,7 @@ const to = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
                             {emptyPeriods.length > 0 && (
                               <div className="bg-amber-50 border border-amber-200 rounded-2xl px-6 py-3 flex items-center gap-3 animate-in slide-in-from-top-2">
                                  <AlertCircle size={18} className="text-amber-600" />
-                                 <p className="text-[10px] font-bold text-amber-700">
+                                 <p className="text-xs font-bold text-amber-700">
                                    ⚠️ {emptyPeriods.length} of {rawCalculations.length} periods have no data and are excluded: 
                                    <span className="ml-2 font-black uppercase tracking-tight">{emptyPeriods.map(p => p.label).join(', ')}</span>
                                  </p>
@@ -3543,7 +3695,7 @@ const to = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
                                    <div className="flex flex-col">
                                      <h4 className="text-lg font-black text-gray-900 uppercase tracking-tight">Metrics Comparison</h4>
                                      {compareCollapsed.metrics && (
-                                       <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight mt-1">Summary view across {periodCalculations.length} periods</p>
+                                       <p className="text-xs text-gray-500 font-bold uppercase tracking-tight mt-1">Summary view across {periodCalculations.length} periods</p>
                                      )}
                                    </div>
                                    <div className="flex items-center gap-4">
@@ -3551,11 +3703,11 @@ const to = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
                                        <>
                                          <div className="flex items-center gap-1.5 hidden md:flex">
                                             <div className="w-2 h-2 bg-emerald-500 rounded-full" />
-                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Highest</span>
+                                            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Highest</span>
                                          </div>
                                          <div className="flex items-center gap-1.5 hidden md:flex">
                                             <div className="w-2 h-2 bg-red-400 rounded-full" />
-                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Lowest</span>
+                                            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Lowest</span>
                                          </div>
                                        </>
                                      )}
@@ -3567,16 +3719,16 @@ const to = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
                                </div>
 
                                {!compareCollapsed.metrics && (
-                               <div className="overflow-x-auto">
-                                 <table className={`w-full ${compareFontSize} border-collapse min-w-[800px]`}>
+                               <div className="overflow-x-hidden">
+                             <table className={`w-full ${compareFontSize} border-collapse min-w-full`}>
                                    <thead>
                                      <tr className="bg-gray-50">
                                        <th className="px-6 py-3 text-left font-black text-gray-400 uppercase tracking-[0.2em] sticky left-0 bg-gray-50 z-20 shadow-[2px_0_5px_rgba(0,0,0,0.05)] border-r border-gray-100">Metric</th>
                                        {periodCalculations.map(p => (
                                          <th key={p.id} className="px-4 py-3 text-center border-r border-gray-50 last:border-0 min-w-[140px]">
                                            <div className="flex flex-col items-center">
-                                             <span className="font-black text-gray-900 uppercase tracking-tighter" style={{ color: p.color }}>{p.label}</span>
-                                             <span className="text-[9px] text-gray-400 font-medium whitespace-nowrap">{new Date(p.from).toLocaleDateString('en-GB', { month:'short', year:'2-digit' })} → {new Date(p.to).toLocaleDateString('en-GB', { month:'short', year:'2-digit' })}</span>
+                                             <span className="font-black text-gray-900 uppercase tracking-tighter" style={{ color: p?.color || '#3B82F6' }}>{p?.label || '—'}</span>
+                                             <span className="text-xs text-gray-400 font-medium whitespace-nowrap">{p?.from ? new Date(p.from).toLocaleDateString('en-GB', { month:'short', year:'2-digit' }) : '...'} → {p?.to ? new Date(p.to).toLocaleDateString('en-GB', { month:'short', year:'2-digit' }) : '...'}</span>
                                            </div>
                                          </th>
                                        ))}
@@ -3586,10 +3738,11 @@ const to = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
                                    </thead>
                                    <tbody>
                                      {metricsList.map(m => {
-                                        const values = periodCalculations.map(pc => pc.metrics ? pc.metrics[m.key] : 0);
-                                        const maxVal = Math.max(...values);
-                                        const minVal = Math.min(...values);
-                                        const bestIdx = values.indexOf(maxVal);
+                                        const values = periodCalculations.map(pc => pc?.metrics ? pc.metrics[m.key] : 0);
+                                        const hasValues = values.some(v => v !== 0 && !isNaN(v));
+                                        const maxVal = hasValues ? Math.max(...values) : 0;
+                                        const minVal = hasValues ? Math.min(...values) : 0;
+                                        const bestIdx = hasValues ? values.indexOf(maxVal) : -1;
                                         const trend = values[0] < values[values.length - 1] ? 'up' : values[0] > values[values.length - 1] ? 'down' : 'stable';
                                         const pctTotalChange = values[0] === 0 ? 0 : ((values[values.length-1] - values[0]) / values[0]) * 100;
 
@@ -3608,16 +3761,20 @@ const to = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
                                               );
                                             })}
                                             <td className="px-4 py-2.5 text-center border-l border-gray-100">
-                                              <span className="inline-block text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter whitespace-nowrap" style={{ backgroundColor: periodCalculations[bestIdx].color }}>
-                                                {periodCalculations[bestIdx].label}
-                                              </span>
+                                              {bestIdx !== -1 ? (
+                                                <span className="inline-block text-white text-xs font-black px-2 py-0.5 rounded-full uppercase tracking-tighter whitespace-nowrap" style={{ backgroundColor: periodCalculations[bestIdx]?.color || '#ccc' }}>
+                                                  {periodCalculations[bestIdx]?.label || '—'}
+                                                </span>
+                                              ) : (
+                                                <span className="text-gray-300 font-bold">—</span>
+                                              )}
                                             </td>
                                             <td className="px-4 py-2.5 text-center min-w-[100px]">
                                               <div className="flex flex-col items-center">
-                                                <span className={`text-[12px] font-bold leading-none ${trend === 'up' ? 'text-emerald-500' : trend === 'down' ? 'text-red-500' : 'text-gray-400'}`}>
+                                                <span className={`text-xs font-bold leading-none ${trend === 'up' ? 'text-emerald-500' : trend === 'down' ? 'text-red-500' : 'text-gray-400'}`}>
                                                   {trend === 'up' ? '↗' : trend === 'down' ? '↘' : '→'}
                                                 </span>
-                                                <span className={`text-[9px] font-black ${trend === 'up' ? 'text-emerald-500' : trend === 'down' ? 'text-red-500' : 'text-gray-400'}`}>
+                                                <span className={`text-xs font-black ${trend === 'up' ? 'text-emerald-500' : trend === 'down' ? 'text-red-500' : 'text-gray-400'}`}>
                                                   {pctTotalChange > 0 ? '+' : ''}{formatKpiPercent(pctTotalChange)}
                                                 </span>
                                               </div>
@@ -3639,9 +3796,9 @@ const to = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
                                   onClick={() => toggleCompareCollapse('popShift')}
                                 >
                                   <div>
-                                    <h4 className="text-[10px] font-black text-gray-900 uppercase tracking-widest">Period-over-Period Shift</h4>
+                                    <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest">Period-over-Period Shift</h4>
                                     {compareCollapsed.popShift && (
-                                      <p className="text-[9px] text-gray-500 font-bold uppercase tracking-tight mt-1">Growth rates between adjacent periods</p>
+                                      <p className="text-xs text-gray-500 font-bold uppercase tracking-tight mt-1">Growth rates between adjacent periods</p>
                                     )}
                                   </div>
                                   <button className="flex items-center justify-center p-1.5 rounded-full hover:bg-gray-200 text-gray-500 transition-colors">
@@ -3655,12 +3812,12 @@ const to = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
                                        <p className={`font-black text-gray-900 uppercase tracking-tight mb-3 ${compareFontSize}`}>{m.label}</p>
                                        <div className="flex gap-4">
                                           {periodCalculations.slice(0, -1).map((p, i) => {
-                                             const v1 = p.metrics?.[m.key] || 0;
-                                             const v2 = periodCalculations[i+1].metrics?.[m.key] || 0;
+                                             const v1 = p?.metrics?.[m.key] || 0;
+                                             const v2 = periodCalculations[i+1]?.metrics?.[m.key] || 0;
                                              const chg = v1 === 0 ? 0 : ((v2 - v1) / v1) * 100;
                                              return (
                                                <div key={i} className="flex-1 flex flex-col items-center justify-center p-3 rounded-xl bg-white border border-gray-200 hover:border-gray-300 shadow-sm transition-colors">
-                                                  <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1 truncate max-w-[80px] text-center">{p.label} → {periodCalculations[i+1].label}</span>
+                                                  <span className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1 truncate max-w-[80px] text-center">{p?.label || '—'} → {periodCalculations[i+1]?.label || '—'}</span>
                                                   <span className={`font-black font-mono tracking-tight ${compareFontSize} ${chg >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
                                                     {chg >= 0 ? '+' : ''}{formatKpiPercent(chg)}
                                                   </span>
@@ -3680,9 +3837,9 @@ const to = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
                                   onClick={() => toggleCompareCollapse('insights')}
                                 >
                                   <div>
-                                    <h4 className="text-[10px] font-black text-gray-900 uppercase tracking-widest">Multi-Period Insights</h4>
+                                    <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest">Multi-Period Insights</h4>
                                     {compareCollapsed.insights && (
-                                      <p className="text-[9px] text-gray-500 font-bold uppercase tracking-tight mt-1">Auto-generated performance analysis</p>
+                                      <p className="text-xs text-gray-500 font-bold uppercase tracking-tight mt-1">Auto-generated performance analysis</p>
                                     )}
                                   </div>
                                   <button className="flex items-center justify-center p-1.5 rounded-full hover:bg-gray-200 text-gray-500 transition-colors">
@@ -3696,37 +3853,35 @@ const to = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
                                       const insights = [];
                                       const netValM = metricsList.find(m => m.key === 'netValue');
                                       const netQtyM = metricsList.find(m => m.key === 'netQty');
-                                      const values = periodCalculations.map(pc => pc.metrics.netValue);
-                                      const qtyValues = periodCalculations.map(pc => pc.metrics.netQty);
+                                      const values = periodCalculations.map(pc => pc?.metrics?.netValue || 0);
+                                      const qtyValues = periodCalculations.map(pc => pc?.metrics?.netQty || 0);
                                       
-                                      const totalGrowth = ((values[values.length-1] - values[0]) / values[0]) * 100;
-                                      if (values.every((v, i) => i === 0 || v >= values[i-1])) {
+                                      const totalGrowth = values[0] === 0 ? 0 : ((values[values.length-1] - values[0]) / values[0]) * 100;
+                                      if (values.every((v, i) => i === 0 || v >= values[i-1]) && values.some(v => v > 0)) {
                                         insights.push({ icon: '📈', text: `Net Value grew consistently across all periods (+${formatKpiPercent(totalGrowth)} total)`, type: 'success' });
-                                      } else if (values.every((v, i) => i === 0 || v <= values[i-1])) {
+                                      } else if (values.every((v, i) => i === 0 || v <= values[i-1]) && values.some(v => v > 0)) {
                                         insights.push({ icon: '📉', text: `Net Value declined steadily across all periods (${formatKpiPercent(totalGrowth)} total drop)`, type: 'danger' });
-                                      } else {
+                                      } else if (values.some(v => v !== 0)) {
                                         insights.push({ icon: '📊', text: `Overall value trend is ${totalGrowth >= 0 ? 'Positive' : 'Negative'} with a ${formatKpiPercent(totalGrowth)} shift from start to end.`, type: 'info' });
                                       }
 
-                                      const maxV = Math.max(...values);
-                                      const maxP = periodCalculations[values.indexOf(maxV)];
-                                      insights.push({ icon: '🏆', text: `Highest performing period is ${maxP.label} with ${formatKpiGrouped(maxV)} EGP in Net Value.`, type: 'success' });
-
-                                      const retValues = periodCalculations.map(pc => pc.metrics.returnQty);
-                                      const maxRet = Math.max(...retValues);
-                                      if (maxRet > 0) {
-                                         const maxRetP = periodCalculations[retValues.indexOf(maxRet)];
-                                         insights.push({ icon: '⚠️', text: `Return volume peaked in ${maxRetP.label} (${formatKpiGrouped(maxRet)} units).`, type: 'warning' });
+                                      const maxV = values.length > 0 ? Math.max(...values) : 0;
+                                      const bestIdx = values.length > 0 ? values.indexOf(maxV) : -1;
+                                      const maxP = bestIdx !== -1 ? periodCalculations[bestIdx] : null;
+                                      if (maxP && maxV > 0) {
+                                        insights.push({ icon: '🏆', text: `Highest performing period is ${maxP.label} with ${formatKpiGrouped(maxV)} EGP in Net Value.`, type: 'success' });
                                       }
 
-                                      const custValues = periodCalculations.map(pc => pc.metrics.customers);
-                                      const custGrowth = ((custValues[custValues.length-1] - custValues[0]) / custValues[0]) * 100;
-                                      insights.push({ icon: '👥', text: `Customer base ${custGrowth >= 0 ? 'expanded' : 'contracted'} from ${custValues[0]} to ${custValues[custValues.length-1]} total active customers.`, type: 'info' });
+                                      const custValues = periodCalculations.map(pc => pc?.metrics?.customers || 0);
+                                      const custGrowth = custValues[0] === 0 ? 0 : ((custValues[custValues.length-1] - custValues[0]) / custValues[0]) * 100;
+                                      if (custValues.some(v => v > 0)) {
+                                        insights.push({ icon: '👥', text: `Customer base ${custGrowth >= 0 ? 'expanded' : 'contracted'} from ${custValues[0]} to ${custValues[custValues.length-1]} total active customers.`, type: 'info' });
+                                      }
 
                                       return insights.map((ins, i) => (
                                         <div key={i} className="flex gap-2 p-4 rounded-2xl bg-gray-50 border border-gray-100 hover:scale-[1.02] transition-all group">
                                            <span className="text-xl group-hover:scale-125 transition-transform">{ins.icon}</span>
-                                           <p className="text-[10px] font-bold text-gray-700 leading-relaxed self-center">{ins.text}</p>
+                                           <p className="text-xs font-bold text-gray-700 leading-relaxed self-center">{ins.text}</p>
                                         </div>
                                       ));
                                    })()}
@@ -3743,9 +3898,9 @@ const to = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
                                   onClick={() => toggleCompareCollapse('volumeChart')}
                                 >
                                   <div>
-                                    <h4 className="text-[10px] font-black text-gray-900 uppercase tracking-widest">Metric Volume Comparison</h4>
+                                    <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest">Metric Volume Comparison</h4>
                                     {compareCollapsed.volumeChart && (
-                                      <p className="text-[9px] text-gray-500 font-bold uppercase tracking-tight mt-1">Bar chart view of key metrics</p>
+                                      <p className="text-xs text-gray-500 font-bold uppercase tracking-tight mt-1">Bar chart view of key metrics</p>
                                     )}
                                   </div>
                                   <button className="flex items-center justify-center p-1.5 rounded-full hover:bg-gray-200 text-gray-500 transition-colors">
@@ -3756,8 +3911,7 @@ const to = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
                                 <div className="h-[350px] p-4">
                                   <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={[
-                                      { metric: 'Net Qty', ...periodCalculations.reduce((acc, p) => ({ ...acc, [p.label]: p.metrics.netQty }), {}) },
-                                      { metric: 'Returns', ...periodCalculations.reduce((acc, p) => ({ ...acc, [p.label]: p.metrics.returnQty }), {}) }
+                                      { metric: 'Sales Qty', ...periodCalculations.reduce((acc, p) => ({ ...acc, [p?.label || p.id]: p.metrics?.salesQty || 0 }), {}) },
                                     ]}>
                                       <XAxis dataKey="metric" fontSize={10} axisLine={false} tickLine={false} />
                                       <YAxis fontSize={10} axisLine={false} tickLine={false} />
@@ -3781,9 +3935,9 @@ const to = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
                                   onClick={() => toggleCompareCollapse('trendChart')}
                                 >
                                   <div>
-                                    <h4 className="text-[10px] font-black text-gray-900 uppercase tracking-widest">Value Trend Across Periods</h4>
+                                    <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest">Value Trend Across Periods</h4>
                                     {compareCollapsed.trendChart && (
-                                      <p className="text-[9px] text-gray-500 font-bold uppercase tracking-tight mt-1">Line chart of net value progression</p>
+                                      <p className="text-xs text-gray-500 font-bold uppercase tracking-tight mt-1">Line chart of net value progression</p>
                                     )}
                                   </div>
                                   <button className="flex items-center justify-center p-1.5 rounded-full hover:bg-gray-200 text-gray-500 transition-colors">
@@ -3793,7 +3947,7 @@ const to = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
                                 {!compareCollapsed.trendChart && (
                                 <div className="h-[350px] p-4">
                                   <ResponsiveContainer width="100%" height="100%">
-                                    <LineChart data={periodCalculations.map(p => ({ period: p.label, value: p.metrics.netValue }))}>
+                                    <LineChart data={periodCalculations.map(p => ({ period: p?.label || '—', value: p?.metrics?.netValue || 0 }))}>
                                       <XAxis dataKey="period" fontSize={10} axisLine={false} tickLine={false} />
                                       <YAxis fontSize={10} axisLine={false} tickLine={false} />
                                       <Tooltip 
@@ -3818,10 +3972,10 @@ const to = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
                                     <div>
                                       <h4 className="text-xl font-black text-gray-900 uppercase tracking-tighter">Performance Analysis</h4>
                                       {compareCollapsed.perfAnalysis && (
-                                        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight mt-1">Cross-period breakdown table by {perfDimension}</p>
+                                        <p className="text-xs text-gray-500 font-bold uppercase tracking-tight mt-1">Cross-period breakdown table by {perfDimension}</p>
                                       )}
                                       {!compareCollapsed.perfAnalysis && (
-                                        <p className="text-[10px] text-gray-400 font-bold uppercase mt-1">Cross-period breakdown by {perfDimension}</p>
+                                        <p className="text-xs text-gray-400 font-bold uppercase mt-1">Cross-period breakdown by {perfDimension}</p>
                                       )}
                                     </div>
                                     <button className="flex items-center justify-center p-1.5 rounded-full hover:bg-gray-200 text-gray-500 transition-colors">
@@ -3835,7 +3989,7 @@ const to = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
                                   {/* Selectors Row */}
                                   <div className="flex flex-wrap items-center justify-between gap-6">
                                      <div className="space-y-2">
-                                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">Analyze By Dimension</label>
+                                        <label className="text-xs font-black text-gray-400 uppercase tracking-widest block">Analyze By Dimension</label>
                                         <div className="flex p-1 bg-gray-100 rounded-2xl">
                                            {Object.keys(DIMENSIONS).map(d => (
                                              <button 
@@ -3845,7 +3999,7 @@ const to = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
                                                  setPerfSortKey('total');
                                                  setPerfSortDir('desc');
                                                }}
-                                               className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${perfDimension === d ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                               className={`px-4 py-2 rounded-xl text-xs font-black uppercase transition-all ${perfDimension === d ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
                                              >
                                                {d}
                                              </button>
@@ -3854,12 +4008,11 @@ const to = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
                                      </div>
 
                                      <div className="space-y-2">
-                                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">Metric Visualization</label>
+                                        <label className="text-xs font-black text-gray-400 uppercase tracking-widest block">Metric Visualization</label>
                                         <div className="flex p-1 bg-gray-100 rounded-2xl">
                                            {[
                                              { key: 'netQty', label: 'Units' },
                                              { key: 'netValue', label: 'Value' },
-                                             { key: 'returnQty', label: 'Returns' },
                                              { key: 'invoices', label: 'Invoices' }
                                            ].map(m => (
                                              <button 
@@ -3869,7 +4022,7 @@ const to = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
                                                  setPerfSortKey('total');
                                                  setPerfSortDir('desc');
                                                }}
-                                               className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${perfMetric === m.key ? 'bg-blue-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
+                                               className={`px-4 py-2 rounded-xl text-xs font-black uppercase transition-all ${perfMetric === m.key ? 'bg-blue-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
                                              >
                                                {m.label}
                                              </button>
@@ -3878,7 +4031,7 @@ const to = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
                                      </div>
 
                                      <div className="space-y-2">
-                                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">Chart Type</label>
+                                        <label className="text-xs font-black text-gray-400 uppercase tracking-widest block">Chart Type</label>
                                         <div className="flex p-1 bg-gray-100 rounded-2xl">
                                            {[
                                              { key: 'bar', icon: BarChart3, label: 'Bar' },
@@ -3890,7 +4043,7 @@ const to = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
                                                className={`px-3 py-2 rounded-xl transition-all flex items-center gap-2 ${perfChartType === t.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
                                              >
                                                <t.icon size={14} />
-                                               <span className="text-[10px] font-black uppercase">{t.label}</span>
+                                               <span className="text-xs font-black uppercase">{t.label}</span>
                                              </button>
                                            ))}
                                         </div>
@@ -3904,20 +4057,20 @@ const to = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
                                              placeholder={`Search ${perfDimension}...`}
                                              value={perfSearch}
                                              onChange={e => setPerfSearch(e.target.value)}
-                                             className="w-full bg-gray-50 border border-gray-100 rounded-2xl pl-12 pr-4 py-3 text-[10px] font-bold outline-none focus:border-blue-300 focus:bg-white transition-all"
+                                             className="w-full bg-gray-50 border border-gray-100 rounded-2xl pl-12 pr-4 py-3 text-xs font-bold outline-none focus:border-blue-300 focus:bg-white transition-all"
                                            />
                                         </div>
                                         <div className="flex gap-1">
                                           <button 
                                             onClick={() => setPerfSelectedItems(rows.map(r => r.name))}
-                                            className="px-3 py-3 rounded-2xl bg-gray-50 border border-gray-100 text-[9px] font-black uppercase text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-all shadow-sm"
+                                            className="px-3 py-3 rounded-2xl bg-gray-50 border border-gray-100 text-xs font-black uppercase text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-all shadow-sm"
                                             title="Select All Visible"
                                           >
                                             Select All
                                           </button>
                                           <button 
                                             onClick={() => setPerfSelectedItems([])}
-                                            className="px-3 py-3 rounded-2xl bg-gray-50 border border-gray-100 text-[9px] font-black uppercase text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-all shadow-sm"
+                                            className="px-3 py-3 rounded-2xl bg-gray-50 border border-gray-100 text-xs font-black uppercase text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-all shadow-sm"
                                             title="Deselect All"
                                           >
                                             Clear
@@ -3999,13 +4152,13 @@ const to = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
                                         {rows.length > 0 && (
                                           <div className="h-[300px] mb-6 border border-gray-100 rounded-[24px] p-4 bg-gray-50/20 shadow-sm relative">
                                             <div className="flex justify-between items-center mb-4">
-                                               <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                               <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">
                                                   {perfSelectedItems.length > 0 ? `Selected items (${perfSelectedItems.length})` : 'Top 10 Performance Chart'}
                                                </h4>
                                                {perfSelectedItems.length > 0 && (
                                                   <button 
                                                     onClick={() => setPerfSelectedItems([])}
-                                                    className="text-[9px] font-black text-emerald-600 uppercase hover:underline"
+                                                    className="text-xs font-black text-emerald-600 uppercase hover:underline"
                                                   >
                                                      Reset to Top 10
                                                   </button>
@@ -4065,11 +4218,11 @@ const to = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
                                           </div>
                                         )}
                                         
-                                        <div className="overflow-x-auto rounded-3xl border border-gray-100">
-                                           <table className="w-full text-[10px] text-left border-collapse">
+                                        <div className="overflow-x-hidden rounded-3xl border border-gray-100">
+                                           <table className="w-full text-xs text-left border-collapse">
                                               <thead className="bg-gray-50">
                                                  <tr>
-                                                    <th className="px-6 py-4 font-black uppercase text-gray-400 text-[10px] w-12 bg-gray-50 sticky left-0 z-20 border-r border-gray-100">
+                                                    <th className="px-6 py-4 font-black uppercase text-gray-400 text-xs w-12 bg-gray-50 sticky left-0 z-20 border-r border-gray-100">
                                                        <input 
                                                           type="checkbox"
                                                           checked={perfSelectedItems.length === rows.length && rows.length > 0}
@@ -4086,7 +4239,7 @@ const to = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
                                                       currentKey={perfSortKey} 
                                                       dir={perfSortDir} 
                                                       onSort={(k,d) => { setPerfSortKey(k); setPerfSortDir(d); }}
-                                                      className="px-6 py-4 font-black uppercase text-gray-900 text-[10px] sticky left-12 bg-gray-50 z-20 shadow-[2px_0_5px_rgba(0,0,0,0.03)] border-r border-gray-100"
+                                                      className="px-6 py-4 font-black uppercase text-gray-900 text-xs sticky left-12 bg-gray-50 z-20 shadow-[2px_0_5px_rgba(0,0,0,0.03)] border-r border-gray-100"
                                                     />
                                                     {periodCalculations.map(p => (
                                                       <SortableTH 
@@ -4107,9 +4260,9 @@ const to = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
                                                       onSort={(k,d) => { setPerfSortKey(k); setPerfSortDir(d); }}
                                                       className="px-6 py-4 text-right bg-blue-50/50"
                                                     />
-                                                    <th className="px-6 py-4 text-right font-black uppercase text-gray-400 text-[10px]">Avg</th>
-                                                    <th className="px-6 py-4 text-center font-black uppercase text-gray-400 text-[10px]">Best</th>
-                                                    <th className="px-6 py-4 text-center font-black uppercase text-gray-400 text-[10px]">Trend</th>
+                                                    <th className="px-6 py-4 text-right font-black uppercase text-gray-400 text-xs">Avg</th>
+                                                    <th className="px-6 py-4 text-center font-black uppercase text-gray-400 text-xs">Best</th>
+                                                    <th className="px-6 py-4 text-center font-black uppercase text-gray-400 text-xs">Trend</th>
                                                  </tr>
                                               </thead>
                                               <tbody>
@@ -4133,7 +4286,7 @@ const to = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
                                                           }}
                                                           className={`border-b border-gray-50 transition-colors group cursor-pointer ${perfSelectedItems.includes(row.name) ? 'bg-emerald-50/20' : 'hover:bg-yellow-50/40'}`}
                                                        >
-                                                          <td className="px-6 py-2.5 font-black uppercase text-gray-400 text-[10px] w-12 bg-white sticky left-0 z-10 border-r border-gray-100 group-hover:bg-yellow-50/60">
+                                                          <td className="px-6 py-2.5 font-black uppercase text-gray-400 text-xs w-12 bg-white sticky left-0 z-10 border-r border-gray-100 group-hover:bg-yellow-50/60">
                                                             <div className="flex items-center gap-2">
                                                               {rank}
                                                               {rank === 1 && '🥇'}
@@ -4161,13 +4314,13 @@ const to = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
                                                           </td>
                                                           <td className="px-6 py-2.5 text-center">
                                                             {row.bestPeriod ? (
-                                                              <span className="inline-block px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tighter" style={{ backgroundColor: row.bestPeriod.color + '20', color: row.bestPeriod.color }}>
-                                                                {row.bestPeriod.label}
+                                                              <span className="inline-block px-2 py-0.5 rounded-md text-xs font-black uppercase tracking-tighter" style={{ backgroundColor: (row.bestPeriod.color || '#ccc') + '20', color: row.bestPeriod.color || '#666' }}>
+                                                                {row.bestPeriod.label || '—'}
                                                               </span>
                                                             ) : '—'}
                                                           </td>
                                                           <td className="px-6 py-2.5 text-center">
-                                                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black ${row.trendPct > 0 ? 'bg-emerald-100 text-emerald-700' : row.trendPct < 0 ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
+                                                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-black ${row.trendPct > 0 ? 'bg-emerald-100 text-emerald-700' : row.trendPct < 0 ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
                                                               {row.trendPct > 0 ? '▲' : row.trendPct < 0 ? '▼' : '—'}
                                                               {formatKpi(Math.abs(row.trendPct))}%
                                                             </span>
@@ -4180,8 +4333,8 @@ const to = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
                                            </table>
                                         </div>
                                         <div className="flex justify-between items-center px-2">
-                                           <p className="text-[10px] font-bold text-gray-400 tracking-widest uppercase">Showing sorted breakdown by {perfSortKey === 'total' ? 'Overall Total' : perfSortKey} {perfSortDir}</p>
-                                           <p className="text-[10px] font-bold text-gray-400 tracking-widest uppercase">Scroll horizontally to view all periods</p>
+                                           <p className="text-xs font-bold text-gray-400 tracking-widest uppercase">Showing sorted breakdown by {perfSortKey === 'total' ? 'Overall Total' : perfSortKey} {perfSortDir}</p>
+                                           <p className="text-xs font-bold text-gray-400 tracking-widest uppercase">Scroll horizontally to view all periods</p>
                                         </div>
                                       </>
                                     );
@@ -4195,6 +4348,7 @@ const to = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
                     })()}
                     </div>
                   </div>
+                </FullscreenWrapper>
               )}
               {activeTab === 'Reports' && (
                 <ReportsTab data={filteredData} filterOptions={filterOptions} filters={filters} />
@@ -4203,6 +4357,11 @@ const to = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
           </div>
         </div>
       </div>
+      <footer className="px-6 py-4 bg-white border-t border-gray-100 shrink-0 text-center">
+        <p className="text-[10px] font-black text-gray-300 uppercase tracking-[0.3em]">
+          ATR Sales Analyzer • v{APP_VERSION.version} • {APP_VERSION.label}
+        </p>
+      </footer>
     </div>
   );
 };
