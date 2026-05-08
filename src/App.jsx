@@ -10,6 +10,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import CallDetailingAnalyzer from './tools/CallDetailingAnalyzer';
 import SalesAnalyzer from './tools/SalesAnalyzer';
+import PerCustomerAnalyzer from './tools/PerCustomerAnalyzer';
 import RoutingAnalyzer from './tools/RoutingAnalyzer';
 import SalesForecastTool from './tools/SalesForecast';
 import Library from './tools/LinksLibrary';
@@ -124,6 +125,7 @@ const AppRoutes = () => {
 
       {/* Aliases for migrated old routes */}
       <Route path="/tools/sales-analyzer" element={<Navigate to="/sales-analyzer" replace />} />
+      <Route path="/tools/per-customer-analyzer" element={<Navigate to="/per-customer-analyzer" replace />} />
       <Route path="/links-library" element={<Navigate to="/library" replace />} />
 
       {/* Sales Analyzer */}
@@ -133,6 +135,17 @@ const AppRoutes = () => {
           <ProtectedRoute>
             <AppLayout>
               <SalesAnalyzer />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/per-customer-analyzer"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <PerCustomerAnalyzer />
             </AppLayout>
           </ProtectedRoute>
         }

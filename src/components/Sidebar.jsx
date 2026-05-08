@@ -34,13 +34,14 @@ const DEFAULT_GROUPS = [
 
 const DEFAULT_MENU_ITEMS = [
   { id: 'menu_dashboard', label: 'Dashboard', icon: 'dashboard', route: '/dashboard', order: 1, visible: true, adminOnly: false, groupId: 'grp_main' },
-  { id: 'menu_call_detailing', label: 'Call Detailing', icon: 'phone', route: '/tools/call-detailing', order: 2, visible: true, adminOnly: false, groupId: 'grp_analytics' },
-  { id: 'menu_sales_analyzer', label: 'ATR Sales Analyzer', icon: 'bar_chart', route: '/sales-analyzer', order: 3, visible: true, adminOnly: false, groupId: 'grp_analytics' },
-  { id: 'menu_sales_forecast', label: 'Sales Forecast', icon: 'trending_up', route: '/tools/sales-forecast', order: 4, visible: true, adminOnly: false, groupId: 'grp_analytics' },
-  { id: 'menu_routing', label: 'Routing Analyzer', icon: 'map', route: '/routing-analyzer', order: 5, visible: true, adminOnly: false, groupId: 'grp_analytics' },
+  { id: 'menu_call-detailing', label: 'Call Detailing', icon: 'phone', route: '/tools/call-detailing', order: 2, visible: true, adminOnly: false, groupId: 'grp_analytics' },
+  { id: 'menu_sales-analyzer', label: 'ATR Sales Analyzer', icon: 'bar_chart', route: '/sales-analyzer', order: 3, visible: true, adminOnly: false, groupId: 'grp_analytics' },
+  { id: 'menu_per_customer_analyzer', label: 'Per Customer Analyzer', icon: 'users', route: '/per_customer_analyzer', order: 4, visible: true, adminOnly: false, groupId: 'grp_analytics' },
+  { id: 'menu_sales-forecast', label: 'Sales Forecast', icon: 'trending_up', route: '/tools/sales-forecast', order: 5, visible: true, adminOnly: false, groupId: 'grp_analytics' },
+  { id: 'menu_routing-analyzer', label: 'Routing Analyzer', icon: 'map', route: '/routing-analyzer', order: 5, visible: true, adminOnly: false, groupId: 'grp_analytics' },
   { id: 'menu_library', label: 'Library', icon: 'link', route: '/library', order: 6, visible: true, adminOnly: false, groupId: 'grp_resources' },
-  { id: 'menu_skillzaty', label: 'Skill-Zaty', icon: 'school', route: '/skill-zaty', order: 7, visible: true, adminOnly: false, groupId: 'grp_resources' },
-  { id: 'menu_admin_settings', label: 'Admin Settings', icon: 'shield', route: '/admin-settings', order: 8, visible: true, adminOnly: true, groupId: 'grp_admin' }
+  { id: 'menu_skill-zaty', label: 'Skill-Zaty', icon: 'school', route: '/skill-zaty', order: 7, visible: true, adminOnly: false, groupId: 'grp_resources' },
+  { id: 'menu_admin-settings', label: 'Admin Settings', icon: 'shield', route: '/admin-settings', order: 8, visible: true, adminOnly: true, groupId: 'grp_admin' }
 ];
 
 const Sidebar = () => {
@@ -141,6 +142,7 @@ const Sidebar = () => {
   const menuItems = (config?.sidebarMenu || DEFAULT_MENU_ITEMS).map(item => {
     let route = item.route;
     if (route === '/tools/sales-analyzer') route = '/sales-analyzer';
+    if (route === '/tools/per-customer-analyzer') route = '/per-customer-analyzer';
     if (route === '/links-library') route = '/library';
     // Clean up dashboard old route if present
     if (route === '/') route = '/dashboard';
@@ -153,7 +155,8 @@ const Sidebar = () => {
       .filter(item =>
         item.groupId === groupId &&
         item.visible &&
-        (!item.adminOnly || isAdmin)
+        (!item.adminOnly || isAdmin) &&
+        (isAdmin || user?.allowedPages?.includes(item.id.replace('menu_', ''))) // Handle both tool id and menu_ prefix if used
       )
       .sort((a, b) => a.order - b.order);
 

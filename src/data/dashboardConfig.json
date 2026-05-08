@@ -9,9 +9,10 @@
       "visible": true,
       "modules": [
         "call-detailing",
-        "atr-sales-analyzer",
+        "sales-analyzer",
         "sales-forecast",
-        "routing-analyzer"
+        "routing-analyzer",
+        "per_customer_analyzer"
       ]
     },
     {
@@ -22,7 +23,7 @@
       "order": 2,
       "visible": true,
       "modules": [
-        "library",
+        "links-library",
         "skill-zaty"
       ]
     },
@@ -35,7 +36,7 @@
       "visible": true,
       "adminOnly": true,
       "modules": [
-        "user-management"
+        "admin-settings"
       ]
     }
   ],
@@ -55,7 +56,7 @@
       "order": 1
     },
     {
-      "id": "atr-sales-analyzer",
+      "id": "sales-analyzer",
       "name": "ATR Sales Analyzer",
       "description": "Analyze ATR and sales performance",
       "icon": "bar_chart",
@@ -69,6 +70,20 @@
       "order": 2
     },
     {
+      "id": "per_customer_analyzer",
+      "name": "Per Customer Analyzer",
+      "description": "In-depth customer sales performance",
+      "icon": "groups",
+      "color": "#8B5CF6",
+      "iconColor": "#8B5CF6",
+      "iconBg": "#F5F3FF",
+      "accentColor": "#8B5CF6",
+      "route": "/per-customer-analyzer",
+      "visible": true,
+      "adminOnly": false,
+      "order": 3
+    },
+    {
       "id": "sales-forecast",
       "name": "Sales Forecast",
       "description": "Predict and plan future sales",
@@ -80,7 +95,7 @@
       "route": "/tools/sales-forecast",
       "visible": true,
       "adminOnly": false,
-      "order": 3
+      "order": 4
     },
     {
       "id": "routing-analyzer",
@@ -94,10 +109,10 @@
       "route": "/routing-analyzer",
       "visible": true,
       "adminOnly": false,
-      "order": 4
+      "order": 5
     },
     {
-      "id": "library",
+      "id": "links-library",
       "name": "Library",
       "description": "Quick access to resources and links",
       "icon": "link",
@@ -108,7 +123,7 @@
       "route": "/library",
       "visible": true,
       "adminOnly": false,
-      "order": 5
+      "order": 6
     },
     {
       "id": "skill-zaty",
@@ -122,10 +137,10 @@
       "route": "/skill-zaty",
       "visible": true,
       "adminOnly": false,
-      "order": 6
+      "order": 7
     },
     {
-      "id": "user-management",
+      "id": "admin-settings",
       "name": "User Management",
       "description": "Manage users and permissions",
       "icon": "users",
@@ -136,7 +151,7 @@
       "route": "/admin-settings",
       "visible": true,
       "adminOnly": true,
-      "order": 7
+      "order": 8
     }
   ],
   "dashboardSettings": {
@@ -202,7 +217,7 @@
       "groupId": "grp_main"
     },
     {
-      "id": "menu_call_detailing",
+      "id": "menu_call-detailing",
       "label": "Call Detailing",
       "icon": "phone",
       "route": "/tools/call-detailing",
@@ -212,7 +227,7 @@
       "groupId": "grp_analytics"
     },
     {
-      "id": "menu_sales_analyzer",
+      "id": "menu_sales-analyzer",
       "label": "ATR Sales Analyzer",
       "icon": "bar_chart",
       "route": "/sales-analyzer",
@@ -222,51 +237,61 @@
       "groupId": "grp_analytics"
     },
     {
-      "id": "menu_sales_forecast",
-      "label": "Sales Forecast",
-      "icon": "trending_up",
-      "route": "/tools/sales-forecast",
+      "id": "menu_per_customer_analyzer",
+      "label": "Per Customer Analyzer",
+      "icon": "users",
+      "route": "/per-customer-analyzer",
       "order": 4,
       "visible": true,
       "adminOnly": false,
       "groupId": "grp_analytics"
     },
     {
-      "id": "menu_routing",
-      "label": "Routing Analyzer",
-      "icon": "map",
-      "route": "/routing-analyzer",
+      "id": "menu_sales-forecast",
+      "label": "Sales Forecast",
+      "icon": "trending_up",
+      "route": "/tools/sales-forecast",
       "order": 5,
       "visible": true,
       "adminOnly": false,
       "groupId": "grp_analytics"
     },
     {
-      "id": "menu_library",
-      "label": "Library",
-      "icon": "link",
-      "route": "/library",
+      "id": "menu_routing-analyzer",
+      "label": "Routing Analyzer",
+      "icon": "map",
+      "route": "/routing-analyzer",
       "order": 6,
       "visible": true,
       "adminOnly": false,
-      "groupId": "grp_resources"
+      "groupId": "grp_analytics"
     },
     {
-      "id": "menu_skillzaty",
-      "label": "Skill-Zaty",
-      "icon": "school",
-      "route": "/skill-zaty",
+      "id": "menu_links-library",
+      "label": "Library",
+      "icon": "link",
+      "route": "/library",
       "order": 7,
       "visible": true,
       "adminOnly": false,
       "groupId": "grp_resources"
     },
     {
-      "id": "menu_admin_settings",
+      "id": "menu_skill-zaty",
+      "label": "Skill-Zaty",
+      "icon": "school",
+      "route": "/skill-zaty",
+      "order": 8,
+      "visible": true,
+      "adminOnly": false,
+      "groupId": "grp_resources"
+    },
+    {
+      "id": "menu_admin-settings",
       "label": "Admin Settings",
       "icon": "shield",
       "route": "/admin-settings",
-      "order": 8,
+      "order": 9,
       "visible": true,
       "adminOnly": true,
       "groupId": "grp_admin"

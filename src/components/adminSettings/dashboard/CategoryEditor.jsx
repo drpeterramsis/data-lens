@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, Layout, Shield } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { resolveIcon } from '../../../utils/iconResolver';
 
 const CategoryEditor = ({
   isOpen,
@@ -160,7 +161,9 @@ const CategoryEditor = ({
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <span className="text-lg">{mod.icon}</span>
+                    <div className="text-slate-400">
+                      {resolveIcon(mod.icon, 18)}
+                    </div>
                     <span className="text-sm font-bold text-slate-700">{mod.name}</span>
                   </div>
                   <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${

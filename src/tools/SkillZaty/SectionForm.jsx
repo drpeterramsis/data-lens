@@ -26,6 +26,7 @@ export const SectionForm = ({ isOpen, type, onClose, onSave, initialData, isSavi
     duration: '',
     htmlContent: '',
     videoUrl: '',
+    allowDownload: false,
     caption: '',
     color: '#f97316',
     collapsible: true,
@@ -50,6 +51,7 @@ export const SectionForm = ({ isOpen, type, onClose, onSave, initialData, isSavi
         duration: '',
         htmlContent: '',
         videoUrl: '',
+        allowDownload: false,
         caption: '',
         color: '#f97316',
         collapsible: true,
@@ -242,19 +244,38 @@ export const SectionForm = ({ isOpen, type, onClose, onSave, initialData, isSavi
         return (
           <div className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Video URL (YouTube/Vimeo) *</label>
+              <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Video URL (Direct link or YouTube/Vimeo) *</label>
               <input
                 type="text"
                 value={formData.videoUrl}
                 onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
                 className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                placeholder="https://www.youtube.com/watch?v=..."
+                placeholder="https://example.com/video.mp4 or https://youtu.be/..."
               />
             </div>
+
+            <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-100 rounded-xl">
+              <div>
+                <h4 className="font-bold text-blue-900 text-xs">Allow Download</h4>
+                <p className="text-[10px] text-blue-500">Only applicable for direct video links</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={formData.allowDownload} 
+                  onChange={(e) => setFormData(p => ({ ...p, allowDownload: e.target.checked }))}
+                  className="sr-only peer" 
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-400 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              </label>
+            </div>
+
             {formData.videoUrl && (
-              <div className="aspect-video w-full max-w-md mx-auto rounded-xl overflow-hidden bg-black border border-gray-200 shadow-lg">
-                <div className="w-full h-full flex items-center justify-center text-white text-xs">
+              <div className="aspect-video w-full max-w-md mx-auto rounded-xl overflow-hidden bg-black border border-gray-200 shadow-lg flex items-center justify-center">
+                <div className="w-full h-full flex flex-col items-center justify-center text-white text-xs gap-2">
+                  <Video size={24} className="text-gray-400" />
                   <p>Video Preview Active</p>
+                  <p className="text-[10px] text-gray-500">{formData.videoUrl.slice(0, 40)}...</p>
                 </div>
               </div>
             )}

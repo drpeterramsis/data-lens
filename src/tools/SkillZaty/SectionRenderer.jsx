@@ -6,6 +6,7 @@ import {
   FileText, Music, Image as ImageIcon, Globe, FileStack, Video, 
   ChevronDown, ChevronUp, ZoomIn, ZoomOut, X, ChevronLeft, ChevronRight 
 } from 'lucide-react';
+import VideoPlayer from '../../components/ui/VideoPlayer';
 
 // Setup worker
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -178,8 +179,13 @@ const ImageRenderer = ({ fileUrl, caption }) => {
   );
 };
 
-const VideoRenderer = ({ videoUrl }) => {
+const VideoRenderer = ({ videoUrl, title, allowDownload = false }) => {
   // Convert youtu.be or watch?v= to /embed/
+  const isYoutubeVimeo = (url) => {
+    if (!url) return false;
+    return url.includes('youtube.com') || url.includes('youtu.be') || url.includes('vimeo.com');
+  };
+
   const getEmbedUrl = (url) => {
     if (!url) return '';
     let id = '';
@@ -202,18 +208,29 @@ const VideoRenderer = ({ videoUrl }) => {
     return url;
   };
 
-  const embedUrl = getEmbedUrl(videoUrl);
+  if (isYoutubeVimeo(videoUrl)) {
+    const embedUrl = getEmbedUrl(videoUrl);
+    return (
+      <div className="aspect-video w-full rounded-xl overflow-hidden border border-gray-200 shadow-lg bg-black">
+        <iframe
+          src={embedUrl}
+          title={title || "Training Video"}
+          className="w-full h-full"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
+      </div>
+    );
+  }
 
+  // Use custom VideoPlayer for direct links
   return (
-    <div className="aspect-video w-full rounded-xl overflow-hidden border border-gray-200 shadow-lg bg-black">
-      <iframe
-        src={embedUrl}
-        title="Training Video"
-        className="w-full h-full"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowFullScreen
-      />
-    </div>
+    <VideoPlayer 
+      url={videoUrl}
+      title={title}
+      allowDownload={allowDownload}
+      className="shadow-lg"
+    />
   );
 };
 
@@ -284,7 +301,7 @@ export const SectionRenderer = ({ section }) => {
       );
 
     case 'video':
-      return <VideoRenderer videoUrl={section.videoUrl} />;
+      return <VideoRenderer videoUrl={section.videoUrl} title={section.title} allowDownload={section.allowDownload} />;
 
     case 'active-card':
       return (

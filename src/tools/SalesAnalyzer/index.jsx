@@ -41,9 +41,9 @@ const TD_NUM =
   `${TD_BASE} whitespace-nowrap tabular-nums font-mono font-bold text-right`;
 
 const APP_VERSION = {
-  version: '1.0.558',
+  version: '1.0.564',
   releaseDate: 'May 2026',
-  label: 'Table Enhancements'
+  label: 'Enhanced Search & Layout'
 };
 
 const CACHE_KEY = 'atr_sales_v1';
@@ -1495,6 +1495,9 @@ if (filters.toDate) {
 
   const [trendGroup, setTrendGroup] = useState('monthly');
   const [customerSearch, setCustomerSearch] = useState('');
+  const [productSearch, setProductSearch] = useState('');
+  const [mrSearch, setMrSearch] = useState('');
+  const [branchSearch, setBranchSearch] = useState('');
   const [expandedRow, setExpandedRow] = useState(null);
   const activeFilterCount = useMemo(() => Object.entries(filters).filter(([k, v]) => Array.isArray(v) ? v.length > 0 : v !== '').length, [filters]);
 
@@ -1535,7 +1538,13 @@ const endDate = useMemo(() => {
     return Object.values(map).map(r => ({ ...r, invoiceCount: r.invoices.size, pct: total > 0 ? formatKpiPercent((r.netValue/total)*100) : '0.00' }));
   }, [filteredData]);
 
-  const { sorted: sortedProducts, sortKey: prodSortKey, sortDir: prodSortDir, toggle: prodToggle } = useSortableTable(byProduct, 'netQty', 'desc');
+  const filteredByProduct = useMemo(() => {
+    if (!productSearch.trim()) return byProduct;
+    const q = productSearch.toLowerCase().trim();
+    return byProduct.filter(p => p.productName.toLowerCase().includes(q));
+  }, [byProduct, productSearch]);
+
+  const { sorted: sortedProducts, sortKey: prodSortKey, sortDir: prodSortDir, toggle: prodToggle } = useSortableTable(filteredByProduct, 'netQty', 'desc');
 
   const topProductsByVal = useMemo(() => byProduct.slice(0, 10).map(p => ({name: p.productName.substring(0,20), val: p.netValue})), [byProduct]);
   const topProductsByQty = useMemo(() => byProduct.slice(0, 10).map(p => ({name: p.productName.substring(0,20), val: p.netQty})), [byProduct]);
@@ -1568,7 +1577,17 @@ const endDate = useMemo(() => {
     return Object.values(map).map(r => ({ ...r, customerCount: r.customers.size, invoiceCount: r.invoices.size, pct: total > 0 ? formatKpiPercent((r.netValue/total)*100) : '0.00' }));
   }, [filteredData]);
 
-  const { sorted: sortedMR, sortKey: mrSortKey, sortDir: mrSortDir, toggle: mrToggle } = useSortableTable(byMR, 'netQty', 'desc');
+  const filteredByMR = useMemo(() => {
+    if (!mrSearch.trim()) return byMR;
+    const q = mrSearch.toLowerCase().trim();
+    return byMR.filter(m => 
+      m.mrName.toLowerCase().includes(q) || 
+      m.supervisor.toLowerCase().includes(q) || 
+      m.branch.toLowerCase().includes(q)
+    );
+  }, [byMR, mrSearch]);
+
+  const { sorted: sortedMR, sortKey: mrSortKey, sortDir: mrSortDir, toggle: mrToggle } = useSortableTable(filteredByMR, 'netQty', 'desc');
 
   const byCustomer = useMemo(() => {
     if (!filteredData || filteredData.length === 0) return [];
@@ -1617,7 +1636,13 @@ const endDate = useMemo(() => {
     }));
   }, [filteredData]);
 
-  const { sorted: sortedCustomers, sortKey: custSortKey, sortDir: custSortDir, toggle: custToggle } = useSortableTable(byCustomer, 'netQty', 'desc');
+  const filteredByCustomer = useMemo(() => {
+    if (!customerSearch.trim()) return byCustomer;
+    const q = customerSearch.toLowerCase().trim();
+    return byCustomer.filter(c => c.customerName.toLowerCase().includes(q));
+  }, [byCustomer, customerSearch]);
+
+  const { sorted: sortedCustomers, sortKey: custSortKey, sortDir: custSortDir, toggle: custToggle } = useSortableTable(filteredByCustomer, 'netQty', 'desc');
 
   const handleUploadClick = () => {
     if (data.length > 0) {
@@ -2457,7 +2482,13 @@ invoiceDate: (() => {
     return Object.values(map).map(r => ({ ...r, mrCount: r.mrs.size, customerCount: r.customers.size, invoiceCount: r.invoices.size, pct: total > 0 ? formatKpiPercent((r.netValue/total)*100) : '0.00' }));
   }, [filteredData]);
 
-  const { sorted: sortedBranch, sortKey: branchSortKey, sortDir: branchSortDir, toggle: branchToggle } = useSortableTable(byBranch, 'netQty', 'desc');
+  const filteredByBranch = useMemo(() => {
+    if (!branchSearch.trim()) return byBranch;
+    const q = branchSearch.toLowerCase().trim();
+    return byBranch.filter(b => b.branch.toLowerCase().includes(q));
+  }, [byBranch, branchSearch]);
+
+  const { sorted: sortedBranch, sortKey: branchSortKey, sortDir: branchSortDir, toggle: branchToggle } = useSortableTable(filteredByBranch, 'netQty', 'desc');
 
   const trendData = useMemo(() => {
     if (!filteredData || filteredData.length === 0) return [];
@@ -2817,44 +2848,66 @@ invoiceDate: (() => {
                   >
                     <div className="space-y-6">
                       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-                          <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-4">
-                            <div>
-                              <h3 className="text-sm font-black text-gray-900 uppercase tracking-tight">Product Breakdown</h3>
-                              <p className="text-[10px] text-gray-400 mt-0.5">{filteredData.length} records</p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <button onClick={() => setProdFullscreen(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black text-gray-600 bg-gray-50 border border-gray-200 hover:bg-gray-100 rounded-lg transition-colors uppercase tracking-widest">⛶ Fullscreen</button>
-                                <ColumnSelectionMenu 
-                                columns={[
-                                    { id: 'netQty', label: 'Sales Qty' },
-                                    { id: 'netValue', label: 'Sales Val' },
-                                    { id: 'pct', label: '%' },
-                                ]}
-                                hiddenCols={hiddenCols['By Product']}
-                                toggleColumn={(colId) => toggleColumn('By Product', colId)}
-                                />
+                          <div className="px-6 py-4 border-b border-gray-100 bg-white">
+                            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                              <div className="shrink-0">
+                                <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">Product Breakdown</h3>
+                                <p className="text-[10px] text-gray-400 mt-0.5">{filteredData.length} records</p>
+                              </div>
+                              <div className="flex flex-1 items-center gap-3 max-w-3xl">
+                                <div className="relative flex-1 group">
+                                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors" size={14} />
+                                  <input 
+                                    value={productSearch} 
+                                    onChange={e=>setProductSearch(e.target.value)} 
+                                    placeholder="Search product..." 
+                                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-2xl text-xs font-bold outline-none focus:bg-white focus:border-blue-200 focus:ring-4 focus:ring-blue-50 transition-all font-sans" 
+                                  />
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <button 
+                                    onClick={() => setProdFullscreen(true)} 
+                                    className="flex items-center gap-2 px-4 py-2.5 text-[10px] font-black text-gray-700 bg-white border border-gray-100 hover:border-gray-200 hover:bg-gray-50 rounded-2xl transition-all active:scale-95 uppercase tracking-widest shadow-sm"
+                                  >
+                                    <Maximize2 size={12} className="text-gray-400" />
+                                    Fullscreen
+                                  </button>
+                                  <ColumnSelectionMenu 
+                                    columns={[
+                                        { id: 'netQty', label: 'Sales Qty' },
+                                        { id: 'netValue', label: 'Sales Val' },
+                                        { id: 'pct', label: '%' },
+                                    ]}
+                                    hiddenCols={hiddenCols['By Product']}
+                                    toggleColumn={(colId) => toggleColumn('By Product', colId)}
+                                  />
+                                </div>
+                              </div>
                             </div>
                           </div>
                         
 <div className="overflow-x-auto w-full max-w-full no-scrollbar">
-  <table className={`${TABLE_BASE} table-auto w-full`}>
-                               <thead className={`sticky top-0 z-10 ${THEAD_ROW}`}>
-                                 <tr>
-                                   <th className={`${TH_BASE} w-8`}>#</th>
-                                   <th className={`${TH_BASE} min-w-[120px] cursor-pointer hover:bg-gray-200`} onClick={() => prodToggle('productName')}>Product {prodSortKey === 'productName' ? (prodSortDir === 'desc' ? '↓' : '↑') : ''}</th>
-                                   {!hiddenCols['By Product'].includes('netQty') && <th className={`${TH_BASE} text-right min-w-[70px] cursor-pointer hover:bg-gray-200`} onClick={() => prodToggle('netQty')}>Sales QTY</th>}
-                                   {!hiddenCols['By Product'].includes('netValue') && <th className={`${TH_BASE} text-right min-w-[80px] cursor-pointer hover:bg-gray-200`} onClick={() => prodToggle('netValue')}>Sales VAL</th>}
-                                   {!hiddenCols['By Product'].includes('pct') && <th className={`${TH_BASE} text-right min-w-[50px] cursor-pointer hover:bg-gray-200`} onClick={() => prodToggle('pct')}>%</th>}
-                                 </tr>
-                               </thead>
-                               <tbody>{sortedProducts.map((p, i) => <tr key={p.productName} className={`border-b ${i<3 ? (i===0?'border-l-4 border-l-yellow-400':i===1?'border-l-4 border-l-gray-400':'border-l-4 border-l-orange-400'):''} hover:bg-blue-50/50 transition-colors`}>
-                                   <td className={`${TD_BASE} w-8`}>{i+1}</td>
-                                   <td className={`${TD_TEXT} min-w-[120px]`} title={p.productName}>{p.productName}</td>
-                                   {!hiddenCols['By Product'].includes('netQty') && <td className={`${TD_NUM}`}><FormatNum val={p.salesQty || p.netQty} defaultClass="text-emerald-700" /></td>}
-                                   {!hiddenCols['By Product'].includes('netValue') && <td className={`${TD_NUM}`}><FormatNum val={p.salesValue || p.netValue} defaultClass="text-blue-700" /></td>}
-                                   {!hiddenCols['By Product'].includes('pct') && <td className={`${TD_NUM}`}>{p.pct}%</td>}
-                                 </tr>)}</tbody>
-                           </table></div>
+  <div className="max-h-[60vh] overflow-y-auto">
+    <table className={`${TABLE_BASE} table-auto w-full`}>
+                                 <thead className={`sticky top-0 z-10 ${THEAD_ROW} bg-gray-50`}>
+                                   <tr>
+                                     <th className={`${TH_BASE} w-8`}>#</th>
+                                     <th className={`${TH_BASE} min-w-[120px] cursor-pointer hover:bg-gray-200`} onClick={() => prodToggle('productName')}>Product {prodSortKey === 'productName' ? (prodSortDir === 'desc' ? '↓' : '↑') : ''}</th>
+                                     {!hiddenCols['By Product'].includes('netQty') && <th className={`${TH_BASE} text-right min-w-[70px] cursor-pointer hover:bg-gray-200`} onClick={() => prodToggle('netQty')}>Sales QTY</th>}
+                                     {!hiddenCols['By Product'].includes('netValue') && <th className={`${TH_BASE} text-right min-w-[80px] cursor-pointer hover:bg-gray-200`} onClick={() => prodToggle('netValue')}>Sales VAL</th>}
+                                     {!hiddenCols['By Product'].includes('pct') && <th className={`${TH_BASE} text-right min-w-[50px] cursor-pointer hover:bg-gray-200`} onClick={() => prodToggle('pct')}>%</th>}
+                                   </tr>
+                                 </thead>
+                                 <tbody>{sortedProducts.map((p, i) => <tr key={p.productName} className={`border-b ${i<3 ? (i===0?'border-l-4 border-l-yellow-400':i===1?'border-l-4 border-l-gray-400':'border-l-4 border-l-orange-400'):''} hover:bg-blue-50/50 transition-colors`}>
+                                     <td className={`${TD_BASE} w-8`}>{i+1}</td>
+                                     <td className={`${TD_TEXT} min-w-[120px]`} title={p.productName}>{p.productName}</td>
+                                     {!hiddenCols['By Product'].includes('netQty') && <td className={`${TD_NUM}`}><FormatNum val={p.salesQty || p.netQty} defaultClass="text-emerald-700" /></td>}
+                                     {!hiddenCols['By Product'].includes('netValue') && <td className={`${TD_NUM}`}><FormatNum val={p.salesValue || p.netValue} defaultClass="text-blue-700" /></td>}
+                                     {!hiddenCols['By Product'].includes('pct') && <td className={`${TD_NUM}`}>{p.pct}%</td>}
+                                   </tr>)}</tbody>
+                             </table>
+  </div>
+</div>
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"><h4 className="text-xs font-black uppercase text-gray-400 mb-4">Top 10 Products (Sales Qty)</h4><ResponsiveContainer height={260}><BarChart data={sortedProducts.slice(0,10)} layout="vertical" margin={{left: 40}}><XAxis type="number" fontSize={10} /><YAxis dataKey="productName" type="category" fontSize={10} /><Tooltip /><Bar dataKey="salesQty" fill="#10B981" /></BarChart></ResponsiveContainer></div>
@@ -2872,27 +2925,46 @@ invoiceDate: (() => {
                   >
                     <div className="space-y-6">
                       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-                          <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-4">
-                            <div>
-                              <h3 className="text-sm font-black text-gray-900 uppercase tracking-tight">SR Breakdown</h3>
-                              <p className="text-[10px] text-gray-400 mt-0.5">{filteredData.length} records</p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <button onClick={() => setMrFullscreen(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black text-gray-600 bg-gray-50 border border-gray-200 hover:bg-gray-100 rounded-lg transition-colors uppercase tracking-widest">⛶ Fullscreen</button>
-                                <ColumnSelectionMenu 
-                                columns={[
-                                    { id: 'mrName', label: 'SR' },
-                                    { id: 'supervisor', label: 'Supervisor' },
-                                    { id: 'branch', label: 'Branch' },
-                                    { id: 'customerCount', label: 'Customers' },
-                                    { id: 'invoiceCount', label: 'Invoices' },
-                                    { id: 'netQty', label: 'Sales Qty' },
-                                    { id: 'netValue', label: 'Sales Val' },
-                                    { id: 'pct', label: '%' },
-                                ]}
-                                hiddenCols={hiddenCols['By SR']}
-                                toggleColumn={(colId) => toggleColumn('By SR', colId)}
-                                />
+                          <div className="px-6 py-4 border-b border-gray-100 bg-white">
+                            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                              <div className="shrink-0">
+                                <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">SR Breakdown</h3>
+                                <p className="text-[10px] text-gray-400 mt-0.5">{filteredData.length} records</p>
+                              </div>
+                              <div className="flex flex-1 items-center gap-3 max-w-3xl">
+                                <div className="relative flex-1 group">
+                                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors" size={14} />
+                                  <input 
+                                    value={mrSearch} 
+                                    onChange={e=>setMrSearch(e.target.value)} 
+                                    placeholder="Search SR, supervisor or branch..." 
+                                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-2xl text-xs font-bold outline-none focus:bg-white focus:border-blue-200 focus:ring-4 focus:ring-blue-50 transition-all font-sans" 
+                                  />
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <button 
+                                    onClick={() => setMrFullscreen(true)} 
+                                    className="flex items-center gap-2 px-4 py-2.5 text-[10px] font-black text-gray-700 bg-white border border-gray-100 hover:border-gray-200 hover:bg-gray-50 rounded-2xl transition-all active:scale-95 uppercase tracking-widest shadow-sm"
+                                  >
+                                    <Maximize2 size={12} className="text-gray-400" />
+                                    Fullscreen
+                                  </button>
+                                  <ColumnSelectionMenu 
+                                    columns={[
+                                        { id: 'mrName', label: 'SR' },
+                                        { id: 'supervisor', label: 'Supervisor' },
+                                        { id: 'branch', label: 'Branch' },
+                                        { id: 'customerCount', label: 'Cust' },
+                                        { id: 'invoiceCount', label: 'Inv' },
+                                        { id: 'netQty', label: 'Sales QTY' },
+                                        { id: 'netValue', label: 'Sales VAL' },
+                                        { id: 'pct', label: '%' },
+                                    ]}
+                                    hiddenCols={hiddenCols['By SR']}
+                                    toggleColumn={(colId) => toggleColumn('By SR', colId)}
+                                  />
+                                </div>
+                              </div>
                             </div>
                           </div>
                           
@@ -2902,7 +2974,7 @@ invoiceDate: (() => {
       <thead className={`sticky top-0 z-10 ${THEAD_ROW} bg-gray-50`}>
                                 <tr>
                                   <th className={`${TH_BASE} w-8`}>#</th>
-                                  <th className={`${TH_BASE} min-w-[120px] cursor-pointer hover:bg-gray-200`} onClick={() => mrToggle('mrName')}>SR {sortDir === 'desc' ? '↓' : '↑'}</th>
+                                  <th className={`${TH_BASE} min-w-[120px] cursor-pointer hover:bg-gray-200`} onClick={() => mrToggle('mrName')}>SR {mrSortKey === 'mrName' ? (mrSortDir === 'desc' ? '↓' : '↑') : ''}</th>
                                   {!hiddenCols['By SR'].includes('supervisor') && <th className={`${TH_BASE} min-w-[100px] cursor-pointer hover:bg-gray-200`} onClick={() => mrToggle('supervisor')}>Supervisor</th>}
                                   {!hiddenCols['By SR'].includes('branch') && <th className={`${TH_BASE} min-w-[80px] cursor-pointer hover:bg-gray-200`} onClick={() => mrToggle('branch')}>Branch</th>}
                                   {!hiddenCols['By SR'].includes('customerCount') && <th className={`${TH_BASE} text-right min-w-[50px] cursor-pointer hover:bg-gray-200`} onClick={() => mrToggle('customerCount')}>Cust</th>}
@@ -2956,38 +3028,48 @@ invoiceDate: (() => {
                   >
                     <div className="space-y-6 w-full">
                       <div className="bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
-                          <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between flex-wrap gap-4 bg-white">
-                            <div className="min-w-[250px] flex-1">
-                              <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">Customer Breakdown</h3>
-                              <div className="relative mt-3">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
-                                <input 
-                                  value={customerSearch} 
-                                  onChange={e=>setCustomerSearch(e.target.value)} 
-                                  placeholder="Search customer..." 
-                                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-2xl text-xs font-bold outline-none font-sans" 
-                                />
+                          <div className="px-6 py-4 border-b border-gray-100 bg-white">
+                            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                              <div className="shrink-0">
+                                <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">Customer Breakdown</h3>
+                              </div>
+                              <div className="flex flex-1 items-center gap-3 max-w-3xl">
+                                <div className="relative flex-1 group">
+                                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors" size={14} />
+                                  <input 
+                                    value={customerSearch} 
+                                    onChange={e=>setCustomerSearch(e.target.value)} 
+                                    placeholder="Search customer..." 
+                                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-2xl text-xs font-bold outline-none focus:bg-white focus:border-blue-200 focus:ring-4 focus:ring-blue-50 transition-all font-sans" 
+                                  />
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <button 
+                                    onClick={() => setCustFullscreen(true)} 
+                                    className="flex items-center gap-2 px-4 py-2.5 text-[10px] font-black text-gray-700 bg-white border border-gray-100 hover:border-gray-200 hover:bg-gray-50 rounded-2xl transition-all active:scale-95 uppercase tracking-widest shadow-sm"
+                                  >
+                                    <Maximize2 size={12} className="text-gray-400" />
+                                    Fullscreen
+                                  </button>
+                                  <ColumnSelectionMenu 
+                                    columns={[
+                                        { id: 'customerType', label: 'Type' },
+                                        { id: 'branch', label: 'Branch' },
+                                        { id: 'invoiceCount', label: 'Invoices' },
+                                        { id: 'firstDate', label: 'First Date' },
+                                        { id: 'lastDate', label: 'Last Date' },
+                                        { id: 'productCount', label: 'Products' },
+                                        { id: 'netQty', label: 'Sales Qty' },
+                                        { id: 'netValue', label: 'Sales Val' },
+                                        { id: 'mrName', label: 'SR' },
+                                    ]}
+                                    hiddenCols={hiddenCols['By Customer']}
+                                    toggleColumn={(colId) => toggleColumn('By Customer', colId)}
+                                  />
+                                </div>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <button onClick={() => setCustFullscreen(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black text-gray-600 bg-gray-50 border border-gray-200 hover:bg-gray-100 rounded-lg transition-colors uppercase tracking-widest">⛶ Fullscreen</button>
-                                <ColumnSelectionMenu 
-                                columns={[
-                                    { id: 'customerType', label: 'Type' },
-                                    { id: 'branch', label: 'Branch' },
-                                    { id: 'invoiceCount', label: 'Invoices' },
-                                    { id: 'firstDate', label: 'First Date' },
-                                    { id: 'lastDate', label: 'Last Date' },
-                                    { id: 'productCount', label: 'Products' },
-                                    { id: 'netQty', label: 'Sales Qty' },
-                                    { id: 'netValue', label: 'Sales Val' },
-                                    { id: 'mrName', label: 'SR' },
-                                ]}
-                                hiddenCols={hiddenCols['By Customer']}
-                                toggleColumn={(colId) => toggleColumn('By Customer', colId)}
-                                />
-                              </div>
-                            </div>
+                          </div>
                             <div className="max-h-[60vh] overflow-y-auto no-scrollbar">
                                     <table className={`${TABLE_BASE} table-auto w-full`}>
                                       <thead className={`sticky top-0 z-10 ${THEAD_ROW} bg-gray-50`}>
@@ -3039,25 +3121,44 @@ invoiceDate: (() => {
                   >
                     <div className="space-y-6">
                       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-                          <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-4">
-                            <div>
-                              <h3 className="text-sm font-black text-gray-900 uppercase tracking-tight">Branch Breakdown</h3>
-                              <p className="text-[10px] text-gray-400 mt-0.5">{filteredData.length} records</p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <button onClick={() => setBranchFullscreen(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black text-gray-600 bg-gray-50 border border-gray-200 hover:bg-gray-100 rounded-lg transition-colors uppercase tracking-widest">⛶ Fullscreen</button>
-                                <ColumnSelectionMenu 
-                                columns={[
-                                    { id: 'mrCount', label: 'SRs' },
-                                    { id: 'customerCount', label: 'Customers' },
-                                    { id: 'invoiceCount', label: 'Invoices' },
-                                    { id: 'netQty', label: 'Sales Qty' },
-                                    { id: 'netValue', label: 'Sales Val' },
-                                    { id: 'pct', label: '%' },
-                                ]}
-                                hiddenCols={hiddenCols['By Branch']}
-                                toggleColumn={(colId) => toggleColumn('By Branch', colId)}
-                                />
+                          <div className="px-6 py-4 border-b border-gray-100 bg-white">
+                            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                              <div className="shrink-0">
+                                <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">Branch Breakdown</h3>
+                                <p className="text-[10px] text-gray-400 mt-0.5">{filteredData.length} records</p>
+                              </div>
+                              <div className="flex flex-1 items-center gap-3 max-w-3xl">
+                                <div className="relative flex-1 group">
+                                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors" size={14} />
+                                  <input 
+                                    value={branchSearch} 
+                                    onChange={e=>setBranchSearch(e.target.value)} 
+                                    placeholder="Search branch..." 
+                                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-2xl text-xs font-bold outline-none focus:bg-white focus:border-blue-200 focus:ring-4 focus:ring-blue-50 transition-all font-sans" 
+                                  />
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <button 
+                                    onClick={() => setBranchFullscreen(true)} 
+                                    className="flex items-center gap-2 px-4 py-2.5 text-[10px] font-black text-gray-700 bg-white border border-gray-100 hover:border-gray-200 hover:bg-gray-50 rounded-2xl transition-all active:scale-95 uppercase tracking-widest shadow-sm"
+                                  >
+                                    <Maximize2 size={12} className="text-gray-400" />
+                                    Fullscreen
+                                  </button>
+                                  <ColumnSelectionMenu 
+                                    columns={[
+                                        { id: 'mrCount', label: 'SRs' },
+                                        { id: 'customerCount', label: 'Customers' },
+                                        { id: 'invoiceCount', label: 'Invoices' },
+                                        { id: 'netQty', label: 'Sales Qty' },
+                                        { id: 'netValue', label: 'Sales Val' },
+                                        { id: 'pct', label: '%' },
+                                    ]}
+                                    hiddenCols={hiddenCols['By Branch']}
+                                    toggleColumn={(colId) => toggleColumn('By Branch', colId)}
+                                  />
+                                </div>
+                              </div>
                             </div>
                           </div>
                          
@@ -3150,7 +3251,7 @@ invoiceDate: (() => {
               )}
             
 {activeTab === 'Compare' && (
-  <FullscreenWrapper title="Compare">
+  <FullscreenWrapper title="Compare" showButton={false}>
     <div className={compareFullscreen ? "fixed inset-0 z-50 bg-gray-50 overflow-y-auto" : "space-y-2.5"}>
       {compareFullscreen && (
         <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-2 bg-white border-b border-gray-100 shadow-sm mb-3">
@@ -3211,17 +3312,6 @@ invoiceDate: (() => {
       )}
 
       <div className={compareFullscreen ? "p-3 space-y-2.5" : "space-y-2.5"}>
-        {!compareFullscreen && (
-          <div className="flex justify-end !mt-0">
-            <button
-              onClick={() => setCompareFullscreen(true)}
-              className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-gray-700 bg-white border border-gray-200 shadow-sm hover:bg-gray-50 rounded-lg transition-colors"
-            >
-              ⛶ Fullscreen
-            </button>
-          </div>
-        )}
-
                       
                       {/* Quick Month Picker Section */}
                     <div className="bg-white rounded-[24px] p-3 md:p-4 border border-amber-100 shadow-sm bg-gradient-to-br from-white to-amber-50/20 max-w-full overflow-hidden">
@@ -3233,20 +3323,31 @@ invoiceDate: (() => {
                           </h3>
                           <p className="text-xs md:text-xs text-gray-400 font-bold uppercase mt-1 leading-tight break-words pr-2">Select months to add as comparison periods instantly</p>
                         </div>
-                        <div className="flex items-center gap-2 bg-white p-1 rounded-2xl border border-gray-100 shadow-sm self-start sm:self-auto shrink-0 max-w-full">
-                           <button 
-                             onClick={() => setSelectedYear(prev => Math.max(2020, prev - 1))}
-                             disabled={selectedYear <= 2020}
-                             className="p-1 md:p-2 hover:bg-gray-50 rounded-xl transition-colors text-gray-400 hover:text-gray-900 disabled:opacity-20 shrink-0">
-                             <ChevronLeft size={16} />
-                           </button>
-                           <span className="text-xs sm:text-xs font-black text-gray-900 w-12 sm:w-16 text-center tabular-nums shrink-0">{selectedYear}</span>
-                           <button 
-                             onClick={() => setSelectedYear(prev => Math.min(2030, prev + 1))}
-                             disabled={selectedYear >= 2030}
-                             className="p-1 md:p-2 hover:bg-gray-50 rounded-xl transition-colors text-gray-400 hover:text-gray-900 disabled:opacity-20 shrink-0">
-                             <ChevronRight size={16} />
-                           </button>
+                        <div className="flex items-center gap-2 self-start sm:self-auto shrink-0 max-w-full">
+                          {!compareFullscreen && (
+                            <button
+                              onClick={() => setCompareFullscreen(true)}
+                              className="flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-gray-700 bg-white border border-gray-100 shadow-sm hover:bg-gray-50 rounded-2xl transition-all active:scale-95"
+                            >
+                              <Maximize2 size={12} />
+                              Fullscreen
+                            </button>
+                          )}
+                          <div className="flex items-center gap-2 bg-white p-1 rounded-2xl border border-gray-100 shadow-sm">
+                             <button 
+                               onClick={() => setSelectedYear(prev => Math.max(2020, prev - 1))}
+                               disabled={selectedYear <= 2020}
+                               className="p-1 md:p-2 hover:bg-gray-50 rounded-xl transition-colors text-gray-400 hover:text-gray-900 disabled:opacity-20 shrink-0">
+                               <ChevronLeft size={16} />
+                             </button>
+                             <span className="text-xs sm:text-xs font-black text-gray-900 w-12 sm:w-16 text-center tabular-nums shrink-0">{selectedYear}</span>
+                             <button 
+                               onClick={() => setSelectedYear(prev => Math.min(2030, prev + 1))}
+                               disabled={selectedYear >= 2030}
+                               className="p-1 md:p-2 hover:bg-gray-50 rounded-xl transition-colors text-gray-400 hover:text-gray-900 disabled:opacity-20 shrink-0">
+                               <ChevronRight size={16} />
+                             </button>
+                          </div>
                         </div>
                       </div>
 

@@ -30,6 +30,17 @@ export const ALL_TOOLS = [
     showOnDashboard: true,
   },
   {
+    id: "per_customer_analyzer",
+    name: "Per Customer Analyzer",
+    description: "In-depth customer sales performance",
+    icon: "users",
+    route: "/per-customer-analyzer",
+    color: "#8b5cf6",
+    gradient: "from-violet-500 to-violet-700",
+    showOnDashboard: true,
+    visibleByDefault: true
+  },
+  {
     id: "sales-forecast",
     name: "Sales Forecast",
     description: "Predict and plan future sales",

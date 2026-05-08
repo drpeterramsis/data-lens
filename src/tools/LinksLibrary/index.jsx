@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Link as LinkIcon, Plus, Edit, Trash2, X, AlertTriangle, ExternalLink, Github, Folder, Pencil } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Search, Link as LinkIcon, Plus, Edit, Trash2, X, AlertTriangle, ExternalLink, Github, Folder, Pencil, Loader2, Globe, FileDown, FileText, File as FileIcon, CheckCircle, Smartphone, Video } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import initialLinksData from '../../data/linksLibrary.json';
 import Toast, { useToast } from '../../components/Toast';
-import { getFileContent, updateFileContent, validateJSON, getLatestSHA, saveFileToGitHub, getFileFromGitHub } from '../../services/githubService';
+import { getFileContent, updateFileContent, validateJSON, getLatestSHA, saveFileToGitHub, getFileFromGitHub, uploadFileToGitHub } from '../../services/githubService';
 import { getLinkIcon, getQuickIcons } from '../../utils/iconDetector';
+import VideoPlayer from '../../components/ui/VideoPlayer';
 
 const CATEGORIES = ["Reports", "Dashboards", "Tools", "References", "Training", "HR", "Finance", "Operations", "Other", "Custom..."];
 
@@ -59,13 +60,47 @@ const Library = () => {
     description: '',
     category: 'Other',
     customCategory: '',
-    url: '',
-    buttonLabel: 'Open',
+    url: '', // This will be treated as primaryUrl
+    buttonLabel: 'Open', // This will be treated as primaryLabel
+    primaryAction: 'open',
+    primaryFileUrl: '',
+    primaryFileName: '',
+    primarySourceType: 'url', // 'url' or 'file'
+    mediaType: 'none', // 'none', 'file', 'link', 'video'
+    videoConfig: {
+      url: '',
+      title: '',
+      allowDownload: false,
+      defaultSpeed: 1
+    },
+    extraButtons: [], // max 3: { id, label, url, action, color, customHex }
     allowedUserIds: [],
     isActive: true
   });
   
+  const colorClasses = {
+    primary: 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700',
+    secondary: 'bg-blue-600 hover:bg-blue-700 text-white border-blue-700',
+    success: 'bg-green-600 hover:bg-green-700 text-white border-green-700',
+    warning: 'bg-amber-400 hover:bg-amber-500 text-black border-amber-500',
+    danger: 'bg-red-600 hover:bg-red-700 text-white border-red-700',
+    gray: 'bg-slate-200 hover:bg-slate-300 text-slate-900 border-slate-300'
+  };
+
+  const getContrastText = (hexcolor) => {
+    if (!hexcolor || hexcolor === 'custom') return 'text-white';
+    if (!hexcolor.startsWith('#')) return 'text-white';
+    
+    const r = parseInt(hexcolor.substring(1, 3), 16);
+    const g = parseInt(hexcolor.substring(3, 5), 16);
+    const b = parseInt(hexcolor.substring(5, 7), 16);
+    const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+    return (yiq >= 128) ? 'text-black' : 'text-white';
+  };
+  
   const [formErrors, setFormErrors] = useState({});
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const fileInputRef = useRef(null);
 
   // JSON Editor States
   const [isJsonModalOpen, setIsJsonModalOpen] = useState(false);
@@ -172,8 +207,15 @@ const Library = () => {
         description: link.description || '',
         category: isPredefined || !link.category ? (link.category || 'Other') : 'Custom...',
         customCategory: isPredefined ? '' : link.category,
-        url: link.url,
+        url: link.url || '',
         buttonLabel: link.buttonLabel || 'Open',
+        primaryAction: link.primaryAction || 'open',
+        primaryFileUrl: link.primaryFileUrl || '',
+        primaryFileName: link.primaryFileName || '',
+        primarySourceType: link.primaryFileUrl ? 'file' : 'url',
+        mediaType: link.mediaType || (link.primaryFileUrl ? 'file' : 'link'),
+        videoConfig: link.videoConfig || { url: '', title: '', allowDownload: false, defaultSpeed: 1 },
+        extraButtons: link.extraButtons || [],
         allowedUserIds: link.allowedUserIds || [],
         isActive: link.isActive
       });
@@ -187,6 +229,13 @@ const Library = () => {
         customCategory: '',
         url: '',
         buttonLabel: 'Open',
+        primaryAction: 'open',
+        primaryFileUrl: '',
+        primaryFileName: '',
+        primarySourceType: 'url',
+        mediaType: 'link',
+        videoConfig: { url: '', title: '', allowDownload: false, defaultSpeed: 1 },
+        extraButtons: [],
         allowedUserIds: [],
         isActive: true
       });
@@ -230,10 +279,33 @@ const Library = () => {
     // Validate
     const errors = {};
     if (!formData.name.trim()) errors.name = 'Name is required';
-    if (!formData.url.trim()) errors.url = 'URL is required';
-    else if (!isValidUrl(formData.url)) errors.url = 'Valid URL is required (include http:// or https://)';
+    
+    // Check primary source
+    const effectiveUrl = formData.primarySourceType === 'file' ? formData.primaryFileUrl : formData.url;
+    if (!effectiveUrl) {
+      errors.url = 'URL or File is required';
+    } else if (formData.primarySourceType === 'url' && !isValidUrl(formData.url)) {
+      errors.url = 'Valid URL is required (include http:// or https://)';
+    }
+
     if (!formData.buttonLabel.trim()) errors.buttonLabel = 'Button label is required';
     
+    // Validate extra buttons
+    if (formData.extraButtons?.length > 0) {
+      formData.extraButtons.forEach((btn, idx) => {
+        if (!btn.label.trim()) errors[`btn_${idx}_label`] = 'Label required';
+        if (!btn.url.trim()) errors[`btn_${idx}_url`] = 'URL required';
+        else if (!isValidUrl(btn.url)) errors[`btn_${idx}_url`] = 'Valid URL required';
+        
+        if (btn.color === 'custom') {
+          const hexRegex = /^#([0-9A-Fa-f]{6})$/;
+          if (!btn.customHex || !hexRegex.test(btn.customHex)) {
+            errors[`btn_${idx}_hex`] = 'Valid Hex required (e.g. #FF7A00)';
+          }
+        }
+      });
+    }
+
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
       return;
@@ -253,8 +325,15 @@ const Library = () => {
         customIcon: formData.customIcon,
         description: formData.description,
         category: finalCategory,
-        url: formData.url,
+        mediaType: formData.mediaType,
+        videoConfig: formData.videoConfig,
+        // Map back to legacy field 'url' for compatibility if needed, but we use primary resolver
+        url: formData.url, 
         buttonLabel: formData.buttonLabel,
+        primaryAction: formData.primaryAction,
+        primaryFileUrl: formData.primaryFileUrl,
+        primaryFileName: formData.primaryFileName,
+        extraButtons: formData.extraButtons,
         allowedUserIds: formData.allowedUserIds,
         isActive: formData.isActive
       };
@@ -351,6 +430,95 @@ const Library = () => {
       showToast("Error updating icon ❌", "error");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Check size (e.g., 20MB limit)
+    if (file.size > 20 * 1024 * 1024) {
+      showToast("File size exceeds 20MB limit", "error");
+      return;
+    }
+
+    setIsUploadingFile(true);
+    try {
+      const timestamp = Date.now();
+      const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const filePath = `public/library/files/${timestamp}_${sanitizedName}`;
+      
+      const result = await uploadFileToGitHub(filePath, file, `Upload library file: ${file.name}`);
+      
+      if (result.success) {
+        setFormData(prev => ({
+          ...prev,
+          primaryFileUrl: result.rawUrl,
+          primaryFileName: file.name
+        }));
+        showToast("File uploaded to GitHub ✅", "success");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Failed to upload file ❌", "error");
+    } finally {
+      setIsUploadingFile(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const addExtraButton = () => {
+    if (formData.extraButtons?.length >= 3) return;
+    setFormData(prev => ({
+      ...prev,
+      extraButtons: [
+        ...(prev.extraButtons || []),
+        { id: `btn_${Date.now()}`, label: '', url: '', action: 'open', color: 'secondary' }
+      ]
+    }));
+  };
+
+  const updateExtraButton = (id, field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      extraButtons: prev.extraButtons.map(btn => 
+        btn.id === id ? { ...btn, [field]: value } : btn
+      )
+    }));
+  };
+
+  const removeExtraButton = (id) => {
+    setFormData(prev => ({
+      ...prev,
+      extraButtons: prev.extraButtons.filter(btn => btn.id !== id)
+    }));
+  };
+
+  const handleLinkAction = (url, action) => {
+    if (!url) return;
+    
+    switch (action) {
+      case 'open':
+        window.open(url, '_blank', 'noopener,noreferrer');
+        break;
+      case 'same_tab':
+        window.location.href = url;
+        break;
+      case 'download':
+        // Modern browsers usually need a direct click or specific headers for 'download' attribute to work cross-origin
+        // Best effort: open in new tab and let browser handle if it's a file
+        const link = document.createElement('a');
+        link.href = url;
+        link.target = '_blank';
+        link.rel = 'noreferrer';
+        link.download = ''; // Best effort
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        break;
+      default:
+        window.open(url, '_blank', 'noopener,noreferrer');
     }
   };
 
@@ -597,6 +765,18 @@ const Library = () => {
                   
                   <p className="text-sm text-gray-500 mb-4 flex-1 line-clamp-3">{link.description || 'No description provided.'}</p>
                   
+                  {link.mediaType === 'video' && link.videoConfig?.url && (
+                    <div className="mb-4">
+                      <VideoPlayer 
+                        url={link.videoConfig.url}
+                        title={link.videoConfig.title || link.name}
+                        allowDownload={link.videoConfig.allowDownload}
+                        defaultSpeed={link.videoConfig.defaultSpeed}
+                        className="rounded-lg shadow-sm"
+                      />
+                    </div>
+                  )}
+
                   {isAdmin && (
                     <div className="mb-4">
                       <div className="text-[10px] uppercase font-bold text-gray-400 mb-1 tracking-wider">Assigned To ({link.allowedUserIds?.length || 0})</div>
@@ -619,15 +799,52 @@ const Library = () => {
                     </div>
                   )}
                   
-                  <a 
-                    href={link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full flex justify-center items-center gap-2 py-2.5 px-4 bg-gray-50 hover:bg-yellow-400 hover:text-gray-900 border border-gray-200 hover:border-yellow-400 text-gray-700 font-semibold rounded-lg transition-colors text-sm text-center"
-                  >
-                    {link.buttonLabel}
-                    <ExternalLink size={14} />
-                  </a>
+                  <div className="space-y-2 mt-auto">
+                    {/* Primary Button */}
+                    {(() => {
+                      const primaryUrl = link.primaryFileUrl || link.url;
+                      const hasPrimary = !!primaryUrl;
+                      
+                      return (
+                        <button 
+                          onClick={() => hasPrimary && handleLinkAction(primaryUrl, link.primaryAction || 'open')}
+                          disabled={!hasPrimary}
+                          className={`w-full flex justify-center items-center gap-2 py-2.5 px-4 font-semibold rounded-lg transition-all text-sm text-center border shadow-sm ${
+                            hasPrimary 
+                              ? 'bg-gray-900 border-gray-900 text-white hover:bg-black hover:scale-[1.02] active:scale-95' 
+                              : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
+                          }`}
+                        >
+                          <span className="truncate">{link.buttonLabel || 'Open'}</span>
+                          {link.primaryAction === 'download' ? <FileDown size={14} /> : <ExternalLink size={14} />}
+                        </button>
+                      );
+                    })()}
+
+                    {/* Extra Buttons */}
+                    {link.extraButtons?.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {link.extraButtons.map(btn => {
+                          const isCustom = btn.color === 'custom' && btn.customHex;
+                          const bgStyle = isCustom ? { backgroundColor: btn.customHex } : {};
+                          const textColorClass = isCustom ? getContrastText(btn.customHex) : '';
+                          const presetClass = !isCustom ? (colorClasses[btn.color || 'secondary'] || colorClasses.secondary) : '';
+
+                          return (
+                            <button
+                              key={btn.id}
+                              onClick={() => handleLinkAction(btn.url, btn.action)}
+                              style={bgStyle}
+                              className={`flex-1 min-w-[100px] flex justify-center items-center gap-2 py-2 px-3 font-bold rounded-lg transition-all text-xs text-center border active:scale-95 shadow-sm truncate ${presetClass} ${textColorClass}`}
+                            >
+                              <span className="truncate">{btn.label}</span>
+                              {btn.action === 'download' ? <FileDown size={12} /> : <Globe size={12} />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             );
@@ -744,33 +961,353 @@ const Library = () => {
                 )}
               </div>
 
-              {/* URL */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">URL <span className="text-red-500">*</span></label>
-                <input 
-                  type="url" 
-                  name="url" 
-                  value={formData.url} 
-                  onChange={handleFormChange}
-                  className={`w-full px-4 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 ${formErrors.url ? 'border-red-300 focus:ring-red-500 bg-red-50' : 'border-gray-200 focus:ring-yellow-400'}`}
-                  placeholder="https://..."
-                />
-                {formErrors.url && <p className="text-red-500 text-xs mt-1">{formErrors.url}</p>}
+              {/* Button Label */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-2">
+                    <Smartphone size={14} className="text-blue-500" />
+                    Primary Button Label <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    name="buttonLabel" 
+                    value={formData.buttonLabel} 
+                    onChange={handleFormChange}
+                    className={`w-full px-4 py-2 border rounded-xl text-sm font-bold focus:outline-none focus:ring-2 ${formErrors.buttonLabel ? 'border-red-300 focus:ring-red-500 bg-red-50' : 'border-gray-200 focus:ring-yellow-400'}`}
+                    placeholder="e.g. Open Report"
+                  />
+                  {formErrors.buttonLabel && <p className="text-red-500 text-[10px] mt-1 font-bold uppercase">{formErrors.buttonLabel}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-2">
+                    <CheckCircle size={14} className="text-green-500" />
+                    Primary Action
+                  </label>
+                  <select 
+                    name="primaryAction"
+                    value={formData.primaryAction}
+                    onChange={handleFormChange}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-gray-50 font-bold"
+                  >
+                    <option value="open">New Tab (Open)</option>
+                    <option value="same_tab">Same Tab</option>
+                    <option value="download">Direct Download</option>
+                  </select>
+                </div>
               </div>
 
-              {/* Button Label */}
+              {/* Content Type Selector */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Button Label <span className="text-red-500">*</span></label>
-                <input 
-                  type="text" 
-                  name="buttonLabel" 
-                  value={formData.buttonLabel} 
-                  onChange={handleFormChange}
-                  className={`w-full px-4 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 ${formErrors.buttonLabel ? 'border-red-300 focus:ring-red-500 bg-red-50' : 'border-gray-200 focus:ring-yellow-400'}`}
-                  placeholder="e.g. Open, Visit, View Dashboard"
-                />
-                {formErrors.buttonLabel && <p className="text-red-500 text-xs mt-1">{formErrors.buttonLabel}</p>}
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Content Type</label>
+                <div className="flex bg-gray-100 p-1 rounded-xl border border-gray-200">
+                  {['link', 'file', 'video'].map(type => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setFormData(p => ({ ...p, mediaType: type }))}
+                      className={`flex-1 py-2 text-xs font-bold uppercase rounded-lg transition-all ${formData.mediaType === type ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
               </div>
+
+              {/* Video Configuration (if needed) */}
+              {formData.mediaType === 'video' && (
+                <div className="p-4 bg-violet-50 border border-violet-100 rounded-2xl space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Video size={16} className="text-violet-600" />
+                    <label className="text-[10px] font-black text-violet-600 uppercase tracking-widest">Video Configuration</label>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-[9px] font-black text-violet-400 uppercase mb-1">Direct Video URL</label>
+                    <input 
+                      type="url"
+                      value={formData.videoConfig.url}
+                      onChange={(e) => setFormData(p => ({ ...p, videoConfig: { ...p.videoConfig, url: e.target.value } }))}
+                      className="w-full px-4 py-2 border border-violet-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 bg-white"
+                      placeholder="https://example.com/video.mp4"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[9px] font-black text-violet-400 uppercase mb-1">Alternative Title (Optional)</label>
+                      <input 
+                        type="text"
+                        value={formData.videoConfig.title}
+                        onChange={(e) => setFormData(p => ({ ...p, videoConfig: { ...p.videoConfig, title: e.target.value } }))}
+                        className="w-full px-4 py-2 border border-violet-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 bg-white"
+                        placeholder="Video Title"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-black text-violet-400 uppercase mb-1">Default Speed</label>
+                      <select 
+                        value={formData.videoConfig.defaultSpeed}
+                        onChange={(e) => setFormData(p => ({ ...p, videoConfig: { ...p.videoConfig, defaultSpeed: parseFloat(e.target.value) } }))}
+                        className="w-full px-4 py-2 border border-violet-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 bg-white font-bold"
+                      >
+                        {[0.5, 0.75, 1, 1.25, 1.5, 2].map(s => (
+                          <option key={s} value={s}>{s}x</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 bg-white border border-violet-100 rounded-xl">
+                    <div>
+                      <h4 className="font-bold text-violet-900 text-xs">Allow Download</h4>
+                      <p className="text-[10px] text-violet-400">Add download button to player</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={formData.videoConfig.allowDownload} 
+                        onChange={(e) => setFormData(p => ({ ...p, videoConfig: { ...p.videoConfig, allowDownload: e.target.checked } }))}
+                        className="sr-only peer" 
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-violet-400 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-600"></div>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {/* Primary Source Group */}
+              {formData.mediaType !== 'video' && (
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Primary Link Source</label>
+                  <div className="flex bg-white p-1 rounded-lg border border-slate-100 shadow-sm">
+                    <button 
+                      type="button"
+                      onClick={() => setFormData(p => ({ ...p, primarySourceType: 'url' }))}
+                      className={`px-3 py-1 text-[10px] font-black uppercase rounded-md transition-all ${formData.primarySourceType === 'url' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                      Url
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setFormData(p => ({ ...p, primarySourceType: 'file' }))}
+                      className={`px-3 py-1 text-[10px] font-black uppercase rounded-md transition-all ${formData.primarySourceType === 'file' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                      File
+                    </button>
+                  </div>
+                </div>
+
+                {formData.primarySourceType === 'url' ? (
+                  <div>
+                    <input 
+                      type="url" 
+                      name="url" 
+                      value={formData.url} 
+                      onChange={handleFormChange}
+                      className={`w-full px-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 ${formErrors.url ? 'border-red-300 focus:ring-red-500 bg-red-50' : 'border-gray-200 focus:ring-yellow-400'}`}
+                      placeholder="https://example.com/report"
+                    />
+                    {formErrors.url && <p className="text-red-500 text-[10px] mt-1 font-bold uppercase">{formErrors.url}</p>}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {formData.primaryFileUrl ? (
+                      <div className="bg-white p-3 border border-green-100 rounded-xl flex items-center justify-between shadow-sm">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center text-green-600 shrink-0">
+                            <FileText size={20} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-slate-700 truncate">{formData.primaryFileName}</p>
+                            <p className="text-[10px] text-green-500 font-medium truncate uppercase tracking-tighter">GitHub Hosted</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                           <button 
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-all"
+                            title="Replace File"
+                          >
+                            <Edit size={16} />
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => setFormData(p => ({ ...p, primaryFileUrl: '', primaryFileName: '' }))}
+                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                            title="Remove File"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div 
+                        onClick={() => !isUploadingFile && fileInputRef.current?.click()}
+                        className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${isUploadingFile ? 'bg-slate-100 border-slate-300 opacity-50' : 'border-slate-300 hover:border-blue-400 hover:bg-blue-50/30'}`}
+                      >
+                        <div className="flex flex-col items-center gap-2">
+                          {isUploadingFile ? (
+                            <Loader2 size={32} className="text-blue-500 animate-spin" />
+                          ) : (
+                            <FileIcon size={32} className="text-slate-300" />
+                          )}
+                          <p className="text-xs font-bold text-slate-500">{isUploadingFile ? 'Uploading to GitHub...' : 'Click to upload file'}</p>
+                          <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">Supports PDF, Excel, Ppt, Images</p>
+                        </div>
+                      </div>
+                    )}
+                    <input 
+                      type="file" 
+                      ref={fileInputRef}
+                      onChange={handleFileUpload}
+                      className="hidden" 
+                    />
+                    {formErrors.url && !formData.primaryFileUrl && <p className="text-red-500 text-[10px] mt-1 font-bold uppercase text-center">{formErrors.url}</p>}
+                  </div>
+                )}
+              </div>
+              )}
+
+              {/* Extra Buttons Section */}
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-bold text-gray-700 flex items-center gap-2 uppercase tracking-tight">
+                    <Plus size={14} className="text-pink-500" />
+                    Extra Buttons ({formData.extraButtons?.length || 0}/3)
+                  </label>
+                  {(formData.extraButtons?.length < 3) && (
+                    <button 
+                      type="button"
+                      onClick={addExtraButton}
+                      className="text-[10px] font-black uppercase text-pink-600 hover:text-pink-700 bg-pink-50 px-3 py-1 rounded-full transition-all border border-pink-100 shadow-sm"
+                    >
+                      ✚ Add Button
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  {formData.extraButtons?.map((btn, idx) => (
+                    <div key={btn.id} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl relative animate-in slide-in-from-top-2 duration-200">
+                      <button 
+                        type="button"
+                        onClick={() => removeExtraButton(btn.id)}
+                        className="absolute -top-2 -right-2 w-6 h-6 bg-white shadow-sm border border-slate-100 text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center transition-all z-10"
+                      >
+                        <X size={14} />
+                      </button>
+
+                      <div className="grid grid-cols-2 gap-3 mb-3">
+                        <div>
+                          <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">Label</label>
+                          <input 
+                            type="text"
+                            value={btn.label}
+                            onChange={(e) => updateExtraButton(btn.id, 'label', e.target.value)}
+                            className={`w-full px-3 py-1.5 bg-white border rounded-lg text-xs font-bold outline-none focus:ring-2 ${formErrors[`btn_${idx}_label`] ? 'border-red-300' : 'border-slate-200 focus:ring-pink-500/20'}`}
+                            placeholder="e.g. Download PDF"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">Action</label>
+                          <select
+                            value={btn.action}
+                            onChange={(e) => updateExtraButton(btn.id, 'action', e.target.value)}
+                            className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-pink-500/20"
+                          >
+                            <option value="open">New Tab</option>
+                            <option value="same_tab">Same Tab</option>
+                            <option value="download">Download</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 mb-3">
+                        <div>
+                          <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">Color Theme</label>
+                          <select
+                            value={btn.color}
+                            onChange={(e) => updateExtraButton(btn.id, 'color', e.target.value)}
+                            className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-pink-500/20"
+                          >
+                            <option value="primary">Primary (Emerald)</option>
+                            <option value="secondary">Secondary (Blue)</option>
+                            <option value="success">Success (Green)</option>
+                            <option value="warning">Warning (Amber)</option>
+                            <option value="danger">Danger (Red)</option>
+                            <option value="gray">Gray (Slate)</option>
+                            <option value="custom">Custom Hex</option>
+                          </select>
+                        </div>
+                        {btn.color === 'custom' && (
+                          <div>
+                            <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">Hex Code</label>
+                            <div className="flex gap-2">
+                              <input 
+                                type="text"
+                                value={btn.customHex || '#'}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  if (val.length <= 7) updateExtraButton(btn.id, 'customHex', val);
+                                }}
+                                className={`flex-1 px-3 py-1.5 bg-white border rounded-lg text-xs font-mono font-bold outline-none ${formErrors[`btn_${idx}_hex`] ? 'border-red-500' : 'border-slate-200'}`}
+                                placeholder="#000000"
+                              />
+                              <div 
+                                className="w-8 h-8 rounded-lg border border-slate-200 shadow-inner" 
+                                style={{ backgroundColor: btn.customHex?.startsWith('#') ? btn.customHex : '#eee' }} 
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="mb-3">
+                        <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">Preview</label>
+                        <div className="flex gap-2">
+                          {(() => {
+                            const isCustom = btn.color === 'custom' && btn.customHex;
+                            const bgStyle = isCustom ? { backgroundColor: btn.customHex } : {};
+                            const textColorClass = isCustom ? getContrastText(btn.customHex) : '';
+                            const presetClass = !isCustom ? (colorClasses[btn.color || 'secondary'] || colorClasses.secondary) : '';
+                            
+                            return (
+                                <div 
+                                  style={bgStyle}
+                                  className={`flex-1 py-2 px-3 rounded-lg border text-center text-[10px] font-bold shadow-sm ${presetClass} ${textColorClass}`}
+                                >
+                                  {btn.label || 'Button Preview'}
+                                </div>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">URL</label>
+                        <input 
+                          type="url"
+                          value={btn.url}
+                          onChange={(e) => updateExtraButton(btn.id, 'url', e.target.value)}
+                          className={`w-full px-3 py-1.5 bg-white border rounded-lg text-xs font-bold outline-none focus:ring-2 ${formErrors[`btn_${idx}_url`] ? 'border-red-300' : 'border-slate-200 focus:ring-pink-500/20'}`}
+                          placeholder="https://..."
+                        />
+                      </div>
+                    </div>
+                  ))}
+
+                  {(!formData.extraButtons || formData.extraButtons.length === 0) && (
+                    <div className="text-center py-6 border-2 border-dashed border-slate-200 rounded-2xl">
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">No extra buttons added</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* URL - HIDDEN - Replaced by primary source group above */}
+              {/* Button Label - HIDDEN - Replaced by primary button label group above */}
 
               {/* Allowed Users Multi-Select */}
               <div>

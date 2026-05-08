@@ -27,7 +27,7 @@ export default function Footer() {
           <span className="text-[#F5C518] font-bold uppercase tracking-tighter">
             Dr. Peter Ramsis
           </span>{" "}
-          <span className="hidden sm:inline text-white/50 lowercase tracking-widest">| Area Supervisor</span>
+          <span className="hidden sm:inline text-white/50 tracking-widest">| Area Supervisor</span>
         </p>
 
         {/* CENTER */}

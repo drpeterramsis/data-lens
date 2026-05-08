@@ -125,6 +125,7 @@ const ICON_MAP = {
   'User':               User,
   'user_check':         UserCheck,
   'UserCheck':          UserCheck,
+  'groups':             Users,
   'person':             User,
   'Person':             User,
 

@@ -41,13 +41,14 @@ const DEFAULT_GROUPS = [
 
 const DEFAULT_MENU_ITEMS = [
   { id: 'menu_dashboard', label: 'Dashboard', icon: 'dashboard', route: '/dashboard', order: 1, visible: true, adminOnly: false, groupId: 'grp_main' },
-  { id: 'menu_call_detailing', label: 'Call Detailing', icon: 'phone', route: '/tools/call-detailing', order: 2, visible: true, adminOnly: false, groupId: 'grp_analytics' },
-  { id: 'menu_sales_analyzer', label: 'ATR Sales Analyzer', icon: 'bar_chart', route: '/sales-analyzer', order: 3, visible: true, adminOnly: false, groupId: 'grp_analytics' },
-  { id: 'menu_sales_forecast', label: 'Sales Forecast', icon: 'trending_up', route: '/tools/sales-forecast', order: 4, visible: true, adminOnly: false, groupId: 'grp_analytics' },
-  { id: 'menu_routing', label: 'Routing Analyzer', icon: 'map', route: '/routing-analyzer', order: 5, visible: true, adminOnly: false, groupId: 'grp_analytics' },
-  { id: 'menu_library', label: 'Library', icon: 'link', route: '/library', order: 6, visible: true, adminOnly: false, groupId: 'grp_resources' },
-  { id: 'menu_skillzaty', label: 'Skill-Zaty', icon: 'school', route: '/skill-zaty', order: 7, visible: true, adminOnly: false, groupId: 'grp_resources' },
-  { id: 'menu_admin_settings', label: 'Admin Settings', icon: 'shield', route: '/admin-settings', order: 8, visible: true, adminOnly: true, groupId: 'grp_admin' }
+  { id: 'menu_call-detailing', label: 'Call Detailing', icon: 'phone', route: '/tools/call-detailing', order: 2, visible: true, adminOnly: false, groupId: 'grp_analytics' },
+  { id: 'menu_sales-analyzer', label: 'ATR Sales Analyzer', icon: 'bar_chart', route: '/sales-analyzer', order: 3, visible: true, adminOnly: false, groupId: 'grp_analytics' },
+  { id: 'menu_per_customer_analyzer', label: 'Per Customer Analyzer', icon: 'users', route: '/per-customer-analyzer', order: 4, visible: true, adminOnly: false, groupId: 'grp_analytics' },
+  { id: 'menu_sales-forecast', label: 'Sales Forecast', icon: 'trending_up', route: '/tools/sales-forecast', order: 5, visible: true, adminOnly: false, groupId: 'grp_analytics' },
+  { id: 'menu_routing-analyzer', label: 'Routing Analyzer', icon: 'map', route: '/routing-analyzer', order: 6, visible: true, adminOnly: false, groupId: 'grp_analytics' },
+  { id: 'menu_links-library', label: 'Library', icon: 'link', route: '/library', order: 7, visible: true, adminOnly: false, groupId: 'grp_resources' },
+  { id: 'menu_skill-zaty', label: 'Skill-Zaty', icon: 'school', route: '/skill-zaty', order: 8, visible: true, adminOnly: false, groupId: 'grp_resources' },
+  { id: 'menu_admin-settings', label: 'Admin Settings', icon: 'shield', route: '/admin-settings', order: 9, visible: true, adminOnly: true, groupId: 'grp_admin' }
 ];
 
 const Toggle = ({ value, onChange }) => (
@@ -229,7 +230,9 @@ const SortableMenuItemRow = ({ item, groups, onChangeGroup, onToggleVisible }) =
       >
         <option value="">-- No Group --</option>
         {groups.map(g => (
-          <option key={g.id} value={g.id}>{resolveIcon(g.icon, 12)} {g.label}</option>
+          <option key={g.id} value={g.id}>
+            {g.label}
+          </option>
         ))}
       </select>
 

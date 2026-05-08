@@ -5,6 +5,7 @@ import { useAuth } from '../../../context/AuthContext';
 import Toast, { useToast } from '../../Toast';
 import { getLatestSHA, saveFileToGitHub, getFileFromGitHub } from '../../../services/githubService';
 import { ALL_TOOLS } from '../../../config/toolsConfig';
+import { resolveIcon } from '../../../utils/iconResolver';
 
 const AVAILABLE_PAGES = ALL_TOOLS.map(tool => ({
   id: tool.id,
@@ -462,7 +463,9 @@ const UserManagementTab = () => {
                       return (
                         <div key={page.id} className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all ${hasAccess ? 'border-amber-500 bg-amber-50' : 'border-slate-100 bg-white'}`}>
                            <div className="flex items-center gap-3">
-                             <div className="text-lg">{page.icon}</div>
+                             <div className="text-slate-400">
+                               {resolveIcon(page.icon, 18)}
+                             </div>
                              <span className="text-sm font-bold text-slate-700">{page.label}</span>
                            </div>
                            <button 
