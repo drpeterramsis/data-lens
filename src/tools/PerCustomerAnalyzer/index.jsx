@@ -20,6 +20,11 @@ import {
   toNumberSafe, formatKpi, formatKpiGrouped, formatKpiPercent 
 } from '../../utils/formatNumber';
 import { FilterButton } from '../../components/ui/FilterButton';
+import { 
+  saveSession as dbSaveSession, 
+  getAllSessions as dbGetAllSessions, 
+  deleteSession as dbDeleteSession 
+} from '../../utils/indexedDbSessions';
 
 // ── CONSTANTS & STYLES ──
 const TABLE_BASE = "w-full table-auto border-collapse text-[11px] md:text-xs text-gray-700 font-sans";
@@ -111,10 +116,63 @@ const PerCustomerAnalyzer = () => {
   const [isPreparing, setIsPreparing] = useState(false);
   const [prepProgress, setPrepProgress] = useState({ stage: '', processed: 0, total: 0 });
   const [prepared, setPrepared] = useState(null);
+  const [preparedFiltered, setPreparedFiltered] = useState(null);
   const [prepError, setPrepError] = useState('');
+  const [isFiltering, setIsFiltering] = useState(false);
+  const [lastMergeStats, setLastMergeStats] = useState(null);
+  const [filterPresets, setFilterPresets] = useState([]);
+  const [showPresetModal, setShowPresetModal] = useState(false);
   
+  const [isSessionModalOpen, setIsSessionModalOpen] = useState(false);
+  const [savedSessions, setSavedSessions] = useState([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [loadProgress, setLoadProgress] = useState(null);
+
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(100);
+
+  const [productTableQuery, setProductTableQuery] = useState('');
+  const [statementSearch, setStatementSearch] = useState('');
+  const [statementPage, setStatementPage] = useState(1);
+  const [statementPageSize] = useState(25);
+
+  const [statementModal, setStatementModal] = useState({ open: false, title: '', rows: [], loading: false, query: '', page: 1 });
+  const [duplicatesModal, setDuplicatesModal] = useState({ open: false, rows: [], total: 0, loading: false, query: '', page: 1, stored: 0 });
+  const pendingRequests = useRef(new Map());
+
+  const callWorker = (type, payload = {}) => {
+    if (!workerRef.current) return Promise.reject("Worker not initialized");
+    const requestId = Math.random().toString(36).substring(7);
+    return new Promise((resolve, reject) => {
+      pendingRequests.current.set(requestId, { resolve, reject });
+      workerRef.current.postMessage({ type, requestId, ...payload });
+      // Timeout after 30 seconds
+      setTimeout(() => {
+        if (pendingRequests.current.has(requestId)) {
+          pendingRequests.current.delete(requestId);
+          reject(new Error(`Worker request ${type} timed out`));
+        }
+      }, 60000);
+    });
+  };
+
+  const fetchDuplicates = async (page = 1, query = '') => {
+    if (!workerRef.current) return;
+    setDuplicatesModal(prev => ({ ...prev, loading: true, page, query }));
+    try {
+      const response = await callWorker('getDuplicates', { page, pageSize: 50, query });
+      setDuplicatesModal(prev => ({ 
+        ...prev, 
+        rows: response.rows, 
+        total: response.total, 
+        stored: response.stored,
+        loading: false 
+      }));
+    } catch (err) {
+      console.error("Fetch duplicates failed", err);
+      setDuplicatesModal(prev => ({ ...prev, loading: false }));
+    }
+  };
   
   const workerRef = useRef(null);
 
@@ -123,6 +181,15 @@ const PerCustomerAnalyzer = () => {
   const [fullscreen, setFullscreen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [customerSearch, setCustomerSearch] = useState('');
+  
+  const [filterLimits, setFilterLimits] = useState({
+    products: 200,
+    distributors: 200,
+    evaBricks: 200,
+    disBricks: 200,
+    customers: 200
+  });
+
   const [filterSearch, setFilterSearch] = useState({
     product: '',
     distributor: '',
@@ -145,7 +212,48 @@ const PerCustomerAnalyzer = () => {
     arabicOnly: false
   });
 
+  const activeData = preparedFiltered || prepared;
   const isCsvMode = !!prepared;
+
+  // ── FILTER PRESETS ──
+  useEffect(() => {
+    const saved = localStorage.getItem('perCustomerFilterPresets');
+    if (saved) {
+      try {
+        setFilterPresets(JSON.parse(saved));
+      } catch (e) {
+        console.error("Failed to parse filter presets", e);
+      }
+    }
+  }, []);
+
+  const saveFilterPreset = (name) => {
+    const newPreset = {
+      id: Date.now(),
+      name,
+      savedAt: Date.now(),
+      filters: { ...filters }
+    };
+    const updated = [...filterPresets, newPreset];
+    setFilterPresets(updated);
+    localStorage.setItem('perCustomerFilterPresets', JSON.stringify(updated));
+    alert("Filter preset saved!");
+  };
+
+  const deletePreset = (id) => {
+    const updated = filterPresets.filter(p => p.id !== id);
+    setFilterPresets(updated);
+    localStorage.setItem('perCustomerFilterPresets', JSON.stringify(updated));
+  };
+
+  const loadPreset = (preset) => {
+    setFilters(preset.filters);
+    // Auto-apply if in CSV mode
+    if (isCsvMode) {
+      setIsFiltering(true);
+      callWorker('applyFilters', { filters: preset.filters });
+    }
+  };
 
   // 1) File Handling
   useEffect(() => {
@@ -156,74 +264,142 @@ const PerCustomerAnalyzer = () => {
     };
   }, []);
 
-  const handleUpload = async (file) => {
+  const initWorker = () => {
+    if (workerRef.current) return workerRef.current;
+    
+    const worker = new Worker(new URL('../../workers/perCustomerWorker.js', import.meta.url), { type: 'module' });
+    worker.onmessage = (e) => {
+      const { type, requestId, stage, processed, total, payload, message, mergeStats, period, snapshot, snapshotData } = e.data;
+      
+      // Handle Request/Response correlation
+      if (requestId && pendingRequests.current.has(requestId)) {
+        if (type === 'progress') {
+          // Progress updates don't resolve the promise, just update UI
+          setPrepProgress({ stage, processed, total });
+          return;
+        }
+        
+        const { resolve, reject } = pendingRequests.current.get(requestId);
+        if (type === 'error') {
+          reject(new Error(message));
+          setPrepError(message);
+          setIsPreparing(false);
+          setIsFiltering(false);
+        } else {
+          resolve(payload || snapshot || e.data);
+        }
+        pendingRequests.current.delete(requestId);
+        
+        // If it's a final state, we might still want to update standard states
+        if (type === 'done' || type === 'filtered') {
+          updatePreparedState(type, payload, period, mergeStats);
+        } else if (type === 'statement') {
+          setStatementModal(prev => ({ ...prev, rows: payload.rows, title: payload.title, loading: false }));
+        } else if (type === 'duplicates') {
+          // Handled by resolve
+        } else if (type === 'snapshot') {
+          handleFinalizeSave(snapshot);
+        }
+        return;
+      }
+
+      // Fallback for non-requestId messages (streams/errors)
+      if (type === 'progress') {
+        setPrepProgress({ stage, processed, total });
+      } else if (type === 'done' || type === 'filtered') {
+        updatePreparedState(type, payload, period, mergeStats);
+      } else if (type === 'statement') {
+        setStatementModal(prev => ({ ...prev, rows: payload.rows, title: payload.title, loading: false }));
+      } else if (type === 'duplicates') {
+        setDuplicatesModal(prev => ({ 
+          ...prev, 
+          rows: payload.rows, 
+          total: payload.total, 
+          stored: payload.stored,
+          loading: false 
+        }));
+      } else if (type === 'snapshot') {
+        handleFinalizeSave(snapshot);
+      } else if (type === 'error') {
+        setPrepError(message);
+        setIsPreparing(false);
+        setIsFiltering(false);
+      }
+    };
+    workerRef.current = worker;
+    return worker;
+  };
+
+  const updatePreparedState = (type, payload, period, mergeStats) => {
+    if (type === 'done') {
+      setPrepared(payload);
+      setPreparedFiltered(null); 
+      setIsPreparing(false);
+      if (period) setFileMeta(prev => ({ ...prev, reportMonthLabel: period.label }));
+      if (mergeStats) setLastMergeStats(mergeStats);
+      setFilterSearch({ product: '', distributor: '', evaBrick: '', disBrick: '', customer: '' });
+    } else if (type === 'filtered') {
+      setPreparedFiltered(payload);
+      if (period) setFileMeta(prev => ({ ...prev, reportMonthLabel: period.label }));
+      setIsFiltering(false);
+    }
+  };
+
+  const handleUpload = async (file, isMerge = false) => {
     if (!file) return;
     
-    // Reset state
-    setPrepared(null);
-    setData([]); // Clear legacy row-level data
-    setPrepError('');
-    setSelectedCustomer(null);
-    setFilters({
-      products: [],
-      evaBricks: [],
-      disBricks: [],
-      distributors: [],
-      customers: [],
-      customerCode: '',
-      minValue: '',
-      maxValue: '',
-      minQty: '',
-      maxQty: '',
-      arabicOnly: false
-    });
-    setPage(1);
+    if (!isMerge) {
+      setPrepared(null);
+      setPreparedFiltered(null);
+      setData([]); 
+      setPrepError('');
+      setSelectedCustomer(null);
+      setFilters({
+        products: [],
+        evaBricks: [],
+        disBricks: [],
+        distributors: [],
+        customers: [],
+        customerCode: '',
+        minValue: '',
+        maxValue: '',
+        minQty: '',
+        maxQty: '',
+        arabicOnly: false
+      });
+      setPage(1);
+    }
 
-    if (file.name.endsWith('.csv')) {
+    if (file.name.endsWith('.csv') || file.name.endsWith('.tsv')) {
       setIsPreparing(true);
       setPrepProgress({ stage: 'Reading file...', processed: 0, total: 0 });
       
       try {
         const csvText = await file.text();
-        
-        if (workerRef.current) workerRef.current.terminate();
-        workerRef.current = new Worker(new URL('../../workers/perCustomerWorker.js', import.meta.url), { type: 'module' });
-        
-        workerRef.current.onmessage = (e) => {
-          const { type, stage, processed, total, payload, message } = e.data;
-          if (type === 'progress') {
-            setPrepProgress({ stage, processed, total });
-          } else if (type === 'done') {
-            // SUCCESS: Do not set row-level data for large CSVs
-            setPrepared(payload);
-            setIsPreparing(false);
-            
-            // Clear search cache
-            setFilterSearch({ product: '', distributor: '', evaBrick: '', disBrick: '', customer: '' });
-            
-            // Month detection
-            const lowerName = file.name.toLowerCase();
-            const nameKeywords = [
-              'January', 'February', 'March', 'April', 'May', 'June', 
-              'July', 'August', 'September', 'October', 'November', 'December'
-            ];
-            const foundMonth = nameKeywords.find(m => lowerName.includes(m.toLowerCase()));
-            let detectedMonth = "Unknown Month";
-            if (foundMonth) {
-              const yearMatch = file.name.match(/\d{4}/);
-              detectedMonth = `${foundMonth} ${yearMatch ? yearMatch[0] : ''}`;
-            }
-            setFileMeta({ name: file.name, reportMonthLabel: detectedMonth });
-          } else if (type === 'error') {
-            setPrepError(message);
-            setIsPreparing(false);
-          }
-        };
+        const worker = initWorker();
 
-        workerRef.current.postMessage({ csvText });
+        // Detect month from filename
+        const lowerName = file.name.toLowerCase();
+        const nameKeywords = [
+          'January', 'February', 'March', 'April', 'May', 'June', 
+          'July', 'August', 'September', 'October', 'November', 'December'
+        ];
+        const foundMonthName = nameKeywords.find(m => lowerName.includes(m.toLowerCase()));
+        let initialMonthKey = "Unknown Month";
+        if (foundMonthName) {
+          const yearMatch = file.name.match(/\d{4}/);
+          initialMonthKey = `${foundMonthName} ${yearMatch ? yearMatch[0] : ''}`;
+        }
+
+        worker.postMessage({ 
+          type: isMerge ? 'merge' : 'prepare', 
+          csvText,
+          fileMonthKey: initialMonthKey,
+          sourceFileName: file.name
+        });
       } catch (err) {
-        console.error("Worker setup failed", err);
-        setPrepError("Failed to start data preparation.");
+        console.error("Worker process failed", err);
+        setPrepError("Failed to process data.");
         setIsPreparing(false);
       }
       return;
@@ -303,7 +479,15 @@ const PerCustomerAnalyzer = () => {
     }
   };
 
-  // 2) Filtering & Aggregation
+  const applyFilters = () => {
+    if (workerRef.current && isCsvMode) {
+      setIsFiltering(true);
+      callWorker('applyFilters', { filters });
+      setIsSidebarOpen(false);
+      setPage(1);
+    }
+  };
+
   const filterOptions = useMemo(() => {
     if (prepared) return prepared.filterOptions;
     if (!data.length) return { products: [], evaBricks: [], disBricks: [], distributors: [], customers: [] };
@@ -350,79 +534,13 @@ const PerCustomerAnalyzer = () => {
   }, [data, filters]);
 
   const kpis = useMemo(() => {
-    if (prepared) {
-      const hasFilters = filters.products.length || filters.evaBricks.length || filters.disBricks.length || 
-                         filters.distributors.length || filters.customers.length || filters.customerCode || 
-                         filters.minValue || filters.maxValue || filters.arabicOnly;
-      
-      if (!hasFilters) {
-        return {
-          ...prepared.globalTotals,
-          avgPerCust: prepared.globalTotals.customerCount > 0 ? prepared.globalTotals.totalValue / prepared.globalTotals.customerCount : 0,
-          avgQtyPerCust: prepared.globalTotals.customerCount > 0 ? prepared.globalTotals.totalQty / prepared.globalTotals.customerCount : 0,
-          uniqueCust: prepared.globalTotals.customerCount,
-          uniqueProd: prepared.globalTotals.productCount
-        };
-      }
-      
-      const filtered = prepared.customers.filter(c => {
-        if (filters.distributors.length && !filters.distributors.includes(c.distributor)) return false;
-        if (filters.evaBricks.length && !filters.evaBricks.includes(c.evaBrick)) return false;
-        if (filters.disBricks.length && !filters.disBricks.includes(c.disBrick)) return false;
-        if (filters.customers.length && !filters.customers.includes(c.clientName)) return false;
-        if (filters.customerCode && !c.clientCode.includes(filters.customerCode)) return false;
-        if (filters.minValue && c.totalValue < parseFloat(filters.minValue)) return false;
-        if (filters.maxValue && c.totalValue > parseFloat(filters.maxValue)) return false;
-        if (filters.products.length) {
-          if (!c.productIds.some(pId => filters.products.includes(pId))) return false;
-        }
-        if (filters.arabicOnly && !/[\u0600-\u06FF]/.test(c.clientName)) return false;
-        return true;
-      });
-
-      let totalVal = 0;
-      let totalQty = 0;
-      const seenProds = new Set();
-      
-      filtered.forEach(c => {
-        const details = prepared.customerDetails[c.clientCode === 'N/A' ? c.clientName : (c.clientCode || c.clientName)];
-        if (!details) {
-          totalVal += c.totalValue;
-          totalQty += c.totalQty;
-          return;
-        }
-
-        if (filters.products.length || filters.distributors.length) {
-          // If we have specific products/distributors filtered, we should only sum their specific contributions
-          // for absolute accuracy, but typically in these dashboards "Sales of Segment" means total sales of those customers.
-          // However, user usually wants the sales of the filtered products ONLY.
-          
-          if (filters.products.length) {
-            details.byProduct.forEach(bp => {
-              if (filters.products.includes(bp.product)) {
-                totalVal += bp.value;
-                totalQty += bp.qty;
-                seenProds.add(bp.product);
-              }
-            });
-          } else {
-            // No product filter, but maybe other filters. Use customer total.
-            totalVal += c.totalValue;
-            totalQty += c.totalQty;
-          }
-        } else {
-          totalVal += c.totalValue;
-          totalQty += c.totalQty;
-        }
-      });
-
+    if (activeData) {
       return {
-        totalValue: totalVal,
-        totalQty: totalQty,
-        uniqueCust: filtered.length,
-        uniqueProd: filters.products.length ? seenProds.size : prepared.globalTotals.productCount, 
-        avgPerCust: filtered.length > 0 ? totalVal / filtered.length : 0,
-        avgQtyPerCust: filtered.length > 0 ? totalQty / filtered.length : 0
+        ...activeData.globalTotals,
+        avgPerCust: activeData.globalTotals.customerCount > 0 ? activeData.globalTotals.totalValue / activeData.globalTotals.customerCount : 0,
+        avgQtyPerCust: activeData.globalTotals.customerCount > 0 ? activeData.globalTotals.totalQty / activeData.globalTotals.customerCount : 0,
+        uniqueCust: activeData.globalTotals.customerCount,
+        uniqueProd: activeData.globalTotals.productCount
       };
     }
     const totalValue = filteredRows.reduce((acc, r) => acc + r.netSalesValue, 0);
@@ -437,33 +555,18 @@ const PerCustomerAnalyzer = () => {
       avgPerCust: uniqueCust > 0 ? totalValue / uniqueCust : 0,
       avgQtyPerCust: uniqueCust > 0 ? totalQty / uniqueCust : 0
     };
-  }, [filteredRows, prepared, filters]);
+  }, [filteredRows, activeData]);
 
   const aggregates = useMemo(() => {
-    if (prepared) {
-      const filtered = prepared.customers.filter(c => {
-        if (filters.distributors.length && !filters.distributors.includes(c.distributor)) return false;
-        if (filters.evaBricks.length && !filters.evaBricks.includes(c.evaBrick)) return false;
-        if (filters.disBricks.length && !filters.disBricks.includes(c.disBrick)) return false;
-        if (filters.customers.length && !filters.customers.includes(c.clientName)) return false;
-        if (filters.customerCode && !c.clientCode.includes(filters.customerCode)) return false;
-        if (filters.minValue && c.totalValue < parseFloat(filters.minValue)) return false;
-        if (filters.maxValue && c.totalValue > parseFloat(filters.maxValue)) return false;
-        if (filters.products.length) {
-          if (!c.productIds.some(pId => filters.products.includes(pId))) return false;
-        }
-        if (filters.arabicOnly && !/[\u0600-\u06FF]/.test(c.clientName)) return false;
-        return true;
-      });
-
-      const totalValForPct = filtered.reduce((acc, c) => acc + c.totalValue, 0);
-
+    if (activeData) {
+      const totalValForPct = activeData.customers.reduce((acc, c) => acc + c.totalValue, 0);
       return {
-        customers: filtered.map(c => ({...c, pct: totalValForPct > 0 ? (c.totalValue / totalValForPct) * 100 : 0})),
-        products: prepared.products,
-        distributors: prepared.distributors,
-        evaBricks: prepared.evaBricks,
-        disBricks: prepared.disBricks || []
+        customers: activeData.customers.map(c => ({...c, pct: totalValForPct > 0 ? (c.totalValue / totalValForPct) * 100 : 0})),
+        products: activeData.products,
+        productDistributors: activeData.productDistributors || [],
+        distributors: activeData.distributors,
+        evaBricks: activeData.evaBricks,
+        disBricks: activeData.disBricks || []
       };
     }
     const byCust = {};
@@ -490,7 +593,7 @@ const PerCustomerAnalyzer = () => {
       byCust[r.clientCode].totalValue += r.netSalesValue;
       byCust[r.clientCode].products.add(r.product);
 
-      // By Product
+      // By Product (and implied ProductDistributors for legacy fallback)
       if (!byProd[r.product]) {
         byProd[r.product] = { product: r.product, totalQty: 0, totalValue: 0, customers: new Set() };
       }
@@ -532,11 +635,12 @@ const PerCustomerAnalyzer = () => {
     return {
       customers: custArray,
       products: prodArray,
+      productDistributors: [], // Legacy fallback doesn't easily support PD without more logic
       distributors: Object.values(byDis).map(d => ({...d, customerCount: d.customers.size, productCount: d.products.size})),
       evaBricks: Object.values(byEva).map(e => ({...e, customerCount: e.customers.size, productCount: e.products.size})),
       disBricks: Object.values(byDisBrick).map(b => ({...b, customerCount: b.customers.size, productCount: b.products.size}))
     };
-  }, [filteredRows, kpis.totalValue]);
+  }, [filteredRows, kpis.totalValue, activeData]);
 
   const dataTags = useMemo(() => {
     if (!data.length) return [];
@@ -571,7 +675,152 @@ const PerCustomerAnalyzer = () => {
     return filteredCustomers.slice(start, end);
   }, [filteredCustomers, page, pageSize]);
 
-  const { sorted: sortedProd, sortKey: prodSortKey, sortDir: prodSortDir, toggle: prodToggle } = useSortableTable(aggregates.products, 'totalValue', 'desc');
+  const statementRows = useMemo(() => {
+    if (!selectedCustomer || !activeData) return [];
+    const cKey = selectedCustomer.clientCode !== 'N/A' ? selectedCustomer.clientCode : selectedCustomer.clientName;
+    const raw = activeData.customerDetails[cKey] || [];
+    
+    // Filtering
+    const search = statementSearch.trim().toLowerCase();
+    if (!search) return raw;
+    return raw.filter(r => 
+      String(r.product).toLowerCase().includes(search) ||
+      String(r.distributor).toLowerCase().includes(search) ||
+      String(r.monthKey).toLowerCase().includes(search)
+    );
+  }, [selectedCustomer, activeData, statementSearch]);
+
+  const paginatedStatement = useMemo(() => {
+    const start = (statementPage - 1) * statementPageSize;
+    return statementRows.slice(start, start + statementPageSize);
+  }, [statementRows, statementPage, statementPageSize]);
+
+  const { sorted: sortedProd, sortKey: prodSortKey, sortDir: prodSortDir, toggle: prodToggle } = useSortableTable(
+    useMemo(() => {
+      let base = aggregates.productDistributors || [];
+      if (!base.length && aggregates.products.length) {
+        base = aggregates.products.map(p => ({ ...p, distributor: '-' }));
+      }
+      
+      if (!productTableQuery.trim()) return base;
+      const q = productTableQuery.toLowerCase();
+      return base.filter(p => 
+        p.product.toLowerCase().includes(q) || 
+        (p.distributor || '').toLowerCase().includes(q)
+      );
+    }, [aggregates.productDistributors, aggregates.products, productTableQuery]), 
+    'totalValue', 
+    'desc'
+  );
+
+  const handleDrillDown = (scope, key) => {
+    if (!workerRef.current) return;
+    setStatementModal({ open: true, title: `Loading ${key}...`, rows: [], loading: true, query: '', page: 1 });
+    callWorker('getStatement', { scope, key, filters });
+  };
+
+  const drillDownRows = useMemo(() => {
+    if (!statementModal.rows) return [];
+    const q = statementModal.query.trim().toLowerCase();
+    if (!q) return statementModal.rows;
+    return statementModal.rows.filter(r => 
+      String(r.product || '').toLowerCase().includes(q) ||
+      String(r.distributor || '').toLowerCase().includes(q) ||
+      String(r.clientName || '').toLowerCase().includes(q) ||
+      String(r.clientCode || '').toLowerCase().includes(q) ||
+      String(r.monthKey || '').toLowerCase().includes(q) ||
+      String(r.qty || '').includes(q) ||
+      String(r.value || '').includes(q)
+    );
+  }, [statementModal.rows, statementModal.query]);
+
+  const paginatedDrillDown = useMemo(() => {
+    const start = (statementModal.page - 1) * 50;
+    return drillDownRows.slice(start, start + 50);
+  }, [drillDownRows, statementModal.page]);
+
+  // ── SESSIONS ──
+  const refreshSessions = async () => {
+    try {
+      const sessions = await dbGetAllSessions();
+      setSavedSessions(sessions);
+    } catch (err) {
+      console.error("Failed to load sessions", err);
+    }
+  };
+
+  const onOpenLoadModal = () => {
+    refreshSessions();
+    setIsSessionModalOpen(true);
+  };
+
+  const handleSaveTrigger = () => {
+    if (!workerRef.current || !prepared) return;
+    const name = prompt("Enter session name:", `Session - ${new Date().toLocaleDateString()}`);
+    if (!name) return;
+    
+    setIsSaving(true);
+    window.__pendingSessionName = name; 
+    callWorker('getSnapshot');
+  };
+
+  const handleFinalizeSave = async (snapshot) => {
+    try {
+      const name = window.__pendingSessionName || "Untitled Session";
+      const sessionData = {
+        id: `session-${Date.now()}`,
+        name,
+        createdAt: Date.now(),
+        period: activeData?.period || { label: fileMeta.reportMonthLabel },
+        rowCount: activeData?.globalTotals?.totalAdded || aggregates.customers.length,
+        fileMeta: { name: fileMeta.name, label: fileMeta.reportMonthLabel },
+        mergeStats: lastMergeStats,
+        snapshot,
+        filters,
+        uiState: { activeTab }
+      };
+
+      await dbSaveSession(sessionData);
+      alert("Session saved successfully!");
+    } catch (err) {
+      console.error("Save failed", err);
+      alert("Failed to save session.");
+    } finally {
+      setIsSaving(false);
+      delete window.__pendingSessionName;
+    }
+  };
+
+  const handleLoadSession = async (session) => {
+    setIsSessionModalOpen(false);
+    setIsPreparing(true);
+    setPrepProgress({ stage: 'Restoring session...', processed: 0, total: 0 });
+
+    try {
+      initWorker();
+      setFilters(session.filters || filters);
+      setActiveTab(session.uiState?.activeTab || 'overview');
+      setFileMeta(session.fileMeta || { name: 'Restored', reportMonthLabel: 'Unknown' });
+      setLastMergeStats(session.mergeStats || null);
+
+      callWorker('restoreSnapshot', { snapshot: session.snapshot });
+    } catch (err) {
+      console.error("Load failed", err);
+      setIsPreparing(false);
+      alert("Failed to restore session.");
+    }
+  };
+
+  const handleDeleteSession = async (e, id) => {
+    e.stopPropagation();
+    if (!confirm("Delete this session?")) return;
+    try {
+      await dbDeleteSession(id);
+      refreshSessions();
+    } catch (err) {
+      console.error("Delete failed", err);
+    }
+  };
 
   // Exports
   const exportToCSV = (tableData, filename) => {
@@ -647,16 +896,25 @@ const PerCustomerAnalyzer = () => {
             type="file" 
             id="file-upload" 
             className="hidden" 
-            accept=".xlsx, .csv" 
+            accept=".xlsx, .csv, .tsv" 
             onChange={e => handleUpload(e.target.files[0])} 
           />
-          <button 
-            onClick={() => document.getElementById('file-upload').click()}
-            className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-violet-700 transition-all shadow-xl flex items-center justify-center gap-2"
-          >
-            <Plus size={20} />
-            Choose File to Analysis
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3 w-full">
+            <button 
+              onClick={() => document.getElementById('file-upload').click()}
+              className="flex-1 py-4 bg-violet-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-violet-700 transition-all shadow-xl flex items-center justify-center gap-2"
+            >
+              <Upload size={20} />
+              Choose File
+            </button>
+            <button 
+              onClick={onOpenLoadModal}
+              className="flex-1 py-4 bg-white text-violet-600 border-2 border-violet-100 rounded-2xl font-black uppercase tracking-widest hover:bg-violet-50 transition-all flex items-center justify-center gap-2"
+            >
+              <History size={20} />
+              Load Session
+            </button>
+          </div>
           <div className="mt-6 flex gap-4 text-[10px] text-gray-400 font-bold uppercase tracking-widest">
             <span>Product</span> • <span>Eva Brick</span> • <span>Client Code</span> • <span>Net Sales</span>
           </div>
@@ -681,9 +939,36 @@ const PerCustomerAnalyzer = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {isCsvMode && (
+              <>
+                <input 
+                  type="file" 
+                  id="merge-upload" 
+                  className="hidden" 
+                  accept=".csv, .tsv" 
+                  onChange={e => handleUpload(e.target.files[0], true)} 
+                />
+                <button 
+                  onClick={() => document.getElementById('merge-upload').click()}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-violet-50 text-violet-600 text-[10px] font-black uppercase tracking-tighter hover:bg-violet-600 hover:text-white transition-all shadow-sm group">
+                  <Plus size={14} className="group-hover:scale-110 transition-transform" /> Add File
+                </button>
+                <button 
+                  onClick={handleSaveTrigger}
+                  disabled={isSaving}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-tighter hover:bg-emerald-600 hover:text-white transition-all shadow-sm">
+                  {isSaving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />} Save
+                </button>
+              </>
+            )}
+            <button 
+              onClick={onOpenLoadModal}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-tighter hover:bg-blue-600 hover:text-white transition-all shadow-sm">
+              <History size={14} /> Load
+            </button>
             <button 
               onClick={() => setIsSidebarOpen(true)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gray-100 text-gray-700 text-xs font-black uppercase tracking-tighter hover:bg-violet-600 hover:text-white transition-all">
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gray-100 text-gray-700 text-[10px] font-black uppercase tracking-tighter hover:bg-violet-600 hover:text-white transition-all">
               <Filter size={14} /> Filters
             </button>
             <button 
@@ -718,6 +1003,41 @@ const PerCustomerAnalyzer = () => {
         {/* MAIN CONTENT AREA */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           
+          {/* MERGE STATS BANNER */}
+          {lastMergeStats && (
+            <div className="bg-violet-600 text-white p-4 rounded-3xl flex items-center justify-between shadow-xl animate-in slide-in-from-top duration-500">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4">
+                <div className="p-2 bg-white/20 rounded-xl">
+                  <CheckCircle2 size={20} />
+                </div>
+                <div>
+                  <p className="text-xs font-black uppercase tracking-widest leading-none mb-1">Merge Statistics</p>
+                  <p className="text-[10px] font-bold opacity-90 uppercase">
+                    Added: <span className="font-black underline">{formatKpiGrouped(lastMergeStats.added)}</span> rows • 
+                    Detected: <span className="font-black underline">{formatKpiGrouped(lastMergeStats.duplicatesDetected)}</span> duplicates • 
+                    Total Dataset: <span className="font-black underline">{formatKpiGrouped(lastMergeStats.total)}</span> rows
+                  </p>
+                </div>
+              </div>
+              {lastMergeStats.duplicatesDetected > 0 && (
+                <button 
+                  onClick={() => {
+                    setDuplicatesModal(prev => ({ ...prev, open: true }));
+                    fetchDuplicates(1, '');
+                  }}
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg flex items-center gap-2"
+                >
+                  <AlertCircle size={14} /> View Duplicates Report ({lastMergeStats.duplicatesDetected})
+                </button>
+              )}
+            </div>
+              <button onClick={() => setLastMergeStats(null)} className="p-2 hover:bg-white/10 rounded-full transition-all">
+                <X size={16} />
+              </button>
+            </div>
+          )}
+
           {/* KPI TIER */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             <KPICard title="Total Net Sales (Qty)" value={formatKpiGrouped(kpis.totalQty)} icon={Package} />
@@ -794,7 +1114,10 @@ const PerCustomerAnalyzer = () => {
                     {aggregates.evaBricks.sort((a,b)=>b.totalValue-a.totalValue).slice(0,5).map((e, idx) => (
                       <div key={idx} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-xl transition-all">
                         <span className="text-[11px] font-bold text-gray-700 truncate max-w-[150px]">{e.evaBrick}</span>
-                        <span className="text-[11px] font-black text-gray-900">{formatKpiGrouped(e.totalValue)}</span>
+                        <div className="flex gap-2 items-center">
+                           <span className="text-[9px] font-bold text-gray-400">{formatKpiGrouped(e.totalQty)}</span>
+                           <span className="text-[11px] font-black text-gray-900">{formatKpiGrouped(e.totalValue)}</span>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -805,7 +1128,10 @@ const PerCustomerAnalyzer = () => {
                     {aggregates.distributors.sort((a,b)=>b.totalValue-a.totalValue).slice(0,5).map((d, idx) => (
                       <div key={idx} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-xl transition-all">
                         <span className="text-[11px] font-bold text-gray-700 truncate max-w-[150px]">{d.distributor}</span>
-                        <span className="text-[11px] font-black text-gray-900">{formatKpiGrouped(d.totalValue)}</span>
+                        <div className="flex gap-2 items-center">
+                           <span className="text-[9px] font-bold text-gray-400">{formatKpiGrouped(d.totalQty)}</span>
+                           <span className="text-[11px] font-black text-gray-900">{formatKpiGrouped(d.totalValue)}</span>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -923,41 +1249,63 @@ const PerCustomerAnalyzer = () => {
 
           {activeTab === 'products' && (
             <div className="space-y-6">
-              <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 h-80">
-                 <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Top 15 Products by Value</h4>
-                 <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={aggregates.products.sort((a,b)=>b.totalValue-a.totalValue).slice(0, 15)} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                      <XAxis type="number" hide />
-                      <YAxis dataKey="product" type="category" width={120} tick={{fontSize: 10, fontWeight: 'bold'}} />
-                      <Tooltip contentStyle={{borderRadius:'12px'}} formatter={(v)=>formatKpiGrouped(v)} />
-                      <Bar dataKey="totalValue" fill="#10b981" radius={[0, 4, 4, 0]} />
-                    </BarChart>
-                 </ResponsiveContainer>
-              </div>
-              <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-                <table className={TABLE_BASE}>
-                  <thead className={THEAD_ROW}>
-                    <tr>
-                      <SortableTH label="Product" sortKey="product" currentKey={prodSortKey} dir={prodSortDir} onSort={prodToggle} />
-                      <SortableTH label="Total Qty" sortKey="totalQty" currentKey={prodSortKey} dir={prodSortDir} onSort={prodToggle} className="text-right" />
-                      <SortableTH label="Total Value" sortKey="totalValue" currentKey={prodSortKey} dir={prodSortDir} onSort={prodToggle} className="text-right" />
-                      <SortableTH label="Cust Count" sortKey="customerCount" currentKey={prodSortKey} dir={prodSortDir} onSort={prodToggle} className="text-right" />
-                      <SortableTH label="Avg / Cust" sortKey="avgValue" currentKey={prodSortKey} dir={prodSortDir} onSort={prodToggle} className="text-right" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedProd.map(p => (
-                      <tr key={p.product} className="hover:bg-gray-50">
-                        <td className={TD_TEXT}>{p.product}</td>
-                        <td className={TD_NUM}>{formatKpiGrouped(p.totalQty)}</td>
-                        <td className={TD_NUM}>{formatKpiGrouped(p.totalValue)}</td>
-                        <td className={TD_NUM}>{p.customerCount}</td>
-                        <td className={TD_NUM}>{formatKpiGrouped(p.avgValue)}</td>
+              <div className="bg-white rounded-[40px] p-8 shadow-sm border border-gray-100 flex flex-col gap-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest leading-none mb-1">Product Table</h3>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-none">Complete Performance Breakdown</p>
+                  </div>
+                  <div className="relative">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input 
+                       type="text" 
+                       placeholder="Search products..."
+                       value={productTableQuery}
+                       onChange={e => setProductTableQuery(e.target.value)}
+                       className="text-[10px] font-bold bg-gray-50 border-none rounded-xl pl-9 pr-4 py-2 w-64 focus:ring-2 focus:ring-violet-500 outline-none"
+                    />
+                  </div>
+                </div>
+                <div className="max-h-[60vh] overflow-auto border border-gray-100 rounded-3xl no-scrollbar">
+                  <table className="w-full text-left border-collapse">
+                    <thead className="sticky top-0 z-10 bg-white border-b border-gray-100 shadow-sm">
+                      <tr>
+                        <SortableTH label="Product" sortKey="product" currentKey={prodSortKey} dir={prodSortDir} onSort={prodToggle} />
+                        <SortableTH label="Distributor" sortKey="distributor" currentKey={prodSortKey} dir={prodSortDir} onSort={prodToggle} />
+                        <SortableTH label="Total Qty" sortKey="totalQty" currentKey={prodSortKey} dir={prodSortDir} onSort={prodToggle} className="text-right" />
+                        <SortableTH label="Total Value" sortKey="totalValue" currentKey={prodSortKey} dir={prodSortDir} onSort={prodToggle} className="text-right" />
+                        <SortableTH label="Cust Count" sortKey="customerCount" currentKey={prodSortKey} dir={prodSortDir} onSort={prodToggle} className="text-right" />
+                        <SortableTH label="Avg / Cust" sortKey="avgValue" currentKey={prodSortKey} dir={prodSortDir} onSort={prodToggle} className="text-right" />
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="text-[11px] font-bold text-gray-900 divide-y divide-gray-50">
+                      {sortedProd.map((p, i) => (
+                        <tr key={i} className="hover:bg-violet-50/50 cursor-pointer group" onClick={() => handleDrillDown('product', p.product)}>
+                          <td className={TD_TEXT}>{p.product}</td>
+                          <td className={TD_TEXT}>{p.distributor}</td>
+                          <td className={TD_NUM}>{formatKpiGrouped(p.totalQty)}</td>
+                          <td className={TD_NUM}>{formatKpiGrouped(p.totalValue)}</td>
+                          <td className={TD_NUM}>{p.customerCount}</td>
+                          <td className={TD_NUM}>{formatKpiGrouped(p.avgValue)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-[40px] p-8 shadow-sm border border-gray-100">
+                 <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-6">Top 15 Products by Value</h4>
+                 <div className="h-80">
+                   <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={aggregates.products.sort((a,b)=>b.totalValue-a.totalValue).slice(0, 15)} layout="vertical">
+                        <XAxis type="number" hide />
+                        <YAxis dataKey="product" type="category" width={120} tick={{fontSize: 9, fontWeight: 900}} axisLine={false} tickLine={false} />
+                        <Tooltip contentStyle={{borderRadius:'20px', border:'none', boxShadow:'0 10px 25px rgba(0,0,0,0.1)'}} formatter={(v)=>formatKpiGrouped(v)} />
+                        <Bar dataKey="totalValue" fill="#10b981" radius={[0, 10, 10, 0]} barSize={20} />
+                      </BarChart>
+                   </ResponsiveContainer>
+                 </div>
               </div>
             </div>
           )}
@@ -973,19 +1321,21 @@ const PerCustomerAnalyzer = () => {
                   <div className="p-4 border-b border-gray-50">
                      <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{sec.title}</h4>
                   </div>
-                  <div className="flex-1 overflow-auto">
-                    <table className={TABLE_BASE}>
-                      <thead className="sticky top-0 bg-white">
+                  <div className="flex-1 overflow-auto no-scrollbar">
+                    <table className="w-full text-left border-collapse">
+                      <thead className="sticky top-0 bg-white z-10 shadow-sm border-b border-gray-100">
                         <tr className={THEAD_ROW}>
                           <th className={TH_BASE}>{sec.title}</th>
+                          <th className={`${TH_BASE} text-right`}>Qty</th>
                           <th className={`${TH_BASE} text-right`}>Value</th>
                           <th className={`${TH_BASE} text-right`}>Cust</th>
                         </tr>
                       </thead>
                       <tbody>
                         {sec.data.sort((a,b)=>b.totalValue-a.totalValue).map((row, i) => (
-                          <tr key={i} className="hover:bg-gray-50">
+                          <tr key={i} className="hover:bg-violet-50/50 cursor-pointer group" onClick={() => handleDrillDown(sec.label, row[sec.label])}>
                             <td className={TD_TEXT}>{row[sec.label]}</td>
+                            <td className={TD_NUM}>{formatKpiGrouped(row.totalQty)}</td>
                             <td className={TD_NUM}>{formatKpiGrouped(row.totalValue)}</td>
                             <td className={TD_NUM}>{row.customerCount}</td>
                           </tr>
@@ -1086,101 +1436,496 @@ const PerCustomerAnalyzer = () => {
                    </div>
                  )}
               </div>
-            </div>
+           </div>
           )}
         </div>
+                {/* DUPLICATES MODAL */}
+        {duplicatesModal.open && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setDuplicatesModal({ ...duplicatesModal, open: false })} />
+            <div className="bg-white w-full max-w-5xl h-[85vh] rounded-[40px] shadow-2xl relative z-[310] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300">
+              <div className="p-8 border-b border-gray-100 flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">Duplicates Report</h3>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">
+                    Detected {duplicatesModal.total} redundant rows included in current analysis
+                  </p>
+                </div>
+                <button onClick={() => setDuplicatesModal({ ...duplicatesModal, open: false })} className="w-10 h-10 bg-gray-50 text-gray-400 hover:text-gray-900 rounded-2xl flex items-center justify-center">
+                  <X size={24} />
+                </button>
+              </div>
 
-        {/* CUST DRILL DRAWER */}
-        {selectedCustomer && (
-          <div className="fixed inset-0 z-[120] bg-black/50 backdrop-blur-sm flex justify-end">
-            <div className="w-full max-w-lg bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
-               <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-violet-100 text-violet-600 rounded-xl flex items-center justify-center font-black">
-                      {selectedCustomer.clientName[0]}
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-black text-gray-900 uppercase leading-none mb-1">{selectedCustomer.clientName}</h3>
-                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{selectedCustomer.clientCode}</p>
-                    </div>
+              <div className="p-6 bg-gray-50 flex-1 flex flex-col overflow-hidden">
+                <div className="flex items-center justify-between mb-6">
+                   <div className="relative">
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <input 
+                        type="text" 
+                        placeholder="Search duplicates..."
+                        value={duplicatesModal.query}
+                        onChange={e => fetchDuplicates(1, e.target.value)}
+                        className="text-[11px] font-bold bg-white border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 w-80 focus:ring-2 focus:ring-violet-500 outline-none shadow-sm"
+                      />
+                   </div>
+                   <div className="text-[10px] font-black text-gray-400 uppercase tracking-tight">
+                      Stored samples: {duplicatesModal.stored} / {duplicatesModal.total}
+                   </div>
+                </div>
+
+                <div className="flex-1 bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
+                  <div className="overflow-auto no-scrollbar flex-1">
+                    <table className="w-full text-left text-[11px] border-collapse">
+                      <thead className="sticky top-0 z-10 bg-gray-50 border-b border-gray-100">
+                        <tr>
+                          <th className="px-4 py-3 font-black text-gray-500 uppercase tracking-widest whitespace-nowrap">Month</th>
+                          <th className="px-4 py-3 font-black text-gray-500 uppercase tracking-widest whitespace-nowrap">File</th>
+                          <th className="px-4 py-3 font-black text-gray-500 uppercase tracking-widest whitespace-nowrap">Client</th>
+                          <th className="px-4 py-3 font-black text-gray-500 uppercase tracking-widest whitespace-nowrap">Product</th>
+                          <th className="px-4 py-3 font-black text-gray-500 uppercase tracking-widest whitespace-nowrap">Distributor</th>
+                          <th className="px-4 py-3 font-black text-gray-500 uppercase tracking-widest whitespace-nowrap text-right">Qty</th>
+                          <th className="px-4 py-3 font-black text-gray-500 uppercase tracking-widest whitespace-nowrap text-right">Value</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {duplicatesModal.loading ? (
+                          <tr><td colSpan={7} className="py-20 text-center"><RefreshCw size={24} className="animate-spin mx-auto text-violet-600 mb-4" /><span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Loading...</span></td></tr>
+                        ) : duplicatesModal.rows.length === 0 ? (
+                          <tr><td colSpan={7} className="py-20 text-center text-gray-400 font-black uppercase tracking-widest italic">No duplicates found</td></tr>
+                        ) : (
+                          duplicatesModal.rows.map((r, i) => (
+                            <tr key={i} className="hover:bg-amber-50/30 transition-colors">
+                              <td className="px-4 py-3 font-bold text-gray-600">{r.monthKey}</td>
+                              <td className="px-4 py-3 text-gray-400 italic text-[9px] max-w-[120px] truncate">{r.fileName}</td>
+                              <td className="px-4 py-3 font-bold text-gray-900">
+                                <span className="block text-[10px]">{r.clientName}</span>
+                                <span className="block text-[9px] text-gray-400">{r.clientCode}</span>
+                              </td>
+                              <td className="px-4 py-3 font-bold text-gray-800">{r.product}</td>
+                              <td className="px-4 py-3 text-gray-500">{r.distributor}</td>
+                              <td className="px-4 py-3 text-right font-mono font-bold">{formatKpiGrouped(r.qty)}</td>
+                              <td className="px-4 py-3 text-right font-mono font-bold text-amber-600 tabular-nums">{formatKpiGrouped(r.value)}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
                   </div>
-                  <button onClick={() => setSelectedCustomer(null)} className="p-2 text-gray-400 hover:text-gray-900 transition-colors">
-                    <X size={20} />
+
+                  {duplicatesModal.total > 50 && (
+                     <div className="p-4 border-t border-gray-100 flex items-center justify-between bg-gray-50/50">
+                        <div className="text-[10px] font-black text-gray-400 uppercase tracking-tight">
+                           Page {duplicatesModal.page} of {Math.ceil(duplicatesModal.total / 50)}
+                        </div>
+                        <div className="flex gap-1">
+                           <button 
+                             disabled={duplicatesModal.page <= 1}
+                             onClick={() => fetchDuplicates(duplicatesModal.page - 1, duplicatesModal.query)}
+                             className="p-2 bg-white rounded-xl shadow-sm border border-gray-100 disabled:opacity-30"
+                           ><ChevronLeft size={16} /></button>
+                           <button 
+                             disabled={duplicatesModal.page * 50 >= duplicatesModal.total}
+                             onClick={() => fetchDuplicates(duplicatesModal.page + 1, duplicatesModal.query)}
+                             className="p-2 bg-white rounded-xl shadow-sm border border-gray-100 disabled:opacity-30"
+                           ><ChevronRight size={16} /></button>
+                        </div>
+                     </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* FILTER PRESET MODAL */}
+        {showPresetModal && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setShowPresetModal(false)} />
+            <div className="bg-white w-full max-w-lg rounded-[40px] shadow-2xl relative z-[310] overflow-hidden flex flex-col animate-in zoom-in duration-300">
+               <div className="p-8 border-b border-gray-100 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">Filter Presets</h3>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Manage and load your saved filter states</p>
+                  </div>
+                  <button onClick={() => setShowPresetModal(false)} className="w-10 h-10 bg-gray-50 text-gray-400 hover:text-gray-900 rounded-2xl flex items-center justify-center">
+                    <X size={24} />
                   </button>
                </div>
-               <div className="flex-1 overflow-y-auto p-6 space-y-8">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 bg-gray-50 rounded-2xl">
-                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Value</p>
-                       <p className="text-lg font-black text-gray-900 leading-none">{formatKpiGrouped(selectedCustomer.totalValue)}</p>
+               <div className="p-4 max-h-[50vh] overflow-y-auto space-y-3 no-scrollbar bg-gray-50">
+                  {filterPresets.length === 0 && (
+                    <div className="py-12 text-center text-gray-400 font-black uppercase tracking-widest text-xs italic">
+                      No presets saved yet
                     </div>
-                    <div className="p-4 bg-gray-50 rounded-2xl">
+                  )}
+                  {filterPresets.map(preset => (
+                    <div 
+                      key={preset.id} 
+                      className="group bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between hover:border-violet-600 transition-all"
+                    >
+                      <div className="flex-1 cursor-pointer" onClick={() => { loadPreset(preset); setShowPresetModal(false); }}>
+                        <h4 className="text-sm font-black text-gray-900">{preset.name}</h4>
+                        <p className="text-[9px] font-bold text-gray-400 uppercase">Saved {new Date(preset.savedAt).toLocaleDateString()}</p>
+                      </div>
+                      <button 
+                        onClick={() => deletePreset(preset.id)}
+                        className="p-2 text-gray-300 hover:text-red-500 transition-colors"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+               </div>
+               <div className="p-6 text-center bg-white border-t border-gray-100">
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-relaxed">
+                    Presets are saved to your browser's local storage.
+                  </p>
+               </div>
+            </div>
+          </div>
+        )}
+
+        {/* SESSION LIST MODAL */}
+        {isSessionModalOpen && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setIsSessionModalOpen(false)} />
+            <div className="bg-white w-full max-w-2xl rounded-[40px] shadow-2xl relative z-[310] overflow-hidden flex flex-col animate-in zoom-in duration-300">
+               <div className="p-8 border-b border-gray-100 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">Saved Sessions</h3>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Select a session to restore your dashboard</p>
+                  </div>
+                  <button onClick={() => setIsSessionModalOpen(false)} className="w-10 h-10 bg-gray-50 text-gray-400 hover:text-gray-900 rounded-2xl flex items-center justify-center">
+                    <X size={24} />
+                  </button>
+               </div>
+               <div className="p-4 max-h-[60vh] overflow-y-auto space-y-3 no-scrollbar bg-gray-50">
+                  {savedSessions.length === 0 && (
+                    <div className="py-12 text-center text-gray-400 font-black uppercase tracking-widest text-xs italic">
+                      No saved sessions found
+                    </div>
+                  )}
+                  {savedSessions.map(session => (
+                    <div 
+                      key={session.id} 
+                      onClick={() => handleLoadSession(session)}
+                      className="group bg-white p-5 rounded-3xl border border-gray-100 shadow-sm hover:border-violet-600 hover:shadow-md transition-all cursor-pointer flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-violet-50 text-violet-600 rounded-2xl flex items-center justify-center group-hover:bg-violet-600 group-hover:text-white transition-colors">
+                          <Clock size={20} />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-black text-gray-900 group-hover:text-violet-600 transition-colors">{session.name}</h4>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">
+                            {new Date(session.createdAt).toLocaleString()} • {formatKpiGrouped(session.rowCount)} rows
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="px-2 py-0.5 bg-gray-100 text-[9px] font-black text-gray-500 rounded-md uppercase">{session.period?.label || 'Multiple Months'}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={(e) => handleDeleteSession(e, session.id)}
+                        className="p-3 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all"
+                      >
+                        <Trash2 size={20} />
+                      </button>
+                    </div>
+                  ))}
+               </div>
+               <div className="p-8 border-t border-gray-100 bg-white text-center">
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+                    Sessions are stored locally in your browser (IndexedDB)
+                  </p>
+               </div>
+            </div>
+          </div>
+        )}
+
+        {/* CUST DRILL DRAWER (MODAL) */}
+        {selectedCustomer && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setSelectedCustomer(null)} />
+            <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-[40px] shadow-2xl relative z-[210] overflow-hidden flex flex-col animate-in zoom-in duration-300">
+               <div className="p-8 border-b border-gray-100 flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 bg-violet-50 text-violet-600 rounded-3xl flex items-center justify-center shadow-inner">
+                       <Users size={32} />
+                    </div>
+                    <div>
+                       <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight leading-tight">{selectedCustomer.clientName}</h3>
+                       <p className="text-xs font-black text-violet-600 uppercase tracking-widest mt-1">Code: {selectedCustomer.clientCode}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => { setSelectedCustomer(null); setStatementSearch(''); setStatementPage(1); }} className="w-10 h-10 bg-gray-50 text-gray-400 hover:text-gray-900 rounded-2xl flex items-center justify-center transition-all">
+                    <X size={24} />
+                  </button>
+               </div>
+               <div className="flex-1 overflow-auto p-8 space-y-8 no-scrollbar">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="p-4 bg-violet-600 text-white rounded-2xl shadow-lg">
+                       <p className="text-[10px] font-black opacity-80 uppercase tracking-widest mb-1">Rank</p>
+                       <p className="text-lg font-black leading-none">#{aggregates.customers.findIndex(c => (c.clientCode === selectedCustomer.clientCode && c.clientName === selectedCustomer.clientName)) + 1}</p>
+                    </div>
+                    <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Unique Products</p>
+                       <p className="text-lg font-black text-gray-900 leading-none">{selectedCustomer.productCount}</p>
+                    </div>
+                    <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Value</p>
+                       <p className="text-lg font-black text-gray-900 leading-none tabular-nums">{formatKpiGrouped(selectedCustomer.totalValue)}</p>
+                    </div>
+                    <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Qty</p>
-                       <p className="text-lg font-black text-gray-900 leading-none">{formatKpiGrouped(selectedCustomer.totalQty)}</p>
+                       <p className="text-lg font-black text-gray-900 leading-none tabular-nums">{formatKpiGrouped(selectedCustomer.totalQty)}</p>
                     </div>
                   </div>
                   
-                  <div>
-                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Product Breakdown</h4>
-                    <div className="border rounded-2xl overflow-hidden">
-                       <table className="w-full text-[10px]">
-                          <thead className="bg-gray-50">
-                             <tr>
-                                <th className="px-3 py-2 text-left font-black uppercase">Product</th>
-                                <th className="px-3 py-2 text-right font-black uppercase">Qty</th>
-                                <th className="px-3 py-2 text-right font-black uppercase">Value</th>
-                             </tr>
-                          </thead>
-                          <tbody>
-                             {prepared && prepared.customerDetails[selectedCustomer.clientCode] ? (
-                               prepared.customerDetails[selectedCustomer.clientCode].byProduct.map((p, i) => (
-                                 <tr key={i} className="border-t border-gray-50">
-                                    <td className="px-3 py-2 font-bold">{p.product}</td>
-                                    <td className="px-3 py-2 text-right font-mono">{formatKpiGrouped(p.qty)}</td>
-                                    <td className="px-3 py-2 text-right font-mono">{formatKpiGrouped(p.value)}</td>
-                                 </tr>
-                               ))
-                             ) : (
-                               filteredRows.filter(r => r.clientCode === selectedCustomer.clientCode).map((r, i) => (
-                                 <tr key={i} className="border-t border-gray-50">
-                                    <td className="px-3 py-2 font-bold">{r.product}</td>
-                                    <td className="px-3 py-2 text-right font-mono">{formatKpiGrouped(r.netSalesQty)}</td>
-                                    <td className="px-3 py-2 text-right font-mono">{formatKpiGrouped(r.netSalesValue)}</td>
-                                 </tr>
-                               ))
-                             )}
-                          </tbody>
-                       </table>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Customer Statement / Product Breakdown</h4>
+                      <div className="flex items-center gap-2">
+                         <div className="relative">
+                            <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <input 
+                              type="text" 
+                              placeholder="Search Product, Dist, Month..." 
+                              value={statementSearch}
+                              onChange={e => { setStatementSearch(e.target.value); setStatementPage(1); }}
+                              className="text-[10px] font-bold bg-gray-100 border-none outline-none pl-9 pr-4 py-2 rounded-xl w-64 focus:ring-2 focus:ring-violet-500"
+                            />
+                         </div>
+                      </div>
                     </div>
+                    
+                    <div className="border border-gray-100 rounded-3xl overflow-hidden bg-white shadow-sm">
+                        <table className="w-full text-[11px] border-collapse">
+                           <thead>
+                              <tr className="bg-gray-50 border-b border-gray-100">
+                                 <th className="px-4 py-3 text-left font-black text-gray-500 uppercase tracking-widest">Product</th>
+                                 <th className="px-4 py-3 text-left font-black text-gray-500 uppercase tracking-widest">Distributor</th>
+                                 <th className="px-4 py-3 text-center font-black text-gray-500 uppercase tracking-widest">Month</th>
+                                 <th className="px-4 py-3 text-right font-black text-gray-500 uppercase tracking-widest">Qty</th>
+                                 <th className="px-4 py-3 text-right font-black text-gray-500 uppercase tracking-widest">Value</th>
+                              </tr>
+                           </thead>
+                           <tbody className="divide-y divide-gray-50">
+                              {paginatedStatement.map((r, i) => (
+                                <tr key={i} className="hover:bg-violet-50/30 transition-colors">
+                                   <td className="px-4 py-3 font-bold text-gray-900">{r.product}</td>
+                                   <td className="px-4 py-3 text-gray-500 font-medium">{r.distributor}</td>
+                                   <td className="px-4 py-3 text-center">
+                                      <span className="px-2 py-1 bg-gray-100 text-[9px] font-black text-gray-600 rounded-lg uppercase">{r.monthKey}</span>
+                                   </td>
+                                   <td className="px-4 py-3 text-right font-mono font-bold">{formatKpiGrouped(r.qty)}</td>
+                                   <td className="px-4 py-3 text-right font-mono font-bold text-violet-600">{formatKpiGrouped(r.value)}</td>
+                                </tr>
+                              ))}
+                              {paginatedStatement.length === 0 && (
+                                <tr>
+                                  <td colSpan={5} className="py-20 text-center text-gray-400 font-black uppercase tracking-widest italic">No matching records found</td>
+                                </tr>
+                              )}
+                           </tbody>
+                        </table>
+                    </div>
+
+                    {/* Statement Pagination */}
+                    {statementRows.length > statementPageSize && (
+                      <div className="flex items-center justify-between pt-2">
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">
+                          Showing {Math.min(statementRows.length, (statementPage-1)*statementPageSize+1)}-{Math.min(statementRows.length, statementPage*statementPageSize)} of {statementRows.length} rows
+                        </p>
+                        <div className="flex items-center gap-1">
+                           <button 
+                            disabled={statementPage === 1}
+                            onClick={() => setStatementPage(p => p - 1)}
+                            className="p-1.5 bg-gray-100 rounded-lg text-gray-600 disabled:opacity-30"
+                           ><ChevronLeft size={16} /></button>
+                           <span className="text-[10px] font-black px-2 tabular-nums">{statementPage}</span>
+                           <button 
+                            disabled={statementPage * statementPageSize >= statementRows.length}
+                            onClick={() => setStatementPage(p => p + 1)}
+                            className="p-1.5 bg-gray-100 rounded-lg text-gray-600 disabled:opacity-30"
+                           ><ChevronRight size={16} /></button>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
-                  <div>
-                     <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Location & Distributor</h4>
-                     <div className="space-y-4">
-                        <div className="flex items-center gap-3">
-                           <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg"><MapIcon size={14}/></div>
-                           <div>
-                              <p className="text-[10px] font-black text-gray-400 uppercase">Brick</p>
-                              <p className="text-xs font-bold text-gray-900">{selectedCustomer.evaBrick}</p>
-                           </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                           <div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><Package size={14}/></div>
-                           <div>
-                              <p className="text-[10px] font-black text-gray-400 uppercase">Primary Distributor</p>
-                              <p className="text-xs font-bold text-gray-900">{selectedCustomer.distributor}</p>
-                           </div>
-                        </div>
-                     </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="bg-gray-50 rounded-3xl p-6 border border-gray-100">
+                       <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Location & Delivery Brick</h4>
+                       <div className="flex items-center gap-4">
+                          <div className="p-3 bg-emerald-100 text-emerald-600 rounded-2xl shadow-sm"><MapIcon size={20}/></div>
+                          <div>
+                             <p className="text-xs font-black text-gray-900">{selectedCustomer.evaBrick}</p>
+                             <p className="text-[9px] font-bold text-gray-400 uppercase">District Architecture</p>
+                          </div>
+                       </div>
+                    </div>
+                    <div className="bg-gray-50 rounded-3xl p-6 border border-gray-100">
+                       <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Channel Details</h4>
+                       <div className="flex items-center gap-4">
+                          <div className="p-3 bg-blue-100 text-blue-600 rounded-2xl shadow-sm"><Package size={20}/></div>
+                          <div>
+                             <p className="text-xs font-black text-gray-900">{selectedCustomer.distributor}</p>
+                             <p className="text-[9px] font-bold text-gray-400 uppercase">Primary Distributor Fulfillment</p>
+                          </div>
+                       </div>
+                    </div>
                   </div>
                </div>
-               <div className="p-6 border-t border-gray-100 bg-gray-50">
-                  <button className="w-full py-3 bg-gray-900 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-violet-600 transition-all">
-                    Full Customer Statement
+               <div className="p-8 border-t border-gray-100 bg-white shrink-0 flex gap-4">
+                  <button 
+                    onClick={() => {
+                       const blob = new Blob([JSON.stringify(statementRows, null, 2)], { type: 'application/json' });
+                       const link = document.createElement("a");
+                       link.href = URL.createObjectURL(blob);
+                       link.setAttribute("download", `Statement_${selectedCustomer.clientName}.json`);
+                       link.click();
+                    }}
+                    className="flex-1 py-4 bg-gray-100 text-gray-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-200 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Download size={16} /> Export Statement
+                  </button>
+                  <button 
+                    onClick={() => setSelectedCustomer(null)}
+                    className="flex-[2] py-4 bg-violet-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-violet-700 transition-all shadow-xl"
+                  >
+                    Done
                   </button>
                </div>
             </div>
           </div>
+        )}
+
+        {/* GENERAL DRILL-DOWN STATEMENT MODAL */}
+        {statementModal.open && (
+           <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+             <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={() => setStatementModal({ ...statementModal, open: false })} />
+             <div className="bg-white w-full max-w-5xl max-h-[85vh] rounded-[40px] shadow-2xl relative z-[310] overflow-hidden flex flex-col animate-in zoom-in duration-300">
+                <div className="p-8 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 bg-gray-100 text-gray-900 rounded-2xl flex items-center justify-center">
+                       <BarChart size={28} />
+                    </div>
+                    <div>
+                       <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">{statementModal.title}</h3>
+                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Underlying Transactional Data</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setStatementModal({ ...statementModal, open: false })} className="w-10 h-10 bg-gray-50 text-gray-400 hover:text-gray-900 rounded-xl flex items-center justify-center transition-all">
+                    <X size={20} />
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-hidden p-8 flex flex-col gap-4">
+                  {statementModal.loading ? (
+                    <div className="flex-1 flex flex-col items-center justify-center gap-4">
+                       <div className="w-12 h-12 border-4 border-violet-100 border-t-violet-600 rounded-full animate-spin" />
+                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest animate-pulse">Aggregating records...</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-4">
+                          <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                             Total: {drillDownRows.length} Transactions
+                          </div>
+                          <div className="relative">
+                            <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <input 
+                              type="text" 
+                              placeholder="Search anything..." 
+                              value={statementModal.query}
+                              onChange={e => setStatementModal({ ...statementModal, query: e.target.value, page: 1 })}
+                              className="text-[10px] font-bold bg-gray-50 border-none outline-none pl-9 pr-4 py-2 rounded-xl w-64 focus:ring-2 focus:ring-violet-500"
+                            />
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => {
+                            const csvContent = "Product,Distributor,Customer,Month,Qty,Value\n" + 
+                              drillDownRows.map(r => `"${r.product}","${r.distributor}","${r.clientName}","${r.monthKey}",${r.qty},${r.value}`).join("\n");
+                            const blob = new Blob([csvContent], { type: 'text/csv' });
+                            const link = document.createElement("a");
+                            link.href = URL.createObjectURL(blob);
+                            link.setAttribute("download", `Statement_Export.csv`);
+                            link.click();
+                          }}
+                          className="px-4 py-2 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-violet-600 transition-all flex items-center gap-2"
+                        >
+                          <Download size={12} /> Export CSV
+                        </button>
+                      </div>
+                      <div className="flex-1 border border-gray-100 rounded-3xl overflow-hidden bg-gray-50 flex flex-col">
+                        <div className="overflow-auto no-scrollbar flex-1">
+                          <table className="w-full text-[11px] border-collapse bg-white">
+                             <thead className="sticky top-0 z-10 bg-gray-50 shadow-sm border-b border-gray-100">
+                                <tr className="border-b border-gray-100">
+                                   <th className="px-4 py-3 text-left font-black text-gray-500 uppercase tracking-widest">Product</th>
+                                   <th className="px-4 py-3 text-left font-black text-gray-500 uppercase tracking-widest">Distributor</th>
+                                   <th className="px-4 py-3 text-left font-black text-gray-500 uppercase tracking-widest">Customer</th>
+                                   <th className="px-4 py-3 text-center font-black text-gray-500 uppercase tracking-widest">Month</th>
+                                   <th className="px-4 py-3 text-right font-black text-gray-500 uppercase tracking-widest">Qty</th>
+                                   <th className="px-4 py-3 text-right font-black text-gray-500 uppercase tracking-widest">Value</th>
+                                </tr>
+                             </thead>
+                             <tbody className="divide-y divide-gray-50">
+                                {paginatedDrillDown.map((r, i) => (
+                                  <tr key={i} className="hover:bg-violet-50/20 transition-colors">
+                                     <td className="px-4 py-3 font-bold text-gray-900">{r.product}</td>
+                                     <td className="px-4 py-3 text-gray-500">{r.distributor}</td>
+                                     <td className="px-4 py-3 font-bold text-gray-600">{r.clientName}</td>
+                                     <td className="px-4 py-3 text-center">
+                                        <span className="px-2 py-1 bg-gray-100 text-[9px] font-black text-gray-600 rounded-lg uppercase">{r.monthKey}</span>
+                                     </td>
+                                     <td className="px-4 py-3 text-right font-mono font-bold tabular-nums">{formatKpiGrouped(r.qty)}</td>
+                                     <td className="px-4 py-3 text-right font-mono font-bold text-violet-600 tabular-nums">{formatKpiGrouped(r.value)}</td>
+                                  </tr>
+                                ))}
+                                {paginatedDrillDown.length === 0 && (
+                                  <tr>
+                                    <td colSpan={6} className="py-20 text-center text-gray-400 font-black uppercase tracking-widest italic">No matching records found</td>
+                                  </tr>
+                                )}
+                             </tbody>
+                          </table>
+                        </div>
+                      </div>
+                      
+                      {/* DrillDown Pagination */}
+                      {drillDownRows.length > 50 && (
+                        <div className="flex items-center justify-between pt-2">
+                          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">
+                            Showing {Math.min(drillDownRows.length, (statementModal.page-1)*50+1)}-{Math.min(drillDownRows.length, statementModal.page*50)} of {drillDownRows.length} rows
+                          </p>
+                          <div className="flex items-center gap-1">
+                             <button 
+                              disabled={statementModal.page === 1}
+                              onClick={() => setStatementModal({ ...statementModal, page: statementModal.page - 1 })}
+                              className="p-1.5 bg-gray-100 rounded-lg text-gray-600 disabled:opacity-30"
+                             ><ChevronLeft size={16} /></button>
+                             <span className="text-[10px] font-black px-3 tabular-nums">{statementModal.page}</span>
+                             <button 
+                              disabled={statementModal.page * 50 >= drillDownRows.length}
+                              onClick={() => setStatementModal({ ...statementModal, page: statementModal.page + 1 })}
+                              className="p-1.5 bg-gray-100 rounded-lg text-gray-600 disabled:opacity-30"
+                             ><ChevronRight size={16} /></button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+                <div className="p-8 border-t border-gray-100 bg-gray-50 flex justify-end">
+                  <button onClick={() => setStatementModal({ ...statementModal, open: false })} className="px-8 py-3 bg-white border border-gray-200 text-gray-900 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-900 hover:text-white transition-all">
+                    Close
+                  </button>
+                </div>
+             </div>
+           </div>
         )}
 
         {/* FILTERS SIDEBAR */}
@@ -1193,168 +1938,119 @@ const PerCustomerAnalyzer = () => {
                      <Filter size={16} className="text-violet-600" />
                      <span className="text-sm font-black text-gray-900 uppercase">Advanced Filters</span>
                   </div>
-                  <button onClick={() => setIsSidebarOpen(false)} className="text-gray-400 hover:text-gray-900"><X size={18} /></button>
+                  <div className="flex gap-1 items-center">
+                    <button 
+                      onClick={() => {
+                        const name = prompt("Enter preset name:");
+                        if (name) saveFilterPreset(name);
+                      }}
+                      className="p-1.5 hover:bg-violet-50 text-violet-600 rounded-lg group relative"
+                    >
+                      <Save size={16} />
+                    </button>
+                    <button 
+                      onClick={() => setShowPresetModal(true)}
+                      className="p-1.5 hover:bg-violet-50 text-violet-600 rounded-lg group relative"
+                    >
+                      <History size={16} />
+                    </button>
+                    <button onClick={() => setIsSidebarOpen(false)} className="p-1.5 text-gray-400 hover:text-gray-900">
+                      <X size={18} />
+                    </button>
+                  </div>
                </div>
                <div className="flex-1 overflow-auto p-4 space-y-6">
-                  {/* Filter Sections */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Product</label>
-                      <input 
-                        type="text" 
-                        placeholder="Search..." 
-                        value={filterSearch.product}
-                        onChange={e => setFilterSearch(prev => ({...prev, product: e.target.value}))}
-                        className="text-[9px] bg-gray-50 border-none outline-none px-2 py-0.5 rounded-lg w-24"
-                      />
-                    </div>
-                    <div className="max-h-32 overflow-y-auto border rounded-xl p-1 bg-gray-50">
-                       {searchedOptions.products.map(p => (
-                         <button 
-                            key={p} 
-                            onClick={() => setFilters(f => ({...f, products: f.products.includes(p) ? f.products.filter(x=>x!==p) : [...f.products, p]}))}
-                            className={`w-full text-left p-1.5 rounded-lg text-[10px] font-bold mb-0.5 transition-all
-                              ${filters.products.includes(p) ? 'bg-violet-600 text-white shadow-sm' : 'text-gray-600 hover:bg-white'}
-                            `}
-                          >
-                           {p}
-                         </button>
-                       ))}
-                    </div>
-                  </div>
+                   {/* Filter Sections */}
+                   {[
+                     { id: 'product', label: 'Products', options: searchedOptions.products, key: 'products' },
+                     { id: 'evaBrick', label: 'Eva Bricks', options: searchedOptions.evaBricks, key: 'evaBricks' },
+                     { id: 'disBrick', label: 'DIS Bricks', options: searchedOptions.disBricks, key: 'disBricks' },
+                     { id: 'distributor', label: 'Distributors', options: searchedOptions.distributors, key: 'distributors' },
+                     { id: 'customer', label: 'Customers', options: searchedOptions.customers, key: 'customers' }
+                   ].map(group => (
+                     <div key={group.id} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none">{group.label}</label>
+                          <span className="text-[9px] font-bold text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded-md">
+                            {filters[group.key].length} / {filterOptions[group.key].length}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <div className="relative flex-1">
+                            <Search size={10} className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <input 
+                              type="text" 
+                              placeholder="Search..." 
+                              value={filterSearch[group.id]}
+                              onChange={e => setFilterSearch(prev => ({...prev, [group.id]: e.target.value}))}
+                              className="w-full text-[10px] bg-gray-50 border-none outline-none pl-6 pr-2 py-1.5 rounded-xl focus:ring-1 focus:ring-violet-500"
+                            />
+                          </div>
+                          <button 
+                            onClick={() => setFilters(f => ({...f, [group.key]: [...new Set([...f[group.key], ...group.options])] }))}
+                            className="text-[9px] font-black uppercase text-violet-600 px-1.5 hover:underline"
+                          >All</button>
+                          <button 
+                            onClick={() => setFilters(f => ({...f, [group.key]: f[group.key].filter(x => !group.options.includes(x)) }))}
+                            className="text-[9px] font-black uppercase text-gray-400 px-1.5 hover:underline"
+                          >None</button>
+                        </div>
+                        <div className="max-h-48 overflow-y-auto border border-gray-100 rounded-2xl p-1.5 bg-gray-50 space-y-0.5 scrollbar-thin">
+                           {group.options.slice(0, filterLimits[group.key]).map(opt => (
+                             <button 
+                                key={opt} 
+                                onClick={() => setFilters(f => ({...f, [group.key]: f[group.key].includes(opt) ? f[group.key].filter(x=>x!==opt) : [...f[group.key], opt]}))}
+                                className={`w-full text-left px-2.5 py-1.5 rounded-xl text-[10px] font-bold transition-all
+                                  ${filters[group.key].includes(opt) ? 'bg-violet-600 text-white shadow-md scale-[1.02]' : 'text-gray-600 hover:bg-white'}
+                                `}
+                              >
+                               {opt}
+                             </button>
+                           ))}
+                           {group.options.length > filterLimits[group.key] && (
+                             <button 
+                               onClick={() => setFilterLimits(prev => ({...prev, [group.key]: prev[group.key] + 500}))}
+                               className="w-full py-2 text-[10px] font-black text-violet-600 uppercase hover:bg-violet-50 rounded-xl"
+                             >
+                               Show more ({group.options.length - filterLimits[group.key]} left)
+                             </button>
+                           )}
+                           {group.options.length === 0 && <div className="p-4 text-center text-[10px] text-gray-400 font-bold uppercase italic">No results</div>}
+                        </div>
+                     </div>
+                   ))}
 
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Eva Brick</label>
-                      <input 
-                        type="text" 
-                        placeholder="Search..." 
-                        value={filterSearch.evaBrick}
-                        onChange={e => setFilterSearch(prev => ({...prev, evaBrick: e.target.value}))}
-                        className="text-[9px] bg-gray-50 border-none outline-none px-2 py-0.5 rounded-lg w-24"
-                      />
-                    </div>
-                    <div className="max-h-32 overflow-y-auto border rounded-xl p-1 bg-gray-50">
-                       {searchedOptions.evaBricks.map(b => (
-                         <button 
-                            key={b} 
-                            onClick={() => setFilters(f => ({...f, evaBricks: f.evaBricks.includes(b) ? f.evaBricks.filter(x=>x!==b) : [...f.evaBricks, b]}))}
-                            className={`w-full text-left p-1.5 rounded-lg text-[10px] font-bold mb-0.5 transition-all
-                              ${filters.evaBricks.includes(b) ? 'bg-violet-600 text-white shadow-sm' : 'text-gray-600 hover:bg-white'}
-                            `}
-                          >
-                           {b}
-                         </button>
-                       ))}
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">DIS Brick</label>
-                      <input 
-                        type="text" 
-                        placeholder="Search..." 
-                        value={filterSearch.disBrick}
-                        onChange={e => setFilterSearch(prev => ({...prev, disBrick: e.target.value}))}
-                        className="text-[9px] bg-gray-50 border-none outline-none px-2 py-0.5 rounded-lg w-24"
-                      />
-                    </div>
-                    <div className="max-h-32 overflow-y-auto border rounded-xl p-1 bg-gray-50">
-                       {searchedOptions.disBricks.map(b => (
-                         <button 
-                            key={b} 
-                            onClick={() => setFilters(f => ({...f, disBricks: f.disBricks.includes(b) ? f.disBricks.filter(x=>x!==b) : [...f.disBricks, b]}))}
-                            className={`w-full text-left p-1.5 rounded-lg text-[10px] font-bold mb-0.5 transition-all
-                              ${filters.disBricks.includes(b) ? 'bg-violet-600 text-white shadow-sm' : 'text-gray-600 hover:bg-white'}
-                            `}
-                          >
-                           {b}
-                         </button>
-                       ))}
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Distributor</label>
-                      <input 
-                        type="text" 
-                        placeholder="Search..." 
-                        value={filterSearch.distributor}
-                        onChange={e => setFilterSearch(prev => ({...prev, distributor: e.target.value}))}
-                        className="text-[9px] bg-gray-50 border-none outline-none px-2 py-0.5 rounded-lg w-24"
-                      />
-                    </div>
-                    <div className="max-h-32 overflow-y-auto border rounded-xl p-1 bg-gray-50">
-                       {searchedOptions.distributors.map(d => (
-                         <button 
-                            key={d} 
-                            onClick={() => setFilters(f => ({...f, distributors: f.distributors.includes(d) ? f.distributors.filter(x=>x!==d) : [...f.distributors, d]}))}
-                            className={`w-full text-left p-1.5 rounded-lg text-[10px] font-bold mb-0.5 transition-all
-                              ${filters.distributors.includes(d) ? 'bg-violet-600 text-white shadow-sm' : 'text-gray-600 hover:bg-white'}
-                            `}
-                          >
-                           {d}
-                         </button>
-                       ))}
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Customer</label>
-                      <input 
-                        type="text" 
-                        placeholder="Search..." 
-                        value={filterSearch.customer}
-                        onChange={e => setFilterSearch(prev => ({...prev, customer: e.target.value}))}
-                        className="text-[9px] bg-gray-50 border-none outline-none px-2 py-0.5 rounded-lg w-24"
-                      />
-                    </div>
-                    <div className="max-h-32 overflow-y-auto border rounded-xl p-1 bg-gray-50">
-                       {searchedOptions.customers.map(c => (
-                         <button 
-                            key={c} 
-                            onClick={() => setFilters(f => ({...f, customers: f.customers.includes(c) ? f.customers.filter(x=>x!==c) : [...f.customers, c]}))}
-                            className={`w-full text-left p-1.5 rounded-lg text-[10px] font-bold mb-0.5 transition-all
-                              ${filters.customers.includes(c) ? 'bg-violet-600 text-white shadow-sm' : 'text-gray-600 hover:bg-white'}
-                            `}
-                          >
-                           {c}
-                         </button>
-                       ))}
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Ranges</label>
-                    <div className="grid grid-cols-2 gap-2">
-                       <input 
-                         type="number" 
-                         placeholder="Min Val" 
-                         value={filters.minValue}
-                         onChange={e => setFilters(f => ({...f, minValue: e.target.value}))}
-                         className="bg-gray-50 border-none rounded-xl text-[10px] p-2 focus:ring-1 focus:ring-violet-500" 
-                       />
-                       <input 
-                         type="number" 
-                         placeholder="Max Val" 
-                         value={filters.maxValue}
-                         onChange={e => setFilters(f => ({...f, maxValue: e.target.value}))}
-                         className="bg-gray-50 border-none rounded-xl text-[10px] p-2 focus:ring-1 focus:ring-violet-500" 
-                       />
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-violet-50 rounded-2xl">
-                     <span className="text-[10px] font-black text-violet-700 uppercase tracking-widest">Arabic Names Only</span>
-                     <button 
-                       onClick={() => setFilters(f => ({...f, arabicOnly: !f.arabicOnly}))}
-                       className={`w-8 h-4 rounded-full transition-all relative ${filters.arabicOnly ? 'bg-violet-600' : 'bg-gray-200'}`}
-                      >
-                       <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${filters.arabicOnly ? 'right-0.5' : 'left-0.5'}`} />
-                     </button>
-                  </div>
-               </div>
+                   <div className="space-y-4">
+                     <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none">Ranges</label>
+                        <div className="grid grid-cols-2 gap-2">
+                           <input 
+                             type="number" 
+                             placeholder="Min Val" 
+                             value={filters.minValue}
+                             onChange={e => setFilters(f => ({...f, minValue: e.target.value}))}
+                             className="bg-gray-50 border-none rounded-xl text-[10px] p-2 focus:ring-1 focus:ring-violet-500" 
+                           />
+                           <input 
+                             type="number" 
+                             placeholder="Max Val" 
+                             value={filters.maxValue}
+                             onChange={e => setFilters(f => ({...f, maxValue: e.target.value}))}
+                             className="bg-gray-50 border-none rounded-xl text-[10px] p-2 focus:ring-1 focus:ring-violet-500" 
+                           />
+                        </div>
+                     </div>
+                     <div className="flex items-center justify-between p-3 bg-violet-50 rounded-2xl">
+                        <span className="text-[10px] font-black text-violet-700 uppercase tracking-widest">Arabic Names Only</span>
+                        <button 
+                          onClick={() => setFilters(f => ({...f, arabicOnly: !f.arabicOnly}))}
+                          className={`w-8 h-4 rounded-full transition-all relative ${filters.arabicOnly ? 'bg-violet-600' : 'bg-gray-200'}`}
+                         >
+                          <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${filters.arabicOnly ? 'right-0.5' : 'left-0.5'}`} />
+                        </button>
+                     </div>
+                   </div>
+                </div>
                <div className="p-4 border-t border-gray-100 flex gap-2">
                   <button 
                     onClick={() => setFilters({products:[], evaBricks:[], disBricks:[], distributors:[], customers:[], customerCode:'', minValue:'', maxValue:'', minQty:'', maxQty:'', arabicOnly:false})}
@@ -1363,10 +2059,12 @@ const PerCustomerAnalyzer = () => {
                     Reset
                   </button>
                   <button 
-                    onClick={() => setIsSidebarOpen(false)}
-                    className="flex-[2] py-2 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest"
+                    onClick={applyFilters}
+                    disabled={isFiltering}
+                    className="flex-[2] py-2 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-violet-600 transition-all disabled:opacity-50"
                   >
-                    Apply Filters
+                    {isFiltering ? <RefreshCw size={12} className="animate-spin" /> : null}
+                    {isFiltering ? 'Filtering...' : 'Apply Filters'}
                   </button>
                </div>
             </div>
