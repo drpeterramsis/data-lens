@@ -117,6 +117,21 @@ function detectPeriodFromText(lines) {
   return null;
 }
 
+function normalizeClientCode(code) {
+  if (!code) return 'N/A';
+  let str = String(code).trim();
+  // Convert Arabic digits to Western
+  const arabicDigits = '٠١٢٣٤٥٦٧٨٩';
+  const westernDigits = '0123456789';
+  str = str.replace(/[٠-٩]/g, (d) => westernDigits[arabicDigits.indexOf(d)]);
+  // Optional: remove leading zeros if your logic treats them as SAME customer
+  // return str.replace(/^0+/, ''); 
+  return str;
+}
+
+// Global variable to keep track of base period
+let basePeriod = { minMonth: null, maxMonth: null, label: 'Unknown Period' };
+
 self.onmessage = async (e) => {
   const { type, csvText, filters, fileMonthKey, scope, key, snapshot, page, pageSize, query, sourceFileName, requestId } = e.data;
 
@@ -162,7 +177,7 @@ self.onmessage = async (e) => {
         
         const product = getValue(row, activeMapping.product);
         const clientCodeRaw = getValue(row, activeMapping.clientCode);
-        const clientCode = String(clientCodeRaw || 'N/A').trim();
+        const clientCode = normalizeClientCode(clientCodeRaw);
         const clientName = getValue(row, activeMapping.clientName);
         const qty = toNumber(getValue(row, activeMapping.qty));
         const value = toNumber(getValue(row, activeMapping.value));
@@ -231,6 +246,9 @@ self.onmessage = async (e) => {
       }
 
       const { payload, period } = aggregateData(baseRows);
+      // Store base period for fallback
+      basePeriod = period;
+      
       self.postMessage({ 
         type: 'done', 
         requestId,
@@ -271,6 +289,10 @@ self.onmessage = async (e) => {
       const filtered = filterRows(baseRows, filters);
       const statement = getScopedStatement(filtered, scope, key);
       self.postMessage({ type: 'statement', requestId, payload: statement });
+    } else if (type === 'getProductsSummary') {
+      const filtered = filterRows(baseRows, filters);
+      const summary = getProductsSummary(filtered);
+      self.postMessage({ type: 'productsSummary', requestId, payload: summary });
     } else if (type === 'getSnapshot') {
        const snapshot = {
          dicts,
@@ -327,8 +349,7 @@ function filterRows(rows, f) {
      { key: 'products', idx: 'p', rev: revDicts.products },
      { key: 'distributors', idx: 'd', rev: revDicts.distributors },
      { key: 'evaBricks', idx: 'eb', rev: revDicts.evaBricks },
-     { key: 'disBricks', idx: 'db', rev: revDicts.disBricks },
-     { key: 'customers', idx: 'cn', rev: revDicts.clientNames }
+     { key: 'disBricks', idx: 'db', rev: revDicts.disBricks }
   ];
 
   dims.forEach(dim => {
@@ -344,6 +365,18 @@ function filterRows(rows, f) {
         filterSets.push(idSet);
      }
   });
+
+  if (f.customers && f.customers.length > 0) {
+     const idSet = new Set();
+     f.customers.forEach(val => {
+        const id = revDicts.clientNames.get(val);
+        if (id !== undefined) {
+           const rowIds = indexes.cn.get(id);
+           if (rowIds) rowIds.forEach(rid => idSet.add(rid));
+        }
+     });
+     filterSets.push(idSet);
+  }
 
   let targetIndices = null;
   if (filterSets.length > 0) {
@@ -361,7 +394,7 @@ function filterRows(rows, f) {
   }
 
   const arabicPattern = /[\u0600-\u06FF]/;
-  const hasOtherFilters = f.customerCode || f.minValue || f.maxValue || f.arabicOnly;
+  const hasOtherFilters = (f.customerCodes && f.customerCodes.length > 0) || f.customerCode || f.minValue || f.maxValue || f.arabicOnly;
 
   if (targetIndices) {
      const result = [];
@@ -378,6 +411,10 @@ function filterRows(rows, f) {
 }
 
 function manualFilterCheck(r, f, arabicPattern) {
+   if (f.customerCodes && f.customerCodes.length > 0) {
+      const rowCode = getValById('clientCodes', r.cc);
+      if (!f.customerCodes.some(c => normalizeClientCode(c) === normalizeClientCode(rowCode))) return false;
+   }
    if (f.customerCode && !getValById('clientCodes', r.cc).toLowerCase().includes(f.customerCode.toLowerCase())) return false;
    if (f.minValue && r.v < parseFloat(f.minValue)) return false;
    if (f.maxValue && r.v > parseFloat(f.maxValue)) return false;
@@ -399,6 +436,30 @@ function aggregateData(rows) {
   let minMonth = null;
   let maxMonth = null;
 
+  if (rows.length === 0) {
+    return {
+      payload: {
+        customers: [],
+        products: [],
+        productDistributors: [],
+        distributors: [],
+        evaBricks: [],
+        disBricks: [],
+        filterOptions: {
+           products: dicts.products.filter(Boolean).sort(),
+           distributors: dicts.distributors.filter(Boolean).sort(),
+           evaBricks: dicts.evaBricks.filter(Boolean).sort(),
+           disBricks: dicts.disBricks.filter(Boolean).sort(),
+           customers: [] 
+        },
+        customerDetails: {},
+        globalTotals: { totalValue: 0, totalQty: 0, customerCount: 0, productCount: 0 }
+      },
+      period: basePeriod
+    };
+  }
+
+  const customersMapForFilter = {};
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i];
     const { p, cc, cn, d, eb, db, m, q, v } = r;
@@ -416,7 +477,10 @@ function aggregateData(rows) {
     const clientNameStr = getValById('clientNames', cn);
     const cKey = clientCodeStr !== 'N/A' ? clientCodeStr : clientNameStr;
 
-    // Aggregates
+    if (!customersMapForFilter[cKey]) {
+      customersMapForFilter[cKey] = { clientCode: clientCodeStr, clientName: clientNameStr };
+    }
+
     if (!productsMap[p]) productsMap[p] = { totalQty: 0, totalValue: 0, customerCount: new Set() };
     productsMap[p].totalQty += q;
     productsMap[p].totalValue += v;
@@ -495,7 +559,7 @@ function aggregateData(rows) {
     })).sort((a,b) => (b.value - a.value));
   });
 
-  const periodLabel = (minMonth === maxMonth) ? decodeMonthKey(minMonth) : `${decodeMonthKey(minMonth)} - ${decodeMonthKey(maxMonth)}`;
+  const periodLabel = (!minMonth || minMonth === maxMonth) ? decodeMonthKey(minMonth) : `${decodeMonthKey(minMonth)} - ${decodeMonthKey(maxMonth)}`;
 
   return {
     payload: {
@@ -517,10 +581,10 @@ function aggregateData(rows) {
         distributors: dicts.distributors.filter(Boolean).sort(),
         evaBricks: dicts.evaBricks.filter(Boolean).sort(),
         disBricks: dicts.disBricks.filter(Boolean).sort(),
-        customers: dicts.clientNames.filter(Boolean).sort()
+        customers: Object.values(customersMapForFilter).sort((a,b) => a.clientName.localeCompare(b.clientName))
       },
       customerDetails: finalizedDetails,
-      globalTotals: { totalValue, totalQty, customerCount: customersArray.length, productCount: dicts.products.length }
+      globalTotals: { totalValue, totalQty, customerCount: customersArray.length, productCount: Object.keys(productsMap).length }
     },
     period: { minMonth, maxMonth, label: periodLabel }
   };
@@ -563,6 +627,32 @@ function getScopedStatement(rows, scope, key) {
   return {
     title: `${scope.toUpperCase()}: ${key}`,
     rows: Object.values(statement).sort((a,b) => b.value - a.value)
+  };
+}
+
+function getProductsSummary(rows) {
+  const summaryMap = {};
+  let totalQty = 0;
+  let totalValue = 0;
+
+  rows.forEach(r => {
+    if (!summaryMap[r.p]) {
+      summaryMap[r.p] = { 
+        product: getValById('products', r.p),
+        qty: 0,
+        value: 0
+      };
+    }
+    summaryMap[r.p].qty += r.q;
+    summaryMap[r.p].value += r.v;
+    totalQty += r.q;
+    totalValue += r.v;
+  });
+
+  return {
+    totalQty,
+    totalValue,
+    rows: Object.values(summaryMap).sort((a,b) => b.value - a.value)
   };
 }
 

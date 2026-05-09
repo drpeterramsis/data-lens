@@ -61,8 +61,8 @@ const useSortableTable = (data, defaultKey, defaultDir = 'desc') => {
   const [sortDir, setSortDir] = useState(defaultDir);
 
   const sorted = useMemo(() => {
-    if (!sortKey) return data;
-    return [...data].sort((a, b) => {
+    if (!sortKey || !data) return data || [];
+    return [...(data || [])].sort((a, b) => {
       const av = a[sortKey];
       const bv = b[sortKey];
       if (av == null) return 1;
@@ -94,8 +94,12 @@ const SortableTH = ({ label, sortKey, currentKey, dir, onSort, className = '' })
   </th>
 );
 
-const KPICard = ({ title, value, subtext, icon: Icon, colorClass = "text-blue-600" }) => (
-  <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-4">
+const KPICard = ({ title, value, subtext, icon: Icon, colorClass = "text-blue-600", onClick, style = {} }) => (
+  <div 
+    onClick={onClick}
+    style={style}
+    className={`bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-4 ${onClick ? 'cursor-pointer hover:border-violet-300 hover:shadow-md transition-all' : ''}`}
+  >
     <div className={`p-3 rounded-xl bg-gray-50 ${colorClass}`}>
       <Icon size={24} />
     </div>
@@ -137,7 +141,8 @@ const PerCustomerAnalyzer = () => {
   const [statementPageSize] = useState(25);
 
   const [statementModal, setStatementModal] = useState({ open: false, title: '', rows: [], loading: false, query: '', page: 1 });
-  const [duplicatesModal, setDuplicatesModal] = useState({ open: false, rows: [], total: 0, loading: false, query: '', page: 1, stored: 0 });
+  const [productSummaryModal, setProductSummaryModal] = useState({ open: false, rows: [], totalQty: 0, totalValue: 0, loading: false, query: '', page: 1 });
+  const [duplicatesModal, setDuplicatesModal] = useState({ open: false, rows: [], total: 0, loading: false, query: '', query: '', page: 1, stored: 0 });
   const pendingRequests = useRef(new Map());
 
   const callWorker = (type, payload = {}) => {
@@ -174,6 +179,18 @@ const PerCustomerAnalyzer = () => {
     }
   };
   
+  const fetchProductSummary = async (query = '') => {
+    if (!workerRef.current) return;
+    setProductSummaryModal(prev => ({ ...prev, loading: true, open: true, query }));
+    try {
+      // Use the same applied filters so we get summary of current result
+      await callWorker('getProductsSummary', { filters: appliedFilters });
+    } catch (err) {
+      console.error("Fetch product summary failed", err);
+      setProductSummaryModal(prev => ({ ...prev, loading: false }));
+    }
+  };
+
   const workerRef = useRef(null);
 
   const [activeTab, setActiveTab] = useState('overview');
@@ -204,6 +221,7 @@ const PerCustomerAnalyzer = () => {
     disBricks: [],
     distributors: [],
     customers: [],
+    customerCodes: [],
     customerCode: '',
     minValue: '',
     maxValue: '',
@@ -212,7 +230,24 @@ const PerCustomerAnalyzer = () => {
     arabicOnly: false
   });
 
-  const activeData = preparedFiltered || prepared;
+  const [appliedFilters, setAppliedFilters] = useState({
+    products: [],
+    evaBricks: [],
+    disBricks: [],
+    distributors: [],
+    customers: [],
+    customerCodes: [],
+    customerCode: '',
+    minValue: '',
+    maxValue: '',
+    minQty: '',
+    maxQty: '',
+    arabicOnly: false
+  });
+
+  const [tagsExpanded, setTagsExpanded] = useState(false);
+
+  const activePrepared = preparedFiltered || prepared;
   const isCsvMode = !!prepared;
 
   // ── FILTER PRESETS ──
@@ -232,7 +267,7 @@ const PerCustomerAnalyzer = () => {
       id: Date.now(),
       name,
       savedAt: Date.now(),
-      filters: { ...filters }
+      filters: { ...appliedFilters }
     };
     const updated = [...filterPresets, newPreset];
     setFilterPresets(updated);
@@ -247,11 +282,29 @@ const PerCustomerAnalyzer = () => {
   };
 
   const loadPreset = (preset) => {
-    setFilters(preset.filters);
+    // Ensure preset uses plain JSON and includes expected keys for robust parsing
+    const normalizedFilters = {
+       products: preset.filters.products || [],
+       evaBricks: preset.filters.evaBricks || [],
+       disBricks: preset.filters.disBricks || [],
+       distributors: preset.filters.distributors || [],
+       customers: preset.filters.customers || [],
+       customerCodes: preset.filters.customerCodes || [],
+       customerCode: preset.filters.customerCode || '',
+       minValue: preset.filters.minValue || '',
+       maxValue: preset.filters.maxValue || '',
+       arabicOnly: !!preset.filters.arabicOnly
+    };
+
+    setFilters(normalizedFilters);
+    setAppliedFilters(normalizedFilters);
+    
     // Auto-apply if in CSV mode
     if (isCsvMode) {
       setIsFiltering(true);
-      callWorker('applyFilters', { filters: preset.filters });
+      callWorker('applyFilters', { filters: normalizedFilters });
+      setIsSidebarOpen(false);
+      setPage(1);
     }
   };
 
@@ -295,6 +348,14 @@ const PerCustomerAnalyzer = () => {
           updatePreparedState(type, payload, period, mergeStats);
         } else if (type === 'statement') {
           setStatementModal(prev => ({ ...prev, rows: payload.rows, title: payload.title, loading: false }));
+        } else if (type === 'productsSummary') {
+          setProductSummaryModal(prev => ({ 
+            ...prev, 
+            rows: payload.rows, 
+            totalQty: payload.totalQty, 
+            totalValue: payload.totalValue,
+            loading: false 
+          }));
         } else if (type === 'duplicates') {
           // Handled by resolve
         } else if (type === 'snapshot') {
@@ -310,6 +371,14 @@ const PerCustomerAnalyzer = () => {
         updatePreparedState(type, payload, period, mergeStats);
       } else if (type === 'statement') {
         setStatementModal(prev => ({ ...prev, rows: payload.rows, title: payload.title, loading: false }));
+      } else if (type === 'productsSummary') {
+        setProductSummaryModal(prev => ({ 
+          ...prev, 
+          rows: payload.rows, 
+          totalQty: payload.totalQty, 
+          totalValue: payload.totalValue,
+          loading: false 
+        }));
       } else if (type === 'duplicates') {
         setDuplicatesModal(prev => ({ 
           ...prev, 
@@ -335,12 +404,17 @@ const PerCustomerAnalyzer = () => {
       setPrepared(payload);
       setPreparedFiltered(null); 
       setIsPreparing(false);
-      if (period) setFileMeta(prev => ({ ...prev, reportMonthLabel: period.label }));
+      if (period) {
+        setFileMeta(prev => ({ ...prev, reportMonthLabel: period.label }));
+        // Ensure prepared object has period for fallback
+        payload.period = period;
+      }
       if (mergeStats) setLastMergeStats(mergeStats);
       setFilterSearch({ product: '', distributor: '', evaBrick: '', disBrick: '', customer: '' });
     } else if (type === 'filtered') {
       setPreparedFiltered(payload);
       if (period) setFileMeta(prev => ({ ...prev, reportMonthLabel: period.label }));
+      else if (prepared?.period) setFileMeta(prev => ({ ...prev, reportMonthLabel: prepared.period.label }));
       setIsFiltering(false);
     }
   };
@@ -360,6 +434,7 @@ const PerCustomerAnalyzer = () => {
         disBricks: [],
         distributors: [],
         customers: [],
+        customerCodes: [],
         customerCode: '',
         minValue: '',
         maxValue: '',
@@ -482,21 +557,95 @@ const PerCustomerAnalyzer = () => {
   const applyFilters = () => {
     if (workerRef.current && isCsvMode) {
       setIsFiltering(true);
+      setAppliedFilters(filters);
       callWorker('applyFilters', { filters });
       setIsSidebarOpen(false);
       setPage(1);
     }
   };
 
-  const filterOptions = useMemo(() => {
+  const removeFilterTag = (tag) => {
+    const keyMap = {
+      'Product': 'products',
+      'EVA': 'evaBricks',
+      'DIS': 'disBricks',
+      'Distributor': 'distributors',
+      'Customer': 'customers'
+    };
+    
+    setAppliedFilters(prev => {
+      let updatedApplied = { ...prev };
+      
+      if (tag.type === 'Range') {
+        if (tag.label.startsWith('Min:')) updatedApplied.minValue = '';
+        else updatedApplied.maxValue = '';
+      } else if (tag.type === 'Misc') {
+        updatedApplied.arabicOnly = false;
+      } else {
+        const key = keyMap[tag.type];
+        if (key) {
+          updatedApplied[key] = (prev[key] || []).filter(v => v !== tag.value);
+          // Sync customerCodes if deleting a customer tag
+          if (key === 'customers' && prev.customerCodes) {
+             // This is tricky because we don't have the code in the tag easily
+             // But we can find it from filterOptions
+             const opt = (filterOptions.customers || []).find(c => c.clientName === tag.value);
+             if (opt) {
+                updatedApplied.customerCodes = (prev.customerCodes || []).filter(c => c !== opt.clientCode);
+             }
+          }
+        }
+      }
+
+      // Sync with draft filters too so modal is consistent
+      setFilters(updatedApplied);
+      
+      // Trigger worker
+      if (workerRef.current && isCsvMode) {
+        setIsFiltering(true);
+        callWorker('applyFilters', { filters: updatedApplied });
+      }
+      
+      return updatedApplied;
+    });
+  };
+
+  const filterTags = useMemo(() => {
+    const tags = [];
+    const mk = (type, val) => ({ type, value: val, label: `${type}: ${val}` });
+    
+    (appliedFilters.products || []).forEach(v => tags.push(mk('Product', v)));
+    (appliedFilters.distributors || []).forEach(v => tags.push(mk('Distributor', v)));
+    (appliedFilters.evaBricks || []).forEach(v => tags.push(mk('EVA', v)));
+    (appliedFilters.disBricks || []).forEach(v => tags.push(mk('DIS', v)));
+    (appliedFilters.customers || []).forEach(v => tags.push(mk('Customer', v)));
+    
+    if (appliedFilters.minValue) tags.push({ type: 'Range', label: `Min: ${appliedFilters.minValue}`, value: appliedFilters.minValue, isRange: true });
+    if (appliedFilters.maxValue) tags.push({ type: 'Range', label: `Max: ${appliedFilters.maxValue}`, value: appliedFilters.maxValue, isRange: true });
+    if (appliedFilters.arabicOnly) tags.push({ type: 'Misc', label: `Arabic Only`, isRange: true });
+
+    return tags;
+  }, [appliedFilters]);
+
+    const filterOptions = useMemo(() => {
     if (prepared) return prepared.filterOptions;
     if (!data.length) return { products: [], evaBricks: [], disBricks: [], distributors: [], customers: [] };
+
+    // Group customers by a unique key to match worker logic and avoid duplicates
+    const customersMap = new Map();
+    data.forEach(d => {
+      const cKey = d.clientCode && d.clientCode !== 'N/A' ? d.clientCode : d.clientName;
+      if (!customersMap.has(cKey)) {
+        customersMap.set(cKey, { clientCode: d.clientCode || 'N/A', clientName: d.clientName });
+      }
+    });
+
     return {
       products: [...new Set(data.map(d => d.product))].filter(Boolean).sort(),
       evaBricks: [...new Set(data.map(d => d.evaBrick))].filter(Boolean).sort(),
       disBricks: [...new Set(data.map(d => d.disBrick))].filter(Boolean).sort(),
       distributors: [...new Set(data.map(d => d.distributor))].filter(Boolean).sort(),
-      customers: [...new Set(data.map(d => d.clientName))].filter(Boolean).sort(),
+      customers: Array.from(customersMap.values()).sort((a,b) => a.clientName.localeCompare(b.clientName))
     };
   }, [data, prepared]);
 
@@ -507,22 +656,31 @@ const PerCustomerAnalyzer = () => {
       return list.filter(item => String(item).toLowerCase().includes(q));
     };
 
+    const filterBySearchCustomers = (list, search) => {
+      const q = (search || '').trim().toLowerCase();
+      if (!q) return list;
+      return list.filter(item => 
+        String(item.clientName || '').toLowerCase().includes(q) ||
+        String(item.clientCode || '').toLowerCase().includes(q)
+      );
+    };
+
     return {
-      products: filterBySearch(filterOptions.products, filterSearch.product),
-      distributors: filterBySearch(filterOptions.distributors, filterSearch.distributor),
-      evaBricks: filterBySearch(filterOptions.evaBricks, filterSearch.evaBrick),
-      disBricks: filterBySearch(filterOptions.disBricks, filterSearch.disBrick),
-      customers: filterBySearch(filterOptions.customers, filterSearch.customer)
+      products: filterBySearch((filterOptions || {}).products || [], filterSearch.product),
+      distributors: filterBySearch((filterOptions || {}).distributors || [], filterSearch.distributor),
+      evaBricks: filterBySearch((filterOptions || {}).evaBricks || [], filterSearch.evaBrick),
+      disBricks: filterBySearch((filterOptions || {}).disBricks || [], filterSearch.disBrick),
+      customers: filterBySearchCustomers((filterOptions || {}).customers || [], filterSearch.customer)
     };
   }, [filterOptions, filterSearch]);
 
   const filteredRows = useMemo(() => {
-    let res = data;
-    if (filters.products.length) res = res.filter(r => filters.products.includes(r.product));
-    if (filters.evaBricks.length) res = res.filter(r => filters.evaBricks.includes(r.evaBrick));
-    if (filters.disBricks.length) res = res.filter(r => filters.disBricks.includes(r.disBrick));
-    if (filters.distributors.length) res = res.filter(r => filters.distributors.includes(r.distributor));
-    if (filters.customers.length) res = res.filter(r => filters.customers.includes(r.clientName));
+    let res = data || [];
+    if ((filters.products || []).length) res = res.filter(r => filters.products.includes(r.product));
+    if ((filters.evaBricks || []).length) res = res.filter(r => filters.evaBricks.includes(r.evaBrick));
+    if ((filters.disBricks || []).length) res = res.filter(r => filters.disBricks.includes(r.disBrick));
+    if ((filters.distributors || []).length) res = res.filter(r => filters.distributors.includes(r.distributor));
+    if ((filters.customers || []).length) res = res.filter(r => filters.customers.includes(r.clientName));
     if (filters.customerCode) res = res.filter(r => r.clientCode && r.clientCode.includes(filters.customerCode));
     if (filters.minValue) res = res.filter(r => r.netSalesValue >= parseFloat(filters.minValue));
     if (filters.maxValue) res = res.filter(r => r.netSalesValue <= parseFloat(filters.maxValue));
@@ -534,19 +692,20 @@ const PerCustomerAnalyzer = () => {
   }, [data, filters]);
 
   const kpis = useMemo(() => {
-    if (activeData) {
+    if (activePrepared && activePrepared.globalTotals) {
       return {
-        ...activeData.globalTotals,
-        avgPerCust: activeData.globalTotals.customerCount > 0 ? activeData.globalTotals.totalValue / activeData.globalTotals.customerCount : 0,
-        avgQtyPerCust: activeData.globalTotals.customerCount > 0 ? activeData.globalTotals.totalQty / activeData.globalTotals.customerCount : 0,
-        uniqueCust: activeData.globalTotals.customerCount,
-        uniqueProd: activeData.globalTotals.productCount
+        ...activePrepared.globalTotals,
+        avgPerCust: activePrepared.globalTotals.customerCount > 0 ? activePrepared.globalTotals.totalValue / activePrepared.globalTotals.customerCount : 0,
+        avgQtyPerCust: activePrepared.globalTotals.customerCount > 0 ? activePrepared.globalTotals.totalQty / activePrepared.globalTotals.customerCount : 0,
+        uniqueCust: activePrepared.globalTotals.customerCount,
+        uniqueProd: activePrepared.globalTotals.productCount
       };
     }
-    const totalValue = filteredRows.reduce((acc, r) => acc + r.netSalesValue, 0);
-    const totalQty = filteredRows.reduce((acc, r) => acc + r.netSalesQty, 0);
-    const uniqueCust = new Set(filteredRows.map(r => r.clientCode)).size;
-    const uniqueProd = new Set(filteredRows.map(r => r.product)).size;
+    const safeRows = filteredRows || [];
+    const totalValue = safeRows.reduce((acc, r) => acc + (r.netSalesValue || 0), 0);
+    const totalQty = safeRows.reduce((acc, r) => acc + (r.netSalesQty || 0), 0);
+    const uniqueCust = new Set(safeRows.map(r => r.clientCode)).size;
+    const uniqueProd = new Set(safeRows.map(r => r.product)).size;
     return {
       totalValue,
       totalQty,
@@ -555,18 +714,19 @@ const PerCustomerAnalyzer = () => {
       avgPerCust: uniqueCust > 0 ? totalValue / uniqueCust : 0,
       avgQtyPerCust: uniqueCust > 0 ? totalQty / uniqueCust : 0
     };
-  }, [filteredRows, activeData]);
+  }, [filteredRows, activePrepared]);
 
   const aggregates = useMemo(() => {
-    if (activeData) {
-      const totalValForPct = activeData.customers.reduce((acc, c) => acc + c.totalValue, 0);
+    if (activePrepared) {
+      const customers = activePrepared.customers || [];
+      const totalValForPct = customers.reduce((acc, c) => acc + (c.totalValue || 0), 0);
       return {
-        customers: activeData.customers.map(c => ({...c, pct: totalValForPct > 0 ? (c.totalValue / totalValForPct) * 100 : 0})),
-        products: activeData.products,
-        productDistributors: activeData.productDistributors || [],
-        distributors: activeData.distributors,
-        evaBricks: activeData.evaBricks,
-        disBricks: activeData.disBricks || []
+        customers: customers.map(c => ({...c, pct: totalValForPct > 0 ? (c.totalValue / totalValForPct) * 100 : 0})),
+        products: activePrepared.products || [],
+        productDistributors: activePrepared.productDistributors || [],
+        distributors: activePrepared.distributors || [],
+        evaBricks: activePrepared.evaBricks || [],
+        disBricks: activePrepared.disBricks || []
       };
     }
     const byCust = {};
@@ -575,12 +735,14 @@ const PerCustomerAnalyzer = () => {
     const byEva = {};
     const byDisBrick = {};
 
-    filteredRows.forEach(r => {
+    (filteredRows || []).forEach(r => {
+      if (!r) return;
       // By Customer
-      if (!byCust[r.clientCode]) {
-        byCust[r.clientCode] = { 
-          clientCode: r.clientCode, 
-          clientName: r.clientName, 
+      const cKey = r.clientCode || 'N/A';
+      if (!byCust[cKey]) {
+        byCust[cKey] = { 
+          clientCode: cKey, 
+          clientName: r.clientName || 'Unknown', 
           distributor: r.distributor,
           evaBrick: r.evaBrick,
           disBrick: r.disBrick,
@@ -589,9 +751,9 @@ const PerCustomerAnalyzer = () => {
           products: new Set() 
         };
       }
-      byCust[r.clientCode].totalQty += r.netSalesQty;
-      byCust[r.clientCode].totalValue += r.netSalesValue;
-      byCust[r.clientCode].products.add(r.product);
+      byCust[cKey].totalQty += (r.netSalesQty || 0);
+      byCust[cKey].totalValue += (r.netSalesValue || 0);
+      byCust[cKey].products.add(r.product);
 
       // By Product (and implied ProductDistributors for legacy fallback)
       if (!byProd[r.product]) {
@@ -640,16 +802,16 @@ const PerCustomerAnalyzer = () => {
       evaBricks: Object.values(byEva).map(e => ({...e, customerCount: e.customers.size, productCount: e.products.size})),
       disBricks: Object.values(byDisBrick).map(b => ({...b, customerCount: b.customers.size, productCount: b.products.size}))
     };
-  }, [filteredRows, kpis.totalValue, activeData]);
+  }, [filteredRows, kpis.totalValue, activePrepared]);
 
   const dataTags = useMemo(() => {
-    if (!data.length) return [];
+    if (!data || !data.length) return [];
     const tags = [];
     
-    const topProd = aggregates.products.sort((a,b) => b.totalValue - a.totalValue).slice(0, 3);
+    const topProd = (aggregates.products || []).sort((a,b) => b.totalValue - a.totalValue).slice(0, 3);
     topProd.forEach(p => tags.push({ label: `Top: ${p.product}`, onClick: () => setFilters(f => ({...f, products: [p.product]})) }));
 
-    const topEva = aggregates.evaBricks.sort((a,b) => b.totalValue - a.totalValue).slice(0, 1);
+    const topEva = (aggregates.evaBricks || []).sort((a,b) => b.totalValue - a.totalValue).slice(0, 1);
     topEva.forEach(e => tags.push({ label: `Eva: ${e.evaBrick}`, onClick: () => setFilters(f => ({...f, evaBricks: [e.evaBrick]})) }));
 
     tags.push({ label: `${kpis.uniqueCust} Customers`, type: 'info' });
@@ -676,9 +838,9 @@ const PerCustomerAnalyzer = () => {
   }, [filteredCustomers, page, pageSize]);
 
   const statementRows = useMemo(() => {
-    if (!selectedCustomer || !activeData) return [];
+    if (!selectedCustomer || !activePrepared) return [];
     const cKey = selectedCustomer.clientCode !== 'N/A' ? selectedCustomer.clientCode : selectedCustomer.clientName;
-    const raw = activeData.customerDetails[cKey] || [];
+    const raw = activePrepared.customerDetails[cKey] || [];
     
     // Filtering
     const search = statementSearch.trim().toLowerCase();
@@ -688,7 +850,7 @@ const PerCustomerAnalyzer = () => {
       String(r.distributor).toLowerCase().includes(search) ||
       String(r.monthKey).toLowerCase().includes(search)
     );
-  }, [selectedCustomer, activeData, statementSearch]);
+  }, [selectedCustomer, activePrepared, statementSearch]);
 
   const paginatedStatement = useMemo(() => {
     const start = (statementPage - 1) * statementPageSize;
@@ -771,8 +933,8 @@ const PerCustomerAnalyzer = () => {
         id: `session-${Date.now()}`,
         name,
         createdAt: Date.now(),
-        period: activeData?.period || { label: fileMeta.reportMonthLabel },
-        rowCount: activeData?.globalTotals?.totalAdded || aggregates.customers.length,
+        period: activePrepared?.period || { label: fileMeta.reportMonthLabel },
+        rowCount: activePrepared?.globalTotals?.totalAdded || aggregates.customers.length,
         fileMeta: { name: fileMeta.name, label: fileMeta.reportMonthLabel },
         mergeStats: lastMergeStats,
         snapshot,
@@ -799,6 +961,7 @@ const PerCustomerAnalyzer = () => {
     try {
       initWorker();
       setFilters(session.filters || filters);
+      setAppliedFilters(session.filters || filters);
       setActiveTab(session.uiState?.activeTab || 'overview');
       setFileMeta(session.fileMeta || { name: 'Restored', reportMonthLabel: 'Unknown' });
       setLastMergeStats(session.mergeStats || null);
@@ -935,7 +1098,12 @@ const PerCustomerAnalyzer = () => {
             </div>
             <div>
               <h2 className="text-sm font-black text-gray-900 uppercase tracking-tight">Per Customer Analyzer</h2>
-              <p className="text-[10px] text-violet-600 font-bold uppercase tracking-widest">{fileMeta.reportMonthLabel}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-[10px] text-violet-600 font-bold uppercase tracking-widest">{fileMeta.reportMonthLabel}</p>
+                {preparedFiltered && (
+                  <span className="text-[8px] bg-amber-100 text-amber-700 px-1 rounded font-black uppercase">Filtered</span>
+                )}
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -1032,25 +1200,66 @@ const PerCustomerAnalyzer = () => {
                 </button>
               )}
             </div>
-              <button onClick={() => setLastMergeStats(null)} className="p-2 hover:bg-white/10 rounded-full transition-all">
+               <button onClick={() => setLastMergeStats(null)} className="p-2 hover:bg-white/10 rounded-full transition-all">
                 <X size={16} />
               </button>
             </div>
           )}
 
+          {/* APPLIED FILTER TAGS */}
+          {filterTags.length > 0 && (
+            <div className={`bg-gray-50 border border-gray-100 rounded-3xl p-3 flex flex-wrap gap-2 transition-all duration-300 animate-in fade-in slide-in-from-top-4 ${tagsExpanded ? '' : 'max-h-[120px] overflow-hidden'}`}>
+                {(tagsExpanded ? filterTags : filterTags.slice(0, 8)).map((tag, idx) => (
+                  <div key={idx} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-violet-100 text-violet-700 rounded-xl shadow-sm group hover:border-violet-300 transition-all">
+                    <span className="text-[10px] font-black uppercase tracking-tight">{tag.label}</span>
+                    <button 
+                      onClick={() => removeFilterTag(tag)}
+                      className="p-0.5 hover:bg-violet-100 rounded-md transition-colors text-violet-400 hover:text-violet-700"
+                    >
+                      <X size={10} />
+                    </button>
+                  </div>
+                ))}
+                
+                {filterTags.length > 8 && (
+                  <button 
+                    onClick={() => setTagsExpanded(!tagsExpanded)}
+                    className="px-3 py-1.5 bg-white border border-violet-200 text-violet-600 text-[10px] font-black uppercase tracking-widest rounded-xl shadow-sm hover:bg-violet-600 hover:text-white transition-all flex items-center gap-2"
+                  >
+                    {tagsExpanded ? (
+                      <>Collapse <ChevronDown size={12} className="rotate-180" /></>
+                    ) : (
+                      <>+{filterTags.length - 8} more <ChevronDown size={12} /></>
+                    )}
+                  </button>
+                )}
+            </div>
+          )}
+
           {/* KPI TIER */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-            <KPICard title="Total Net Sales (Qty)" value={formatKpiGrouped(kpis.totalQty)} icon={Package} />
+            <KPICard 
+              title="Total Net Sales (Qty)" 
+              value={formatKpiGrouped(kpis.totalQty)} 
+              icon={Package} 
+              subtext={appliedFilters.products.length > 1 ? `Total across selected products (${appliedFilters.products.length})` : null}
+            />
             <KPICard title="Total Value (EGP)" value={formatKpiGrouped(kpis.totalValue)} icon={DollarSign} colorClass="text-emerald-600" />
             <KPICard title="Unique Customers" value={kpis.uniqueCust} icon={Users} colorClass="text-violet-600" />
-            <KPICard title="Unique Products" value={kpis.uniqueProd} icon={Grid} colorClass="text-amber-600" />
+            <KPICard 
+              title="Unique Products" 
+              value={kpis.uniqueProd} 
+              icon={Grid} 
+              colorClass="text-amber-600" 
+              onClick={() => fetchProductSummary()}
+            />
             <KPICard title="Avg Value / Cust" value={formatKpiGrouped(kpis.avgPerCust)} icon={TrendingUp} colorClass="text-blue-600" />
             <KPICard title="Avg Qty / Cust" value={formatKpiGrouped(kpis.avgQtyPerCust)} icon={Activity} colorClass="text-indigo-600" />
           </div>
 
           {/* TABS SELECTOR */}
           <div className="flex items-center gap-2 border-b border-gray-200">
-            {['overview', 'customers', 'products', 'distributors', 'matrix', 'insights'].map(tab => (
+            {['overview', 'customers', 'products', 'distributors', 'insights'].map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -1179,7 +1388,7 @@ const PerCustomerAnalyzer = () => {
                     className="w-full bg-gray-50 border-none rounded-xl pl-9 pr-4 py-2 text-xs focus:ring-2 focus:ring-violet-500 outline-none"
                   />
                 </div>
-                {prepared && (
+                {activePrepared && (
                   <div className="flex items-center gap-2">
                     <button 
                       disabled={page === 1}
@@ -1189,10 +1398,10 @@ const PerCustomerAnalyzer = () => {
                       <ChevronLeft size={16} />
                     </button>
                     <div className="text-[10px] font-black uppercase text-gray-400">
-                      Page <span className="text-violet-600">{page}</span> of {Math.ceil(filteredCustomers.length / pageSize)}
+                      Page <span className="text-violet-600">{page}</span> of {Math.ceil((filteredCustomers || []).length / pageSize)}
                     </div>
                     <button 
-                      disabled={page >= Math.ceil(filteredCustomers.length / pageSize)}
+                      disabled={page >= Math.ceil((filteredCustomers || []).length / pageSize)}
                       onClick={() => setPage(p => p + 1)}
                       className="p-2 bg-gray-100 rounded-lg text-gray-500 disabled:opacity-30 hover:bg-violet-600 hover:text-white transition-all"
                     >
@@ -1207,8 +1416,25 @@ const PerCustomerAnalyzer = () => {
                   <Download size={14} /> Export
                 </button>
               </div>
-              <div className="flex-1 overflow-auto">
-                <table className={TABLE_BASE}>
+              <div className="flex-1 overflow-auto bg-white">
+                {(sortedCust || []).length === 0 ? (
+                  <div className="flex flex-col items-center justify-center p-8 h-80 text-center bg-gray-50/50">
+                    <div className="w-16 h-16 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mb-4">
+                      <Search size={32} />
+                    </div>
+                    <h3 className="text-sm font-black text-gray-900 uppercase tracking-tight mb-2">No matching customers</h3>
+                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest max-w-[200px] leading-loose">
+                      Your current filters returned zero results. <br/> Please try adjusting your filters or resetting the search.
+                    </p>
+                    <button 
+                      onClick={() => setAppliedFilters({products:[], evaBricks:[], disBricks:[], distributors:[], customers:[], customerCodes:[], customerCode:'', minValue:'', maxValue:'', minQty:'', maxQty:'', arabicOnly:false})}
+                      className="mt-6 px-6 py-2 bg-white text-violet-600 border border-violet-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-violet-50 transition-all shadow-sm"
+                    >
+                      Clear All Filters
+                    </button>
+                  </div>
+                ) : (
+                  <table className={TABLE_BASE}>
                   <thead className="sticky top-0 bg-white z-10 shadow-sm">
                     <tr className={THEAD_ROW}>
                       <SortableTH label="Code" sortKey="clientCode" currentKey={custSortKey} dir={custSortDir} onSort={custToggle} />
@@ -1243,6 +1469,7 @@ const PerCustomerAnalyzer = () => {
                     )}
                   </tbody>
                 </table>
+              )}
               </div>
             </div>
           )}
@@ -1439,7 +1666,77 @@ const PerCustomerAnalyzer = () => {
            </div>
           )}
         </div>
-                {/* DUPLICATES MODAL */}
+                {/* PRODUCTS SUMMARY MODAL */}
+        {productSummaryModal.open && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setProductSummaryModal({ ...productSummaryModal, open: false })} />
+            <div className="bg-white w-full max-w-4xl h-[75vh] rounded-[40px] shadow-2xl relative z-[310] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300">
+              <div className="p-8 border-b border-gray-100 flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">Selected Products Summary</h3>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">
+                    Aggregation for {productSummaryModal.rows.length} currently selected products
+                  </p>
+                </div>
+                <button onClick={() => setProductSummaryModal({ ...productSummaryModal, open: false })} className="w-10 h-10 bg-gray-50 text-gray-400 hover:text-gray-900 rounded-2xl flex items-center justify-center">
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="p-8 bg-gray-50 flex-1 overflow-hidden flex flex-col gap-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Qty</p>
+                    <p className="text-xl font-black text-gray-900">{formatKpiGrouped(productSummaryModal.totalQty)}</p>
+                  </div>
+                  <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Value</p>
+                    <p className="text-xl font-black text-emerald-600">{formatKpiGrouped(productSummaryModal.totalValue)}</p>
+                  </div>
+                </div>
+
+                <div className="flex-1 bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+                  <div className="p-3 border-b border-gray-50">
+                    <div className="relative">
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <input 
+                        type="text" 
+                        placeholder="Search products in summary..."
+                        value={productSummaryModal.query}
+                        onChange={e => setProductSummaryModal(prev => ({ ...prev, query: e.target.value }))}
+                        className="w-full bg-gray-50 border-none rounded-xl pl-9 pr-4 py-2 text-xs focus:ring-2 focus:ring-violet-500 outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div className="overflow-auto no-scrollbar flex-1">
+                    <table className={TABLE_BASE}>
+                      <thead className="sticky top-0 bg-white z-10 shadow-sm">
+                        <tr className={THEAD_ROW}>
+                          <th className={TH_BASE}>Product Name</th>
+                          <th className={`${TH_BASE} text-right`}>Qty</th>
+                          <th className={`${TH_BASE} text-right`}>Value</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {productSummaryModal.loading ? (
+                           <tr><td colSpan={3} className="py-12 text-center text-gray-400 font-bold uppercase tracking-widest bg-white">Loading summary...</td></tr>
+                        ) : productSummaryModal.rows.filter(r => r.product.toLowerCase().includes(productSummaryModal.query.toLowerCase())).map((row, i) => (
+                          <tr key={i} className="hover:bg-violet-50/50">
+                            <td className={TD_TEXT}>{row.product}</td>
+                            <td className={TD_NUM}>{formatKpiGrouped(row.qty)}</td>
+                            <td className={TD_NUM}>{formatKpiGrouped(row.value)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* DUPLICATES MODAL */}
         {duplicatesModal.open && (
           <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setDuplicatesModal({ ...duplicatesModal, open: false })} />
@@ -1972,7 +2269,7 @@ const PerCustomerAnalyzer = () => {
                         <div className="flex items-center justify-between">
                           <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none">{group.label}</label>
                           <span className="text-[9px] font-bold text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded-md">
-                            {filters[group.key].length} / {filterOptions[group.key].length}
+                            {(filters[group.id === 'customer' ? 'customerCodes' : group.key] || []).length} / {(filterOptions[group.key] || []).length}
                           </span>
                         </div>
                         <div className="flex items-center gap-1">
@@ -1987,26 +2284,61 @@ const PerCustomerAnalyzer = () => {
                             />
                           </div>
                           <button 
-                            onClick={() => setFilters(f => ({...f, [group.key]: [...new Set([...f[group.key], ...group.options])] }))}
+                            onClick={() => {
+                              if (group.id === 'customer') {
+                                const names = group.options.map(o => o.clientName);
+                                const codes = group.options.map(o => o.clientCode);
+                                setFilters(f => ({...f, customers: [...new Set([...(f.customers || []), ...names])], customerCodes: [...new Set([...(f.customerCodes || []), ...codes])] }));
+                              } else {
+                                const vals = group.options.map(o => o);
+                                setFilters(f => ({...f, [group.key]: [...new Set([...(f[group.key] || []), ...vals])] }));
+                              }
+                            }}
                             className="text-[9px] font-black uppercase text-violet-600 px-1.5 hover:underline"
                           >All</button>
                           <button 
-                            onClick={() => setFilters(f => ({...f, [group.key]: f[group.key].filter(x => !group.options.includes(x)) }))}
+                            onClick={() => {
+                              if (group.id === 'customer') {
+                                const names = group.options.map(o => o.clientName);
+                                const codes = group.options.map(o => o.clientCode);
+                                setFilters(f => ({...f, customers: (f.customers || []).filter(x => !names.includes(x)), customerCodes: (f.customerCodes || []).filter(x => !codes.includes(x)) }));
+                              } else {
+                                const vals = group.options.map(o => o);
+                                setFilters(f => ({...f, [group.key]: (f[group.key] || []).filter(x => !vals.includes(x)) }));
+                              }
+                            }}
                             className="text-[9px] font-black uppercase text-gray-400 px-1.5 hover:underline"
                           >None</button>
                         </div>
                         <div className="max-h-48 overflow-y-auto border border-gray-100 rounded-2xl p-1.5 bg-gray-50 space-y-0.5 scrollbar-thin">
-                           {group.options.slice(0, filterLimits[group.key]).map(opt => (
-                             <button 
-                                key={opt} 
-                                onClick={() => setFilters(f => ({...f, [group.key]: f[group.key].includes(opt) ? f[group.key].filter(x=>x!==opt) : [...f[group.key], opt]}))}
-                                className={`w-full text-left px-2.5 py-1.5 rounded-xl text-[10px] font-bold transition-all
-                                  ${filters[group.key].includes(opt) ? 'bg-violet-600 text-white shadow-md scale-[1.02]' : 'text-gray-600 hover:bg-white'}
-                                `}
-                              >
-                               {opt}
-                             </button>
-                           ))}
+                           {group.options.slice(0, filterLimits[group.key]).map((opt, idx) => {
+                             const isCust = group.id === 'customer';
+                             const val = isCust ? opt.clientName : opt;
+                             const valCode = isCust ? opt.clientCode : null;
+                             const label = isCust ? `${opt.clientCode} — ${opt.clientName}` : opt;
+                             const isSelected = isCust ? (filters.customerCodes || []).includes(valCode) : (filters[group.key] || []).includes(val);
+                             return (
+                               <button 
+                                  key={`${group.id}-${idx}-${isCust ? valCode : val}`} 
+                                  onClick={() => {
+                                    if (isCust) {
+                                      setFilters(f => ({
+                                        ...f, 
+                                        customers: isSelected ? (f.customers || []).filter(x => x !== val) : [...(f.customers || []), val],
+                                        customerCodes: isSelected ? (f.customerCodes || []).filter(x => x !== valCode) : [...(f.customerCodes || []), valCode]
+                                      }));
+                                    } else {
+                                      setFilters(f => ({...f, [group.key]: isSelected ? (f[group.key] || []).filter(x=>x!==val) : [...(f[group.key] || []), val]}));
+                                    }
+                                  }}
+                                  className={`w-full text-left px-2.5 py-1.5 rounded-xl text-[10px] font-bold transition-all
+                                    ${isSelected ? 'bg-violet-600 text-white shadow-md scale-[1.02]' : 'text-gray-600 hover:bg-white'}
+                                  `}
+                               >
+                                  {label}
+                               </button>
+                             );
+                           })}
                            {group.options.length > filterLimits[group.key] && (
                              <button 
                                onClick={() => setFilterLimits(prev => ({...prev, [group.key]: prev[group.key] + 500}))}
@@ -2053,7 +2385,7 @@ const PerCustomerAnalyzer = () => {
                 </div>
                <div className="p-4 border-t border-gray-100 flex gap-2">
                   <button 
-                    onClick={() => setFilters({products:[], evaBricks:[], disBricks:[], distributors:[], customers:[], customerCode:'', minValue:'', maxValue:'', minQty:'', maxQty:'', arabicOnly:false})}
+                    onClick={() => setFilters({products:[], evaBricks:[], disBricks:[], distributors:[], customers:[], customerCodes:[], customerCode:'', minValue:'', maxValue:'', minQty:'', maxQty:'', arabicOnly:false})}
                     className="flex-1 py-2 text-[10px] font-black uppercase text-gray-400 hover:text-red-500"
                   >
                     Reset
