@@ -615,9 +615,14 @@ const CallDetailingAnalyzer = () => {
   }, []);
 
   useEffect(() => {
-    if (minDate && maxDate && !dateFrom) {
-      setDateFrom(minDate);
-      setDateTo(maxDate);
+    if (minDate && maxDate) {
+      if (!dateFrom || !dateTo) {
+        setDateFrom(minDate);
+        setDateTo(maxDate);
+      } else {
+        if (dateFrom < minDate) setDateFrom(minDate);
+        if (dateTo > maxDate) setDateTo(maxDate);
+      }
     }
   }, [minDate, maxDate]);
 

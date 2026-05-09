@@ -15,6 +15,7 @@ const Library = () => {
   const { toast, showToast, hideToast } = useToast();
   
   const [links, setLinks] = useState([]);
+  const [folders, setFolders] = useState([]);
   const [linksSHA, setLinksSHA] = useState('');
   const [isLoadingData, setIsLoadingData] = useState(true);
 
@@ -24,10 +25,14 @@ const Library = () => {
       setIsLoadingData(true);
       const { content, sha } = await getFileFromGitHub('src/data/linksLibrary.json');
       setLinks(Array.isArray(content) ? content : (content.links || []));
+      setFolders(content.folders || []);
       setLinksSHA(sha);
     } catch (e) {
       // Silently swallow GitHub errors falling back to initial data
-      if (links.length === 0) setLinks(Array.isArray(initialLinksData) ? initialLinksData : (initialLinksData.links || []));
+      if (links.length === 0) {
+         setLinks(Array.isArray(initialLinksData) ? initialLinksData : (initialLinksData.links || []));
+         setFolders(initialLinksData.folders || []);
+      }
     } finally {
       setIsLoadingData(false);
     }
@@ -43,11 +48,17 @@ const Library = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [adminUserFilter, setAdminUserFilter] = useState(''); // admin only filter by user
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [selectedFolderId, setSelectedFolderId] = useState(null);
   
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLink, setEditingLink] = useState(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  
+  // Folder editing state
+  const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
+  const [editingFolder, setEditingFolder] = useState(null);
+  const [folderName, setFolderName] = useState('');
   
   // Icon Editor State
   const [activeIconEditorId, setActiveIconEditorId] = useState(null);
@@ -60,6 +71,7 @@ const Library = () => {
     description: '',
     category: 'Other',
     customCategory: '',
+    folderId: '',
     url: '', // This will be treated as primaryUrl
     buttonLabel: 'Open', // This will be treated as primaryLabel
     primaryAction: 'open',
@@ -170,6 +182,11 @@ const Library = () => {
       );
     }
 
+    // 1b. Folder filtering
+    if (selectedFolderId) {
+      filtered = filtered.filter(link => link.folderId === selectedFolderId);
+    }
+
     // 2. Category filtering
     if (selectedCategory !== 'All') {
       filtered = filtered.filter(link => (link.category || 'Other') === selectedCategory);
@@ -207,6 +224,7 @@ const Library = () => {
         description: link.description || '',
         category: isPredefined || !link.category ? (link.category || 'Other') : 'Custom...',
         customCategory: isPredefined ? '' : link.category,
+        folderId: link.folderId || '',
         url: link.url || '',
         buttonLabel: link.buttonLabel || 'Open',
         primaryAction: link.primaryAction || 'open',
@@ -227,6 +245,7 @@ const Library = () => {
         description: '',
         category: 'Other',
         customCategory: '',
+        folderId: selectedFolderId || '',
         url: '',
         buttonLabel: 'Open',
         primaryAction: 'open',
@@ -272,6 +291,86 @@ const Library = () => {
   };
 
   const [isSaving, setIsSaving] = useState(false);
+
+  const handleSaveFolder = async () => {
+    if (!isAdmin) return;
+    if (!folderName.trim()) {
+      showToast("Folder name is required", "error");
+      return;
+    }
+    
+    // unique check
+    const isEditing = !!editingFolder;
+    const nameExists = folders.find(f => f.name.toLowerCase() === folderName.trim().toLowerCase() && f.id !== editingFolder?.id);
+    if (nameExists) {
+      showToast("Folder name must be unique", "error");
+      return;
+    }
+
+    setIsSaving(true);
+    let updatedFolders;
+    let commitMessage = '';
+
+    if (isEditing) {
+      updatedFolders = folders.map(f => f.id === editingFolder.id ? { ...f, name: folderName.trim() } : f);
+      commitMessage = `Update folder: ${folderName.trim()}`;
+    } else {
+      updatedFolders = [...folders, { 
+        id: `fld_${Date.now()}`, 
+        name: folderName.trim(), 
+        createdAt: new Date().toISOString(), 
+        order: folders.length 
+      }];
+      commitMessage = `Create folder: ${folderName.trim()}`;
+    }
+
+    try {
+      const latestSHA = await getLatestSHA('src/data/linksLibrary.json');
+      const payload = { links, folders: updatedFolders };
+      const success = await saveFileToGitHub('src/data/linksLibrary.json', payload, latestSHA, commitMessage);
+      
+      if (success) {
+        setFolders(updatedFolders);
+        setLinksSHA(latestSHA);
+        setIsFolderModalOpen(false);
+        setFolderName('');
+        setEditingFolder(null);
+        showToast("Folder saved successfully", "success");
+      }
+    } catch (e) {
+      showToast("Failed to save folder", "error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteFolder = async (id) => {
+    if (!isAdmin || !id) return;
+    if (!window.confirm("Are you sure you want to delete this folder? Links inside will be moved to 'All Links'.")) return;
+
+    setIsSaving(true);
+    try {
+      const remainingFolders = folders.filter(f => f.id !== id);
+      // Move links out
+      const updatedLinks = links.map(l => l.folderId === id ? { ...l, folderId: '' } : l);
+      
+      const latestSHA = await getLatestSHA('src/data/linksLibrary.json');
+      const payload = { links: updatedLinks, folders: remainingFolders };
+      const success = await saveFileToGitHub('src/data/linksLibrary.json', payload, latestSHA, "Delete folder");
+      
+      if (success) {
+        setFolders(remainingFolders);
+        setLinks(updatedLinks);
+        setLinksSHA(latestSHA);
+        if (selectedFolderId === id) setSelectedFolderId(null);
+        showToast("Folder deleted", "success");
+      }
+    } catch(e) {
+      showToast("Failed to delete folder", "error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!isAdmin) return;
@@ -325,6 +424,7 @@ const Library = () => {
         customIcon: formData.customIcon,
         description: formData.description,
         category: finalCategory,
+        folderId: formData.folderId,
         mediaType: formData.mediaType,
         videoConfig: formData.videoConfig,
         // Map back to legacy field 'url' for compatibility if needed, but we use primary resolver
@@ -357,7 +457,7 @@ const Library = () => {
       }
 
       const latestSHA = await getLatestSHA('src/data/linksLibrary.json');
-      const payload = { links: updatedLinks };
+      const payload = { links: updatedLinks, folders };
       const success = await saveFileToGitHub('src/data/linksLibrary.json', payload, latestSHA, commitMessage);
       
       if (success) {
@@ -384,7 +484,7 @@ const Library = () => {
       const remainingLinks = links.filter(l => l.id !== id);
       
       const latestSHA = await getLatestSHA('src/data/linksLibrary.json');
-      const success = await saveFileToGitHub('src/data/linksLibrary.json', { links: remainingLinks }, latestSHA, 'Delete link: ' + (linkToDelete ? linkToDelete.name : 'Unknown'));
+      const success = await saveFileToGitHub('src/data/linksLibrary.json', { links: remainingLinks, folders }, latestSHA, 'Delete link: ' + (linkToDelete ? linkToDelete.name : 'Unknown'));
       
       if (success) {
         setLinks(remainingLinks);
@@ -414,7 +514,7 @@ const Library = () => {
       const latestSHA = await getLatestSHA('src/data/linksLibrary.json');
       const success = await saveFileToGitHub(
         'src/data/linksLibrary.json', 
-        { links: updatedLinks }, 
+        { links: updatedLinks, folders }, 
         latestSHA, 
         `Update icon for: ${link.name}`
       );
@@ -523,10 +623,55 @@ const Library = () => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 overflow-auto py-6 px-4 md:px-8">
+    <div className="flex h-full bg-gray-50 overflow-hidden relative">
       <Toast toast={toast} onClose={hideToast} />
-      
-      {/* Header section */}
+
+      {/* Folders Sidebar */}
+      <div className="w-64 bg-white border-r border-gray-200 hidden md:flex flex-col shrink-0 z-10 shadow-sm">
+         <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+           <h3 className="font-bold text-gray-900 uppercase text-[11px] tracking-widest flex items-center gap-2">
+             <Folder size={14} className="text-blue-500" />
+             Folders
+           </h3>
+           {isAdmin && (
+             <button onClick={() => { setEditingFolder(null); setFolderName(''); setIsFolderModalOpen(true); }} className="text-gray-400 hover:text-blue-500 transition-colors p-1 bg-gray-50 rounded-md shadow-sm border border-gray-100 hover:bg-blue-50 hover:border-blue-200">
+               <Plus size={14} />
+             </button>
+           )}
+         </div>
+         <div className="p-3 flex-1 overflow-y-auto space-y-1">
+           <button 
+             onClick={() => setSelectedFolderId(null)}
+             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${selectedFolderId === null ? 'bg-gray-900 text-white shadow-md' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
+           >
+             <LinkIcon size={16} className={selectedFolderId === null ? 'text-yellow-400' : 'text-gray-400'} />
+             All Links
+           </button>
+           <div className="pt-2 pb-1 px-3 text-[10px] uppercase font-black tracking-widest text-gray-400">Categories</div>
+           {folders.map(f => (
+             <div key={f.id} className="group relative flex items-center transition-all bg-transparent rounded-xl">
+               <button 
+                 onClick={() => setSelectedFolderId(f.id)}
+                 className={`flex-1 flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all group-hover:pr-14 ${selectedFolderId === f.id ? 'bg-blue-50 text-blue-700 shadow-sm border border-blue-100/50' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
+               >
+                 <Folder size={16} className={selectedFolderId === f.id ? 'text-blue-500 fill-blue-100' : 'text-gray-400'} />
+                 <span className="truncate">{f.name}</span>
+               </button>
+               {isAdmin && (
+                 <div className="absolute right-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 shadow-sm bg-white rounded-md p-0.5 border border-gray-100">
+                   <button onClick={() => { setEditingFolder(f); setFolderName(f.name); setIsFolderModalOpen(true); }} className="p-1 text-gray-400 hover:text-blue-500 rounded"><Pencil size={12}/></button>
+                   <button onClick={() => handleDeleteFolder(f.id)} className="p-1 text-gray-400 hover:text-red-500 rounded"><Trash2 size={12}/></button>
+                 </div>
+               )}
+             </div>
+           ))}
+         </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col overflow-auto py-6 px-4 md:px-8 bg-gray-50/50">
+        
+        {/* Header section */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <div className="flex items-center gap-3">
           <div className="p-3 bg-yellow-400 rounded-xl">
@@ -936,6 +1081,20 @@ const Library = () => {
                   className="w-full px-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
                   placeholder="Short explanation of what this link is for..."
                 />
+              </div>
+
+              {/* Folder */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Folder</label>
+                <select
+                  name="folderId"
+                  value={formData.folderId || ''}
+                  onChange={handleFormChange}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-gray-50 font-bold text-gray-700"
+                >
+                  <option value="">None (All Links)</option>
+                  {folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                </select>
               </div>
 
               {/* Category */}
@@ -1491,6 +1650,47 @@ const Library = () => {
         </div>
       )}
 
+      {/* Folder management Modal */}
+      {isFolderModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h2 className="text-xl font-bold">{editingFolder ? 'Rename Folder' : 'New Folder'}</h2>
+              <button onClick={() => { setIsFolderModalOpen(false); setEditingFolder(null); }} className="text-gray-400 hover:text-gray-900 transition-colors">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-6">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Folder Name <span className="text-red-500">*</span></label>
+              <input 
+                type="text" 
+                value={folderName} 
+                onChange={e => setFolderName(e.target.value)}
+                autoFocus
+                className="w-full px-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                placeholder="e.g. Finance Docs"
+              />
+            </div>
+            <div className="p-6 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50">
+              <button 
+                onClick={() => { setIsFolderModalOpen(false); setEditingFolder(null); }}
+                className="px-6 py-2 rounded-xl border border-gray-200 font-bold text-gray-500 hover:bg-gray-50 transition-all font-medium text-sm"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleSaveFolder}
+                disabled={isSaving || !folderName.trim()}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-md active:scale-95 disabled:opacity-50 text-sm"
+              >
+                {isSaving ? 'Saving...' : 'Save Folder'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      </div>
     </div>
   );
 };

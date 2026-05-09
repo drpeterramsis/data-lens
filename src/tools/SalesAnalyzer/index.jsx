@@ -1255,23 +1255,26 @@ const SalesAnalyzer = () => {
   ];
 
   const [hiddenCols, setHiddenCols] = useState(() => {
-    const saved = localStorage.getItem('salesAnalyzer_hiddenCols');
+    const defaultVal = {
+      'By Product': [],
+      'By SR': [],
+      'By Customer': [],
+      'By Branch': [],
+      'Overview': []
+    };
     try {
-      return saved ? JSON.parse(saved) : {
-        'By Product': [],
-        'By SR': [],
-        'By Customer': [],
-        'By Branch': [],
-        'Overview': []
+      const saved = localStorage.getItem('salesAnalyzer_hiddenCols');
+      if (!saved) return defaultVal;
+      const parsed = JSON.parse(saved);
+      return {
+        'By Product': Array.isArray(parsed['By Product']) ? parsed['By Product'] : [],
+        'By SR': Array.isArray(parsed['By SR']) ? parsed['By SR'] : [],
+        'By Customer': Array.isArray(parsed['By Customer']) ? parsed['By Customer'] : [],
+        'By Branch': Array.isArray(parsed['By Branch']) ? parsed['By Branch'] : [],
+        'Overview': Array.isArray(parsed['Overview']) ? parsed['Overview'] : []
       };
     } catch(e) {
-      return {
-        'By Product': [],
-        'By SR': [],
-        'By Customer': [],
-        'By Branch': [],
-        'Overview': []
-      };
+      return defaultVal;
     }
   });
 
@@ -1282,7 +1285,7 @@ const SalesAnalyzer = () => {
   const toggleColumn = (tab, colId) => {
     setHiddenCols(prev => ({
       ...prev,
-      [tab]: prev[tab].includes(colId) ? prev[tab].filter(c => c !== colId) : [...prev[tab], colId]
+      [tab]: prev[tab] && prev[tab].includes(colId) ? prev[tab].filter(c => c !== colId) : [...(prev[tab] || []), colId]
     }));
   };
 

@@ -98,21 +98,29 @@ const KPICard = ({ title, value, subtext, icon: Icon, colorClass = "text-blue-60
   <div 
     onClick={onClick}
     style={style}
-    className={`bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-4 ${onClick ? 'cursor-pointer hover:border-violet-300 hover:shadow-md transition-all' : ''}`}
+    className={`bg-white rounded-2xl p-3 md:p-4 shadow-sm border border-gray-100 flex items-center gap-3 md:gap-4 ${onClick ? 'cursor-pointer hover:border-violet-300 hover:shadow-md transition-all' : ''}`}
   >
-    <div className={`p-3 rounded-xl bg-gray-50 ${colorClass}`}>
-      <Icon size={24} />
+    <div className={`p-2 md:p-3 rounded-xl bg-gray-50 ${colorClass} shrink-0`}>
+      <Icon className="w-4 h-4 md:w-6 md:h-6" />
     </div>
-    <div>
-      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">{title}</p>
-      <h3 className="text-xl font-black text-gray-900 leading-none truncate">{value}</h3>
-      {subtext && <p className="text-[10px] text-gray-500 font-bold mt-1 uppercase tracking-tight">{subtext}</p>}
+    <div className="min-w-0 flex-1">
+      <p className="text-[8px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">{title}</p>
+      <h3 className="text-xs md:text-xl font-black text-gray-900 leading-none truncate tracking-tight">{value}</h3>
+      {subtext && <p className="text-[8px] md:text-[10px] text-gray-500 font-bold mt-1 uppercase tracking-tight truncate">{subtext}</p>}
     </div>
   </div>
 );
 
 // ── MAIN TOOL COMPONENT ──
 const PerCustomerAnalyzer = () => {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
   const [data, setData] = useState([]);
   const [fileMeta, setFileMeta] = useState({ name: '', reportMonthLabel: 'Unknown Month' });
   const [parsing, setParsing] = useState(false);
@@ -142,7 +150,6 @@ const PerCustomerAnalyzer = () => {
 
   const [statementModal, setStatementModal] = useState({ open: false, title: '', rows: [], loading: false, query: '', page: 1 });
   const [productSummaryModal, setProductSummaryModal] = useState({ open: false, rows: [], totalQty: 0, totalValue: 0, loading: false, query: '', page: 1 });
-  const [duplicatesModal, setDuplicatesModal] = useState({ open: false, rows: [], total: 0, loading: false, query: '', query: '', page: 1, stored: 0 });
   const pendingRequests = useRef(new Map());
 
   const callWorker = (type, payload = {}) => {
@@ -161,11 +168,23 @@ const PerCustomerAnalyzer = () => {
     });
   };
 
-  const fetchDuplicates = async (page = 1, query = '') => {
+  const [duplicatesModal, setDuplicatesModal] = useState({
+    open: false,
+    rows: [],
+    loading: false,
+    total: 0,
+    stored: 0,
+    page: 1,
+    query: '',
+    sortKey: 'value',
+    sortDir: 'desc'
+  });
+
+  const fetchDuplicates = async (page = 1, query = '', sortKey = 'value', sortDir = 'desc') => {
     if (!workerRef.current) return;
-    setDuplicatesModal(prev => ({ ...prev, loading: true, page, query }));
+    setDuplicatesModal(prev => ({ ...prev, loading: true, page, query, sortKey, sortDir }));
     try {
-      const response = await callWorker('getDuplicates', { page, pageSize: 50, query });
+      const response = await callWorker('getDuplicates', { page, pageSize: 50, query, sortBy: sortKey, sortDir });
       setDuplicatesModal(prev => ({ 
         ...prev, 
         rows: response.rows, 
@@ -206,6 +225,8 @@ const PerCustomerAnalyzer = () => {
     disBricks: 200,
     customers: 200
   });
+
+  const [expandedFilters, setExpandedFilters] = useState({});
 
   const [filterSearch, setFilterSearch] = useState({
     product: '',
@@ -875,6 +896,14 @@ const PerCustomerAnalyzer = () => {
     'desc'
   );
 
+  const { sorted: sortedStatement, sortKey: stSortKey, sortDir: stSortDir, toggle: stToggle } = useSortableTable(statementRows, 'value', 'desc');
+  
+  const { sorted: sortedDist, sortKey: distSortKey, sortDir: distSortDir, toggle: distToggle } = useSortableTable(aggregates.distributors, 'totalValue', 'desc');
+  const { sorted: sortedEva, sortKey: evaSortKey, sortDir: evaSortDir, toggle: evaToggle } = useSortableTable(aggregates.evaBricks, 'totalValue', 'desc');
+  const { sorted: sortedDis, sortKey: disSortKey, sortDir: disSortDir, toggle: disToggle } = useSortableTable(aggregates.disBricks, 'totalValue', 'desc');
+  
+  const { sorted: sortedProdSumm, sortKey: psummSortKey, sortDir: psummSortDir, toggle: psummToggle } = useSortableTable(productSummaryModal.rows, 'value', 'desc');
+
   const handleDrillDown = (scope, key) => {
     if (!workerRef.current) return;
     setStatementModal({ open: true, title: `Loading ${key}...`, rows: [], loading: true, query: '', page: 1 });
@@ -896,10 +925,12 @@ const PerCustomerAnalyzer = () => {
     );
   }, [statementModal.rows, statementModal.query]);
 
+  const { sorted: sortedDrillDown, sortKey: drillSortKey, sortDir: drillSortDir, toggle: drillToggle } = useSortableTable(drillDownRows, 'value', 'desc');
+
   const paginatedDrillDown = useMemo(() => {
     const start = (statementModal.page - 1) * 50;
-    return drillDownRows.slice(start, start + 50);
-  }, [drillDownRows, statementModal.page]);
+    return sortedDrillDown.slice(start, start + 50);
+  }, [sortedDrillDown, statementModal.page]);
 
   // ── SESSIONS ──
   const refreshSessions = async () => {
@@ -1091,13 +1122,13 @@ const PerCustomerAnalyzer = () => {
       <div className="flex-1 flex flex-col bg-gray-50 overflow-hidden relative h-full">
         
         {/* HEADER */}
-        <div className="h-14 bg-white border-b border-gray-200 px-6 flex items-center justify-between shrink-0">
+        <div className="md:h-14 bg-white border-b border-gray-200 px-4 md:px-6 py-3 md:py-0 flex flex-col md:flex-row md:items-center justify-between shrink-0 gap-4">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-violet-50 text-violet-600 rounded-lg">
               <Users size={18} />
             </div>
             <div>
-              <h2 className="text-sm font-black text-gray-900 uppercase tracking-tight">Per Customer Analyzer</h2>
+              <h2 className="text-sm md:text-base font-black text-gray-900 uppercase tracking-tight">Per Customer Analyzer</h2>
               <div className="flex items-center gap-2">
                 <p className="text-[10px] text-violet-600 font-bold uppercase tracking-widest">{fileMeta.reportMonthLabel}</p>
                 {preparedFiltered && (
@@ -1106,7 +1137,7 @@ const PerCustomerAnalyzer = () => {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {isCsvMode && (
               <>
                 <input 
@@ -1119,7 +1150,7 @@ const PerCustomerAnalyzer = () => {
                 <button 
                   onClick={() => document.getElementById('merge-upload').click()}
                   className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-violet-50 text-violet-600 text-[10px] font-black uppercase tracking-tighter hover:bg-violet-600 hover:text-white transition-all shadow-sm group">
-                  <Plus size={14} className="group-hover:scale-110 transition-transform" /> Add File
+                  <Plus size={14} className="group-hover:scale-110 transition-transform" /> Add
                 </button>
                 <button 
                   onClick={handleSaveTrigger}
@@ -1131,7 +1162,7 @@ const PerCustomerAnalyzer = () => {
             )}
             <button 
               onClick={onOpenLoadModal}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-tighter hover:bg-blue-600 hover:text-white transition-all shadow-sm">
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-tighter hover:bg-blue-600 hover:text-white transition-all shadow-sm text-center">
               <History size={14} /> Load
             </button>
             <button 
@@ -1139,16 +1170,18 @@ const PerCustomerAnalyzer = () => {
               className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gray-100 text-gray-700 text-[10px] font-black uppercase tracking-tighter hover:bg-violet-600 hover:text-white transition-all">
               <Filter size={14} /> Filters
             </button>
-            <button 
-              onClick={() => setFullscreen(!fullscreen)}
-              className="p-2 text-gray-400 hover:text-violet-600 transition-colors">
-              {fullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
-            </button>
-            <button 
-              onClick={() => setData([])}
-              className="p-2 text-gray-400 hover:text-red-500 transition-colors">
-              <Trash2 size={18} />
-            </button>
+            <div className="flex items-center gap-1 ml-auto md:ml-0">
+              <button 
+                onClick={() => setFullscreen(!fullscreen)}
+                className="p-2 text-gray-400 hover:text-violet-600 transition-colors">
+                {fullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+              </button>
+              <button 
+                onClick={() => setData([])}
+                className="p-2 text-gray-400 hover:text-red-500 transition-colors">
+                <Trash2 size={18} />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1169,38 +1202,47 @@ const PerCustomerAnalyzer = () => {
         </div>
 
         {/* MAIN CONTENT AREA */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6">
           
           {/* MERGE STATS BANNER */}
           {lastMergeStats && (
-            <div className="bg-violet-600 text-white p-4 rounded-3xl flex items-center justify-between shadow-xl animate-in slide-in-from-top duration-500">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-4">
-                <div className="p-2 bg-white/20 rounded-xl">
-                  <CheckCircle2 size={20} />
+            <div className="bg-violet-600 text-white p-4 md:p-6 rounded-3xl flex flex-col md:flex-row md:items-center justify-between shadow-xl animate-in slide-in-from-top duration-500 gap-4 relative">
+              <div className="flex flex-col md:flex-row md:items-center gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="p-2 bg-white/20 rounded-xl shrink-0">
+                    <CheckCircle2 size={20} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-widest leading-none mb-1">Merge Statistics</p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-1">
+                      <p className="text-[10px] font-bold opacity-90 uppercase">
+                        Added: <span className="font-black underline">{formatKpiGrouped(lastMergeStats.added)}</span> rows
+                      </p>
+                      <p className="text-[10px] font-bold opacity-90 uppercase">
+                        Detected: <span className="font-black underline">{formatKpiGrouped(lastMergeStats.duplicatesDetected)}</span> dups
+                      </p>
+                      <p className="text-[10px] font-bold opacity-90 uppercase">
+                        Total: <span className="font-black underline">{formatKpiGrouped(lastMergeStats.total)}</span> rows
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs font-black uppercase tracking-widest leading-none mb-1">Merge Statistics</p>
-                  <p className="text-[10px] font-bold opacity-90 uppercase">
-                    Added: <span className="font-black underline">{formatKpiGrouped(lastMergeStats.added)}</span> rows • 
-                    Detected: <span className="font-black underline">{formatKpiGrouped(lastMergeStats.duplicatesDetected)}</span> duplicates • 
-                    Total Dataset: <span className="font-black underline">{formatKpiGrouped(lastMergeStats.total)}</span> rows
-                  </p>
-                </div>
+                {lastMergeStats.duplicatesDetected > 0 && (
+                  <button 
+                    onClick={() => {
+                      setDuplicatesModal(prev => ({ ...prev, open: true }));
+                      fetchDuplicates(1, '');
+                    }}
+                    className="w-full md:w-auto px-4 py-2.5 md:py-2 bg-amber-500 hover:bg-amber-400 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg flex items-center justify-center gap-2"
+                  >
+                    <AlertCircle size={14} /> View Duplicates ({lastMergeStats.duplicatesDetected})
+                  </button>
+                )}
               </div>
-              {lastMergeStats.duplicatesDetected > 0 && (
-                <button 
-                  onClick={() => {
-                    setDuplicatesModal(prev => ({ ...prev, open: true }));
-                    fetchDuplicates(1, '');
-                  }}
-                  className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg flex items-center gap-2"
-                >
-                  <AlertCircle size={14} /> View Duplicates Report ({lastMergeStats.duplicatesDetected})
-                </button>
-              )}
-            </div>
-               <button onClick={() => setLastMergeStats(null)} className="p-2 hover:bg-white/10 rounded-full transition-all">
+              <button 
+                onClick={() => setLastMergeStats(null)} 
+                className="absolute top-4 right-4 md:relative md:top-auto md:right-auto p-2 hover:bg-white/10 rounded-full transition-all"
+              >
                 <X size={16} />
               </button>
             </div>
@@ -1209,7 +1251,7 @@ const PerCustomerAnalyzer = () => {
           {/* APPLIED FILTER TAGS */}
           {filterTags.length > 0 && (
             <div className={`bg-gray-50 border border-gray-100 rounded-3xl p-3 flex flex-wrap gap-2 transition-all duration-300 animate-in fade-in slide-in-from-top-4 ${tagsExpanded ? '' : 'max-h-[120px] overflow-hidden'}`}>
-                {(tagsExpanded ? filterTags : filterTags.slice(0, 8)).map((tag, idx) => (
+                {(tagsExpanded ? filterTags : filterTags.slice(0, isMobile ? 3 : 8)).map((tag, idx) => (
                   <div key={idx} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-violet-100 text-violet-700 rounded-xl shadow-sm group hover:border-violet-300 transition-all">
                     <span className="text-[10px] font-black uppercase tracking-tight">{tag.label}</span>
                     <button 
@@ -1221,7 +1263,7 @@ const PerCustomerAnalyzer = () => {
                   </div>
                 ))}
                 
-                {filterTags.length > 8 && (
+                {filterTags.length > (isMobile ? 3 : 8) && (
                   <button 
                     onClick={() => setTagsExpanded(!tagsExpanded)}
                     className="px-3 py-1.5 bg-white border border-violet-200 text-violet-600 text-[10px] font-black uppercase tracking-widest rounded-xl shadow-sm hover:bg-violet-600 hover:text-white transition-all flex items-center gap-2"
@@ -1229,7 +1271,7 @@ const PerCustomerAnalyzer = () => {
                     {tagsExpanded ? (
                       <>Collapse <ChevronDown size={12} className="rotate-180" /></>
                     ) : (
-                      <>+{filterTags.length - 8} more <ChevronDown size={12} /></>
+                      <>+{filterTags.length - (isMobile ? 3 : 8)} more <ChevronDown size={12} /></>
                     )}
                   </button>
                 )}
@@ -1258,12 +1300,12 @@ const PerCustomerAnalyzer = () => {
           </div>
 
           {/* TABS SELECTOR */}
-          <div className="flex items-center gap-2 border-b border-gray-200">
+          <div className="flex items-center gap-2 border-b border-gray-200 overflow-x-auto whitespace-nowrap no-scrollbar scroll-smooth">
             {['overview', 'customers', 'products', 'distributors', 'insights'].map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-4 py-3 text-xs font-black uppercase tracking-widest transition-all relative
+                className={`px-4 py-3 text-[10px] md:text-xs font-black uppercase tracking-widest transition-all relative shrink-0
                   ${activeTab === tab ? 'text-violet-600' : 'text-gray-400 hover:text-gray-600'}
                 `}
               >
@@ -1277,7 +1319,7 @@ const PerCustomerAnalyzer = () => {
           {activeTab === 'overview' && (
             <div className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+                <div className="bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-gray-100">
                   <div className="flex justify-between items-center mb-6">
                     <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest">Top 10 Customers by Value</h4>
                     <Users size={16} className="text-gray-400" />
@@ -1296,7 +1338,7 @@ const PerCustomerAnalyzer = () => {
                     </ResponsiveContainer>
                   </div>
                 </div>
-                <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+                <div className="bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-gray-100">
                   <div className="flex justify-between items-center mb-6">
                     <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest">Top 10 Products by Value</h4>
                     <Package size={16} className="text-gray-400" />
@@ -1317,7 +1359,7 @@ const PerCustomerAnalyzer = () => {
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm">
+                <div className="bg-white rounded-3xl p-4 md:p-5 border border-gray-100 shadow-sm">
                   <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Top Eva Bricks</h5>
                   <div className="space-y-2">
                     {aggregates.evaBricks.sort((a,b)=>b.totalValue-a.totalValue).slice(0,5).map((e, idx) => (
@@ -1331,7 +1373,7 @@ const PerCustomerAnalyzer = () => {
                     ))}
                   </div>
                 </div>
-                <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm">
+                <div className="bg-white rounded-3xl p-4 md:p-5 border border-gray-100 shadow-sm">
                   <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Top Distributors</h5>
                   <div className="space-y-2">
                     {aggregates.distributors.sort((a,b)=>b.totalValue-a.totalValue).slice(0,5).map((d, idx) => (
@@ -1345,7 +1387,7 @@ const PerCustomerAnalyzer = () => {
                     ))}
                   </div>
                 </div>
-                <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm">
+                <div className="bg-white rounded-3xl p-4 md:p-5 border border-gray-100 shadow-sm">
                   <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Concentration</h5>
                   <div className="flex flex-col items-center justify-center h-full pb-4">
                     <PieChart width={140} height={140}>
@@ -1433,6 +1475,38 @@ const PerCustomerAnalyzer = () => {
                       Clear All Filters
                     </button>
                   </div>
+                ) : isMobile ? (
+                  <div className="flex-1 overflow-auto divide-y divide-gray-100 bg-white">
+                    {pageItems.map((c, i) => (
+                      <div key={c.clientCode} onClick={() => setSelectedCustomer(c)} className="p-4 hover:bg-violet-50 cursor-pointer transition-colors space-y-3">
+                        <div className="flex justify-between items-start gap-2">
+                          <div className="min-w-0">
+                             <p className="text-[9px] font-black text-violet-600 uppercase tracking-tighter mb-0.5">{c.clientCode}</p>
+                             <h4 className="text-xs font-black text-gray-900 uppercase tracking-tight truncate leading-none">{c.clientName}</h4>
+                          </div>
+                          <div className="text-right shrink-0">
+                             <p className="text-xs font-black text-gray-900">{formatKpiGrouped(c.totalValue)}</p>
+                             <p className="text-[9px] font-bold text-gray-400">{c.pct.toFixed(2)}% SHARE</p>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-50">
+                          <div>
+                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Brick / Dis</p>
+                            <p className="text-[9px] font-bold text-gray-700 truncate">{c.evaBrick} • {c.distributor}</p>
+                          </div>
+                          <div className="text-right">
+                             <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Qty / Prods</p>
+                             <p className="text-[9px] font-bold text-gray-700">{formatKpiGrouped(c.totalQty)} • {c.productCount} items</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {pageItems.length === 0 && (
+                       <div className="p-12 text-center text-gray-400 font-bold uppercase tracking-widest text-xs">
+                         No customers found matching search criteria.
+                       </div>
+                    )}
+                  </div>
                 ) : (
                   <table className={TABLE_BASE}>
                   <thead className="sticky top-0 bg-white z-10 shadow-sm">
@@ -1494,7 +1568,29 @@ const PerCustomerAnalyzer = () => {
                   </div>
                 </div>
                 <div className="max-h-[60vh] overflow-auto border border-gray-100 rounded-3xl no-scrollbar">
-                  <table className="w-full text-left border-collapse">
+                  {isMobile ? (
+                    <div className="divide-y divide-gray-50">
+                      {sortedProd.map((p, i) => (
+                        <div key={i} className="p-4 hover:bg-violet-50/50 cursor-pointer space-y-3" onClick={() => handleDrillDown('product', p.product)}>
+                          <div className="flex justify-between items-start gap-2">
+                             <h4 className="text-xs font-black text-gray-900 uppercase tracking-tight truncate leading-none flex-1">{p.product}</h4>
+                             <p className="text-xs font-black text-emerald-600 shrink-0">{formatKpiGrouped(p.totalValue)}</p>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-50">
+                            <div>
+                               <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Distributor</p>
+                               <p className="text-[9px] font-bold text-gray-700 truncate">{p.distributor}</p>
+                            </div>
+                            <div className="text-right">
+                               <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Qty / Custs</p>
+                               <p className="text-[9px] font-bold text-gray-700">{formatKpiGrouped(p.totalQty)} • {p.customerCount} custs</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <table className="w-full text-left border-collapse">
                     <thead className="sticky top-0 z-10 bg-white border-b border-gray-100 shadow-sm">
                       <tr>
                         <SortableTH label="Product" sortKey="product" currentKey={prodSortKey} dir={prodSortDir} onSort={prodToggle} />
@@ -1518,6 +1614,7 @@ const PerCustomerAnalyzer = () => {
                       ))}
                     </tbody>
                   </table>
+                  )}
                 </div>
               </div>
 
@@ -1540,9 +1637,9 @@ const PerCustomerAnalyzer = () => {
           {activeTab === 'distributors' && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[
-                { title: 'Distributors', data: aggregates.distributors, label: 'distributor' },
-                { title: 'Eva Bricks', data: aggregates.evaBricks, label: 'evaBrick' },
-                { title: 'DIS Bricks', data: aggregates.disBricks, label: 'disBrick' }
+                { title: 'Distributors', data: sortedDist, label: 'distributor', sKey: distSortKey, sDir: distSortDir, sToggle: distToggle },
+                { title: 'Eva Bricks', data: sortedEva, label: 'evaBrick', sKey: evaSortKey, sDir: evaSortDir, sToggle: evaToggle },
+                { title: 'DIS Bricks', data: sortedDis, label: 'disBrick', sKey: disSortKey, sDir: disSortDir, sToggle: disToggle }
               ].map((sec, idx) => (
                 <div key={idx} className="bg-white rounded-3xl shadow-sm border border-gray-100 flex flex-col h-96">
                   <div className="p-4 border-b border-gray-50">
@@ -1552,14 +1649,14 @@ const PerCustomerAnalyzer = () => {
                     <table className="w-full text-left border-collapse">
                       <thead className="sticky top-0 bg-white z-10 shadow-sm border-b border-gray-100">
                         <tr className={THEAD_ROW}>
-                          <th className={TH_BASE}>{sec.title}</th>
-                          <th className={`${TH_BASE} text-right`}>Qty</th>
-                          <th className={`${TH_BASE} text-right`}>Value</th>
-                          <th className={`${TH_BASE} text-right`}>Cust</th>
+                          <SortableTH label={sec.title} sortKey={sec.label} currentKey={sec.sKey} dir={sec.sDir} onSort={sec.sToggle} />
+                          <SortableTH label="Qty" sortKey="totalQty" currentKey={sec.sKey} dir={sec.sDir} onSort={sec.sToggle} className="text-right" />
+                          <SortableTH label="Value" sortKey="totalValue" currentKey={sec.sKey} dir={sec.sDir} onSort={sec.sToggle} className="text-right" />
+                          <SortableTH label="Cust" sortKey="customerCount" currentKey={sec.sKey} dir={sec.sDir} onSort={sec.sToggle} className="text-right" />
                         </tr>
                       </thead>
                       <tbody>
-                        {sec.data.sort((a,b)=>b.totalValue-a.totalValue).map((row, i) => (
+                        {sec.data.map((row, i) => (
                           <tr key={i} className="hover:bg-violet-50/50 cursor-pointer group" onClick={() => handleDrillDown(sec.label, row[sec.label])}>
                             <td className={TD_TEXT}>{row[sec.label]}</td>
                             <td className={TD_NUM}>{formatKpiGrouped(row.totalQty)}</td>
@@ -1712,15 +1809,15 @@ const PerCustomerAnalyzer = () => {
                     <table className={TABLE_BASE}>
                       <thead className="sticky top-0 bg-white z-10 shadow-sm">
                         <tr className={THEAD_ROW}>
-                          <th className={TH_BASE}>Product Name</th>
-                          <th className={`${TH_BASE} text-right`}>Qty</th>
-                          <th className={`${TH_BASE} text-right`}>Value</th>
+                          <SortableTH label="Product Name" sortKey="product" currentKey={psummSortKey} dir={psummSortDir} onSort={psummToggle} />
+                          <SortableTH label="Qty" sortKey="qty" currentKey={psummSortKey} dir={psummSortDir} onSort={psummToggle} className="text-right" />
+                          <SortableTH label="Value" sortKey="value" currentKey={psummSortKey} dir={psummSortDir} onSort={psummToggle} className="text-right" />
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-50">
                         {productSummaryModal.loading ? (
                            <tr><td colSpan={3} className="py-12 text-center text-gray-400 font-bold uppercase tracking-widest bg-white">Loading summary...</td></tr>
-                        ) : productSummaryModal.rows.filter(r => r.product.toLowerCase().includes(productSummaryModal.query.toLowerCase())).map((row, i) => (
+                        ) : sortedProdSumm.filter(r => r.product.toLowerCase().includes(productSummaryModal.query.toLowerCase())).map((row, i) => (
                           <tr key={i} className="hover:bg-violet-50/50">
                             <td className={TD_TEXT}>{row.product}</td>
                             <td className={TD_NUM}>{formatKpiGrouped(row.qty)}</td>
@@ -1775,13 +1872,34 @@ const PerCustomerAnalyzer = () => {
                     <table className="w-full text-left text-[11px] border-collapse">
                       <thead className="sticky top-0 z-10 bg-gray-50 border-b border-gray-100">
                         <tr>
-                          <th className="px-4 py-3 font-black text-gray-500 uppercase tracking-widest whitespace-nowrap">Month</th>
-                          <th className="px-4 py-3 font-black text-gray-500 uppercase tracking-widest whitespace-nowrap">File</th>
-                          <th className="px-4 py-3 font-black text-gray-500 uppercase tracking-widest whitespace-nowrap">Client</th>
-                          <th className="px-4 py-3 font-black text-gray-500 uppercase tracking-widest whitespace-nowrap">Product</th>
-                          <th className="px-4 py-3 font-black text-gray-500 uppercase tracking-widest whitespace-nowrap">Distributor</th>
-                          <th className="px-4 py-3 font-black text-gray-500 uppercase tracking-widest whitespace-nowrap text-right">Qty</th>
-                          <th className="px-4 py-3 font-black text-gray-500 uppercase tracking-widest whitespace-nowrap text-right">Value</th>
+                          <SortableTH label="Month" sortKey="monthKey" currentKey={duplicatesModal.sortKey} dir={duplicatesModal.sortDir} onSort={key => {
+                            const newDir = duplicatesModal.sortKey === key ? (duplicatesModal.sortDir === 'asc' ? 'desc' : 'asc') : 'desc';
+                            fetchDuplicates(1, duplicatesModal.query, key, newDir);
+                          }} className="px-4 py-3 whitespace-nowrap" />
+                          <SortableTH label="File" sortKey="fileName" currentKey={duplicatesModal.sortKey} dir={duplicatesModal.sortDir} onSort={key => {
+                            const newDir = duplicatesModal.sortKey === key ? (duplicatesModal.sortDir === 'asc' ? 'desc' : 'asc') : 'desc';
+                            fetchDuplicates(1, duplicatesModal.query, key, newDir);
+                          }} className="px-4 py-3 whitespace-nowrap" />
+                          <SortableTH label="Client" sortKey="clientName" currentKey={duplicatesModal.sortKey} dir={duplicatesModal.sortDir} onSort={key => {
+                            const newDir = duplicatesModal.sortKey === key ? (duplicatesModal.sortDir === 'asc' ? 'desc' : 'asc') : 'desc';
+                            fetchDuplicates(1, duplicatesModal.query, key, newDir);
+                          }} className="px-4 py-3 whitespace-nowrap" />
+                          <SortableTH label="Product" sortKey="product" currentKey={duplicatesModal.sortKey} dir={duplicatesModal.sortDir} onSort={key => {
+                            const newDir = duplicatesModal.sortKey === key ? (duplicatesModal.sortDir === 'asc' ? 'desc' : 'asc') : 'desc';
+                            fetchDuplicates(1, duplicatesModal.query, key, newDir);
+                          }} className="px-4 py-3 whitespace-nowrap" />
+                          <SortableTH label="Distributor" sortKey="distributor" currentKey={duplicatesModal.sortKey} dir={duplicatesModal.sortDir} onSort={key => {
+                            const newDir = duplicatesModal.sortKey === key ? (duplicatesModal.sortDir === 'asc' ? 'desc' : 'asc') : 'desc';
+                            fetchDuplicates(1, duplicatesModal.query, key, newDir);
+                          }} className="px-4 py-3 whitespace-nowrap" />
+                          <SortableTH label="Qty" sortKey="qty" currentKey={duplicatesModal.sortKey} dir={duplicatesModal.sortDir} onSort={key => {
+                            const newDir = duplicatesModal.sortKey === key ? (duplicatesModal.sortDir === 'asc' ? 'desc' : 'asc') : 'desc';
+                            fetchDuplicates(1, duplicatesModal.query, key, newDir);
+                          }} className="px-4 py-3 whitespace-nowrap text-right" />
+                          <SortableTH label="Value" sortKey="value" currentKey={duplicatesModal.sortKey} dir={duplicatesModal.sortDir} onSort={key => {
+                            const newDir = duplicatesModal.sortKey === key ? (duplicatesModal.sortDir === 'asc' ? 'desc' : 'asc') : 'desc';
+                            fetchDuplicates(1, duplicatesModal.query, key, newDir);
+                          }} className="px-4 py-3 whitespace-nowrap text-right" />
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-50">
@@ -1943,88 +2061,109 @@ const PerCustomerAnalyzer = () => {
         {selectedCustomer && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setSelectedCustomer(null)} />
-            <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-[40px] shadow-2xl relative z-[210] overflow-hidden flex flex-col animate-in zoom-in duration-300">
-               <div className="p-8 border-b border-gray-100 flex items-center justify-between shrink-0">
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 bg-violet-50 text-violet-600 rounded-3xl flex items-center justify-center shadow-inner">
-                       <Users size={32} />
+            <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-[32px] md:rounded-[40px] shadow-2xl relative z-[210] overflow-hidden flex flex-col animate-in zoom-in duration-300">
+               <div className="p-4 md:p-8 border-b border-gray-100 flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-3 md:gap-4">
+                    <div className="w-12 h-12 md:w-16 md:h-16 bg-violet-50 text-violet-600 rounded-2xl md:rounded-3xl flex items-center justify-center shadow-inner shrink-0">
+                       <Users size={isMobile ? 24 : 32} />
                     </div>
-                    <div>
-                       <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight leading-tight">{selectedCustomer.clientName}</h3>
-                       <p className="text-xs font-black text-violet-600 uppercase tracking-widest mt-1">Code: {selectedCustomer.clientCode}</p>
+                    <div className="min-w-0">
+                       <h3 className="text-base md:text-xl font-black text-gray-900 uppercase tracking-tight leading-tight truncate">{selectedCustomer.clientName}</h3>
+                       <p className="text-[10px] md:text-xs font-black text-violet-600 uppercase tracking-widest mt-1">Code: {selectedCustomer.clientCode}</p>
                     </div>
                   </div>
-                  <button onClick={() => { setSelectedCustomer(null); setStatementSearch(''); setStatementPage(1); }} className="w-10 h-10 bg-gray-50 text-gray-400 hover:text-gray-900 rounded-2xl flex items-center justify-center transition-all">
-                    <X size={24} />
+                  <button onClick={() => { setSelectedCustomer(null); setStatementSearch(''); setStatementPage(1); }} className="w-10 h-10 bg-gray-50 text-gray-400 hover:text-gray-900 rounded-2xl flex items-center justify-center transition-all shrink-0 ml-2">
+                    <X size={20} />
                   </button>
                </div>
-               <div className="flex-1 overflow-auto p-8 space-y-8 no-scrollbar">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="p-4 bg-violet-600 text-white rounded-2xl shadow-lg">
-                       <p className="text-[10px] font-black opacity-80 uppercase tracking-widest mb-1">Rank</p>
-                       <p className="text-lg font-black leading-none">#{aggregates.customers.findIndex(c => (c.clientCode === selectedCustomer.clientCode && c.clientName === selectedCustomer.clientName)) + 1}</p>
+               <div className="flex-1 overflow-auto p-4 md:p-8 space-y-6 md:space-y-8 no-scrollbar">
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+                    <div className="p-3 md:p-4 bg-violet-600 text-white rounded-2xl shadow-lg">
+                       <p className="text-[8px] md:text-[10px] font-black opacity-80 uppercase tracking-widest mb-1">Rank</p>
+                       <p className="text-sm md:text-lg font-black leading-none">#{aggregates.customers.findIndex(c => (c.clientCode === selectedCustomer.clientCode && c.clientName === selectedCustomer.clientName)) + 1}</p>
                     </div>
-                    <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Unique Products</p>
-                       <p className="text-lg font-black text-gray-900 leading-none">{selectedCustomer.productCount}</p>
+                    <div className="p-3 md:p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                       <p className="text-[8px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Unique Products</p>
+                       <p className="text-sm md:text-lg font-black text-gray-900 leading-none">{selectedCustomer.productCount}</p>
                     </div>
-                    <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Value</p>
-                       <p className="text-lg font-black text-gray-900 leading-none tabular-nums">{formatKpiGrouped(selectedCustomer.totalValue)}</p>
+                    <div className="p-3 md:p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                       <p className="text-[8px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Value</p>
+                       <p className="text-sm md:text-lg font-black text-gray-900 leading-none tabular-nums">{formatKpiGrouped(selectedCustomer.totalValue)}</p>
                     </div>
-                    <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Qty</p>
-                       <p className="text-lg font-black text-gray-900 leading-none tabular-nums">{formatKpiGrouped(selectedCustomer.totalQty)}</p>
+                    <div className="p-3 md:p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                       <p className="text-[8px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Qty</p>
+                       <p className="text-sm md:text-lg font-black text-gray-900 leading-none tabular-nums">{formatKpiGrouped(selectedCustomer.totalQty)}</p>
                     </div>
                   </div>
                   
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Customer Statement / Product Breakdown</h4>
-                      <div className="flex items-center gap-2">
-                         <div className="relative">
-                            <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                            <input 
-                              type="text" 
-                              placeholder="Search Product, Dist, Month..." 
-                              value={statementSearch}
-                              onChange={e => { setStatementSearch(e.target.value); setStatementPage(1); }}
-                              className="text-[10px] font-bold bg-gray-100 border-none outline-none pl-9 pr-4 py-2 rounded-xl w-64 focus:ring-2 focus:ring-violet-500"
-                            />
-                         </div>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                      <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Product Breakdown</h4>
+                      <div className="relative">
+                         <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                         <input 
+                           type="text" 
+                           placeholder="Search breakdown..." 
+                           value={statementSearch}
+                           onChange={e => { setStatementSearch(e.target.value); setStatementPage(1); }}
+                           className="text-[10px] font-bold bg-gray-100 border-none outline-none pl-9 pr-4 py-2 rounded-xl w-full md:w-64 focus:ring-2 focus:ring-violet-500"
+                         />
                       </div>
                     </div>
                     
-                    <div className="border border-gray-100 rounded-3xl overflow-hidden bg-white shadow-sm">
-                        <table className="w-full text-[11px] border-collapse">
-                           <thead>
-                              <tr className="bg-gray-50 border-b border-gray-100">
-                                 <th className="px-4 py-3 text-left font-black text-gray-500 uppercase tracking-widest">Product</th>
-                                 <th className="px-4 py-3 text-left font-black text-gray-500 uppercase tracking-widest">Distributor</th>
-                                 <th className="px-4 py-3 text-center font-black text-gray-500 uppercase tracking-widest">Month</th>
-                                 <th className="px-4 py-3 text-right font-black text-gray-500 uppercase tracking-widest">Qty</th>
-                                 <th className="px-4 py-3 text-right font-black text-gray-500 uppercase tracking-widest">Value</th>
-                              </tr>
-                           </thead>
-                           <tbody className="divide-y divide-gray-50">
-                              {paginatedStatement.map((r, i) => (
-                                <tr key={i} className="hover:bg-violet-50/30 transition-colors">
-                                   <td className="px-4 py-3 font-bold text-gray-900">{r.product}</td>
-                                   <td className="px-4 py-3 text-gray-500 font-medium">{r.distributor}</td>
-                                   <td className="px-4 py-3 text-center">
-                                      <span className="px-2 py-1 bg-gray-100 text-[9px] font-black text-gray-600 rounded-lg uppercase">{r.monthKey}</span>
-                                   </td>
-                                   <td className="px-4 py-3 text-right font-mono font-bold">{formatKpiGrouped(r.qty)}</td>
-                                   <td className="px-4 py-3 text-right font-mono font-bold text-violet-600">{formatKpiGrouped(r.value)}</td>
+                    <div className="border border-gray-100 rounded-2xl md:rounded-3xl overflow-hidden bg-white shadow-sm">
+                        {isMobile ? (
+                          <div className="divide-y divide-gray-50">
+                            {paginatedStatement.map((r, i) => (
+                               <div key={i} className="p-4 space-y-2">
+                                  <div className="flex justify-between items-start gap-2">
+                                     <h4 className="text-[11px] font-black text-gray-900 uppercase tracking-tight truncate leading-none flex-1">{r.product}</h4>
+                                     <p className="text-[11px] font-black text-violet-600 shrink-0">{formatKpiGrouped(r.value)}</p>
+                                  </div>
+                                  <div className="flex justify-between items-center text-[9px] font-bold text-gray-500 uppercase tracking-tighter">
+                                     <span className="truncate max-w-[120px]">{r.distributor}</span>
+                                     <div className="flex gap-2">
+                                        <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">{r.monthKey}</span>
+                                        <span className="text-gray-900">QTY: {formatKpiGrouped(r.qty)}</span>
+                                     </div>
+                                  </div>
+                               </div>
+                            ))}
+                            {paginatedStatement.length === 0 && (
+                               <div className="py-12 text-center text-gray-400 font-black uppercase tracking-widest italic text-[10px]">No matching records</div>
+                            )}
+                          </div>
+                        ) : (
+                          <table className="w-full text-[11px] border-collapse">
+                             <thead>
+                                <tr className="bg-gray-50 border-b border-gray-100">
+                                   <SortableTH label="Product" sortKey="product" currentKey={stSortKey} dir={stSortDir} onSort={stToggle} />
+                                   <SortableTH label="Distributor" sortKey="distributor" currentKey={stSortKey} dir={stSortDir} onSort={stToggle} />
+                                   <SortableTH label="Month" sortKey="monthKey" currentKey={stSortKey} dir={stSortDir} onSort={stToggle} className="text-center" />
+                                   <SortableTH label="Qty" sortKey="qty" currentKey={stSortKey} dir={stSortDir} onSort={stToggle} className="text-right" />
+                                   <SortableTH label="Value" sortKey="value" currentKey={stSortKey} dir={stSortDir} onSort={stToggle} className="text-right" />
                                 </tr>
-                              ))}
-                              {paginatedStatement.length === 0 && (
-                                <tr>
-                                  <td colSpan={5} className="py-20 text-center text-gray-400 font-black uppercase tracking-widest italic">No matching records found</td>
-                                </tr>
-                              )}
-                           </tbody>
-                        </table>
+                             </thead>
+                             <tbody className="divide-y divide-gray-50">
+                                {paginatedStatement.map((r, i) => (
+                                  <tr key={i} className="hover:bg-violet-50/30 transition-colors">
+                                     <td className="px-4 py-3 font-bold text-gray-900">{r.product}</td>
+                                     <td className="px-4 py-3 text-gray-500 font-medium">{r.distributor}</td>
+                                     <td className="px-4 py-3 text-center">
+                                        <span className="px-2 py-1 bg-gray-100 text-[9px] font-black text-gray-600 rounded-lg uppercase">{r.monthKey}</span>
+                                     </td>
+                                     <td className="px-4 py-3 text-right font-mono font-bold">{formatKpiGrouped(r.qty)}</td>
+                                     <td className="px-4 py-3 text-right font-mono font-bold text-violet-600">{formatKpiGrouped(r.value)}</td>
+                                  </tr>
+                                ))}
+                                {paginatedStatement.length === 0 && (
+                                  <tr>
+                                    <td colSpan={5} className="py-20 text-center text-gray-400 font-black uppercase tracking-widest italic">No matching records found</td>
+                                  </tr>
+                                )}
+                             </tbody>
+                          </table>
+                        )}
                     </div>
 
                     {/* Statement Pagination */}
@@ -2258,131 +2397,155 @@ const PerCustomerAnalyzer = () => {
                </div>
                <div className="flex-1 overflow-auto p-4 space-y-6">
                    {/* Filter Sections */}
-                   {[
-                     { id: 'product', label: 'Products', options: searchedOptions.products, key: 'products' },
-                     { id: 'evaBrick', label: 'Eva Bricks', options: searchedOptions.evaBricks, key: 'evaBricks' },
-                     { id: 'disBrick', label: 'DIS Bricks', options: searchedOptions.disBricks, key: 'disBricks' },
-                     { id: 'distributor', label: 'Distributors', options: searchedOptions.distributors, key: 'distributors' },
-                     { id: 'customer', label: 'Customers', options: searchedOptions.customers, key: 'customers' }
-                   ].map(group => (
-                     <div key={group.id} className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none">{group.label}</label>
-                          <span className="text-[9px] font-bold text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded-md">
-                            {(filters[group.id === 'customer' ? 'customerCodes' : group.key] || []).length} / {(filterOptions[group.key] || []).length}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <div className="relative flex-1">
-                            <Search size={10} className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" />
-                            <input 
-                              type="text" 
-                              placeholder="Search..." 
-                              value={filterSearch[group.id]}
-                              onChange={e => setFilterSearch(prev => ({...prev, [group.id]: e.target.value}))}
-                              className="w-full text-[10px] bg-gray-50 border-none outline-none pl-6 pr-2 py-1.5 rounded-xl focus:ring-1 focus:ring-violet-500"
-                            />
+                    {[
+                      { id: 'product', label: 'Products', options: searchedOptions.products, key: 'products' },
+                      { id: 'evaBrick', label: 'Eva Bricks', options: searchedOptions.evaBricks, key: 'evaBricks' },
+                      { id: 'disBrick', label: 'DIS Bricks', options: searchedOptions.disBricks, key: 'disBricks' },
+                      { id: 'distributor', label: 'Distributors', options: searchedOptions.distributors, key: 'distributors' },
+                      { id: 'customer', label: 'Customers', options: searchedOptions.customers, key: 'customers' }
+                    ].map(group => (
+                       <div key={group.id} className="space-y-0 border border-gray-100 rounded-2xl bg-white overflow-hidden shadow-sm">
+                          <div 
+                            className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50 bg-white group select-none relative"
+                            onClick={() => setExpandedFilters(e => ({...e, [group.id]: !e[group.id]}))}
+                          >
+                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none group-hover:text-violet-600 pointer-events-none">{group.label}</label>
+                             <div className="flex items-center gap-2 pointer-events-none">
+                               <span className="text-[9px] font-bold text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded-md">
+                                 {(filters[group.id === 'customer' ? 'customerCodes' : group.key] || []).length} / {(filterOptions[group.key] || []).length}
+                               </span>
+                               <ChevronDown size={14} className={`text-gray-400 transition-transform ${expandedFilters[group.id] ? 'rotate-180' : ''}`} />
+                             </div>
                           </div>
+                          {expandedFilters[group.id] && (
+                            <div className="p-2 pt-0 space-y-2 bg-white">
+                              <div className="flex items-center gap-1">
+                                 <div className="relative flex-1">
+                                   <Search size={10} className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" />
+                                   <input 
+                                     type="text" 
+                                     placeholder="Search..." 
+                                     value={filterSearch[group.id]}
+                                     onChange={e => setFilterSearch(prev => ({...prev, [group.id]: e.target.value}))}
+                                     className="w-full text-[10px] bg-gray-50 border-none outline-none pl-6 pr-2 py-1.5 rounded-xl focus:ring-1 focus:ring-violet-500"
+                                   />
+                                 </div>
+                                 <button 
+                                   onClick={() => {
+                                     if (group.id === 'customer') {
+                                       const names = group.options.map(o => o.clientName);
+                                       const codes = group.options.map(o => o.clientCode);
+                                       setFilters(f => ({...f, customers: [...new Set([...(f.customers || []), ...names])], customerCodes: [...new Set([...(f.customerCodes || []), ...codes])] }));
+                                     } else {
+                                       const vals = group.options.map(o => o);
+                                       setFilters(f => ({...f, [group.key]: [...new Set([...(f[group.key] || []), ...vals])] }));
+                                     }
+                                   }}
+                                   className="text-[9px] font-black uppercase text-violet-600 px-1.5 hover:underline"
+                                 >All</button>
+                                 <button 
+                                   onClick={() => {
+                                     if (group.id === 'customer') {
+                                       const names = group.options.map(o => o.clientName);
+                                       const codes = group.options.map(o => o.clientCode);
+                                       setFilters(f => ({...f, customers: (f.customers || []).filter(x => !names.includes(x)), customerCodes: (f.customerCodes || []).filter(x => !codes.includes(x)) }));
+                                     } else {
+                                       const vals = group.options.map(o => o);
+                                       setFilters(f => ({...f, [group.key]: (f[group.key] || []).filter(x => !vals.includes(x)) }));
+                                     }
+                                   }}
+                                   className="text-[9px] font-black uppercase text-gray-400 px-1.5 hover:underline"
+                                 >None</button>
+                              </div>
+                              <div className="max-h-48 overflow-y-auto border border-gray-100 rounded-xl p-1.5 bg-gray-50 space-y-0.5 scrollbar-thin">
+                                {group.options.slice(0, filterLimits[group.key]).map((opt, idx) => {
+                                  const isCust = group.id === 'customer';
+                                  const val = isCust ? opt.clientName : opt;
+                                  const valCode = isCust ? opt.clientCode : null;
+                                  const label = isCust ? `${opt.clientCode} — ${opt.clientName}` : opt;
+                                  const isSelected = isCust ? (filters.customerCodes || []).includes(valCode) : (filters[group.key] || []).includes(val);
+                                  return (
+                                    <button 
+                                       key={`${group.id}-${idx}-${isCust ? valCode : val}`} 
+                                       onClick={() => {
+                                         if (isCust) {
+                                           setFilters(f => ({
+                                             ...f, 
+                                             customers: isSelected ? (f.customers || []).filter(x => x !== val) : [...(f.customers || []), val],
+                                             customerCodes: isSelected ? (f.customerCodes || []).filter(x => x !== valCode) : [...(f.customerCodes || []), valCode]
+                                           }));
+                                         } else {
+                                           setFilters(f => ({...f, [group.key]: isSelected ? (f[group.key] || []).filter(x=>x!==val) : [...(f[group.key] || []), val]}));
+                                         }
+                                       }}
+                                       className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all
+                                         ${isSelected ? 'bg-violet-600 text-white shadow-sm' : 'text-gray-600 hover:bg-white'}
+                                       `}
+                                    >
+                                       {label}
+                                    </button>
+                                  );
+                                })}
+                                {group.options.length > filterLimits[group.key] && (
+                                  <button 
+                                    onClick={() => setFilterLimits(prev => ({...prev, [group.key]: prev[group.key] + 500}))}
+                                    className="w-full py-2 text-[10px] font-black text-violet-600 uppercase hover:bg-violet-50 rounded-xl"
+                                  >
+                                    Show more ({group.options.length - filterLimits[group.key]} left)
+                                  </button>
+                                )}
+                                {group.options.length === 0 && <div className="p-4 text-center text-[10px] text-gray-400 font-bold uppercase italic">No results</div>}
+                              </div>
+                            </div>
+                          )}
+                       </div>
+                    ))}
+                    
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none">Ranges</label>
+                         <div className="grid grid-cols-2 gap-2">
+                             <input 
+                               type="number" 
+                               placeholder="Min Qty" 
+                               value={filters.minQty}
+                               onChange={e => setFilters(f => ({...f, minQty: e.target.value}))}
+                               className="bg-gray-50 border-none rounded-xl text-[10px] p-2 focus:ring-1 focus:ring-violet-500" 
+                             />
+                             <input 
+                               type="number" 
+                               placeholder="Max Qty" 
+                               value={filters.maxQty}
+                               onChange={e => setFilters(f => ({...f, maxQty: e.target.value}))}
+                               className="bg-gray-50 border-none rounded-xl text-[10px] p-2 focus:ring-1 focus:ring-violet-500" 
+                             />
+                             <input 
+                               type="number" 
+                               placeholder="Min Val" 
+                               value={filters.minValue}
+                               onChange={e => setFilters(f => ({...f, minValue: e.target.value}))}
+                               className="bg-gray-50 border-none rounded-xl text-[10px] p-2 focus:ring-1 focus:ring-violet-500" 
+                             />
+                             <input 
+                               type="number" 
+                               placeholder="Max Val" 
+                               value={filters.maxValue}
+                               onChange={e => setFilters(f => ({...f, maxValue: e.target.value}))}
+                               className="bg-gray-50 border-none rounded-xl text-[10px] p-2 focus:ring-1 focus:ring-violet-500" 
+                             />
+                          </div>
+                       </div>
+                       <div className="flex items-center justify-between p-3 bg-violet-50 rounded-2xl">
+                          <span className="text-[10px] font-black text-violet-700 uppercase tracking-widest">Arabic Names Only</span>
                           <button 
-                            onClick={() => {
-                              if (group.id === 'customer') {
-                                const names = group.options.map(o => o.clientName);
-                                const codes = group.options.map(o => o.clientCode);
-                                setFilters(f => ({...f, customers: [...new Set([...(f.customers || []), ...names])], customerCodes: [...new Set([...(f.customerCodes || []), ...codes])] }));
-                              } else {
-                                const vals = group.options.map(o => o);
-                                setFilters(f => ({...f, [group.key]: [...new Set([...(f[group.key] || []), ...vals])] }));
-                              }
-                            }}
-                            className="text-[9px] font-black uppercase text-violet-600 px-1.5 hover:underline"
-                          >All</button>
-                          <button 
-                            onClick={() => {
-                              if (group.id === 'customer') {
-                                const names = group.options.map(o => o.clientName);
-                                const codes = group.options.map(o => o.clientCode);
-                                setFilters(f => ({...f, customers: (f.customers || []).filter(x => !names.includes(x)), customerCodes: (f.customerCodes || []).filter(x => !codes.includes(x)) }));
-                              } else {
-                                const vals = group.options.map(o => o);
-                                setFilters(f => ({...f, [group.key]: (f[group.key] || []).filter(x => !vals.includes(x)) }));
-                              }
-                            }}
-                            className="text-[9px] font-black uppercase text-gray-400 px-1.5 hover:underline"
-                          >None</button>
-                        </div>
-                        <div className="max-h-48 overflow-y-auto border border-gray-100 rounded-2xl p-1.5 bg-gray-50 space-y-0.5 scrollbar-thin">
-                           {group.options.slice(0, filterLimits[group.key]).map((opt, idx) => {
-                             const isCust = group.id === 'customer';
-                             const val = isCust ? opt.clientName : opt;
-                             const valCode = isCust ? opt.clientCode : null;
-                             const label = isCust ? `${opt.clientCode} — ${opt.clientName}` : opt;
-                             const isSelected = isCust ? (filters.customerCodes || []).includes(valCode) : (filters[group.key] || []).includes(val);
-                             return (
-                               <button 
-                                  key={`${group.id}-${idx}-${isCust ? valCode : val}`} 
-                                  onClick={() => {
-                                    if (isCust) {
-                                      setFilters(f => ({
-                                        ...f, 
-                                        customers: isSelected ? (f.customers || []).filter(x => x !== val) : [...(f.customers || []), val],
-                                        customerCodes: isSelected ? (f.customerCodes || []).filter(x => x !== valCode) : [...(f.customerCodes || []), valCode]
-                                      }));
-                                    } else {
-                                      setFilters(f => ({...f, [group.key]: isSelected ? (f[group.key] || []).filter(x=>x!==val) : [...(f[group.key] || []), val]}));
-                                    }
-                                  }}
-                                  className={`w-full text-left px-2.5 py-1.5 rounded-xl text-[10px] font-bold transition-all
-                                    ${isSelected ? 'bg-violet-600 text-white shadow-md scale-[1.02]' : 'text-gray-600 hover:bg-white'}
-                                  `}
-                               >
-                                  {label}
-                               </button>
-                             );
-                           })}
-                           {group.options.length > filterLimits[group.key] && (
-                             <button 
-                               onClick={() => setFilterLimits(prev => ({...prev, [group.key]: prev[group.key] + 500}))}
-                               className="w-full py-2 text-[10px] font-black text-violet-600 uppercase hover:bg-violet-50 rounded-xl"
-                             >
-                               Show more ({group.options.length - filterLimits[group.key]} left)
-                             </button>
-                           )}
-                           {group.options.length === 0 && <div className="p-4 text-center text-[10px] text-gray-400 font-bold uppercase italic">No results</div>}
-                        </div>
+                            onClick={() => setFilters(f => ({...f, arabicOnly: !f.arabicOnly}))}
+                            className={`w-8 h-4 rounded-full transition-all relative ${filters.arabicOnly ? 'bg-violet-600' : 'bg-gray-200'}`}
+                           >
+                            <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${filters.arabicOnly ? 'right-0.5' : 'left-0.5'}`} />
+                          </button>
+                       </div>
                      </div>
-                   ))}
-
-                   <div className="space-y-4">
-                     <div className="space-y-2">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none">Ranges</label>
-                        <div className="grid grid-cols-2 gap-2">
-                           <input 
-                             type="number" 
-                             placeholder="Min Val" 
-                             value={filters.minValue}
-                             onChange={e => setFilters(f => ({...f, minValue: e.target.value}))}
-                             className="bg-gray-50 border-none rounded-xl text-[10px] p-2 focus:ring-1 focus:ring-violet-500" 
-                           />
-                           <input 
-                             type="number" 
-                             placeholder="Max Val" 
-                             value={filters.maxValue}
-                             onChange={e => setFilters(f => ({...f, maxValue: e.target.value}))}
-                             className="bg-gray-50 border-none rounded-xl text-[10px] p-2 focus:ring-1 focus:ring-violet-500" 
-                           />
-                        </div>
-                     </div>
-                     <div className="flex items-center justify-between p-3 bg-violet-50 rounded-2xl">
-                        <span className="text-[10px] font-black text-violet-700 uppercase tracking-widest">Arabic Names Only</span>
-                        <button 
-                          onClick={() => setFilters(f => ({...f, arabicOnly: !f.arabicOnly}))}
-                          className={`w-8 h-4 rounded-full transition-all relative ${filters.arabicOnly ? 'bg-violet-600' : 'bg-gray-200'}`}
-                         >
-                          <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${filters.arabicOnly ? 'right-0.5' : 'left-0.5'}`} />
-                        </button>
-                     </div>
-                   </div>
-                </div>
+                  </div>
                <div className="p-4 border-t border-gray-100 flex gap-2">
                   <button 
                     onClick={() => setFilters({products:[], evaBricks:[], disBricks:[], distributors:[], customers:[], customerCodes:[], customerCode:'', minValue:'', maxValue:'', minQty:'', maxQty:'', arabicOnly:false})}

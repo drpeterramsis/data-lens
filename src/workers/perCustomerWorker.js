@@ -269,6 +269,20 @@ self.onmessage = async (e) => {
         );
       }
       
+      const { sortBy, sortDir } = e.data;
+      if (sortBy) {
+        filtered = [...filtered].sort((a, b) => {
+          let valA = a[sortBy];
+          let valB = b[sortBy];
+          if (typeof valA === 'string') valA = valA.toLowerCase();
+          if (typeof valB === 'string') valB = valB.toLowerCase();
+          
+          if (valA < valB) return sortDir === 'asc' ? -1 : 1;
+          if (valA > valB) return sortDir === 'asc' ? 1 : -1;
+          return 0;
+        });
+      }
+
       const start = (page - 1) * pageSize;
       self.postMessage({ 
         type: 'duplicates', 
@@ -412,13 +426,26 @@ function filterRows(rows, f) {
 
 function manualFilterCheck(r, f, arabicPattern) {
    if (f.customerCodes && f.customerCodes.length > 0) {
-      const rowCode = getValById('clientCodes', r.cc);
-      if (!f.customerCodes.some(c => normalizeClientCode(c) === normalizeClientCode(rowCode))) return false;
+      const rowCode = normalizeClientCode(getValById('clientCodes', r.cc));
+      let matches = false;
+      for (const c of f.customerCodes) {
+         if (normalizeClientCode(c) === rowCode) {
+            matches = true;
+            break;
+         }
+      }
+      if (!matches) return false;
    }
-   if (f.customerCode && !getValById('clientCodes', r.cc).toLowerCase().includes(f.customerCode.toLowerCase())) return false;
+   if (f.customerCode) {
+      const rowCodeRaw = getValById('clientCodes', r.cc) || '';
+      if (!rowCodeRaw.toLowerCase().includes(f.customerCode.toLowerCase())) return false;
+   }
    if (f.minValue && r.v < parseFloat(f.minValue)) return false;
    if (f.maxValue && r.v > parseFloat(f.maxValue)) return false;
-   if (f.arabicOnly && !arabicPattern.test(getValById('clientNames', r.cn))) return false;
+   if (f.arabicOnly) {
+      const cName = getValById('clientNames', r.cn);
+      if (!arabicPattern.test(cName)) return false;
+   }
    return true;
 }
 

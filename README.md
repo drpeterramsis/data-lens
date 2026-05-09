@@ -42,6 +42,8 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 
 ## Version History
 
+- **v1.0.625:** **Responsive Per Customer Analyzer.** Refactored the core analyzer to be mobile-friendly. Implemented `useIsMobile` hook for screen-specific logic. Updated Header/Toolbar to stack on mobile, optimized Merge Statistics card with a grid layout, and made filter tags responsive (showing fewer chips with "+more" on small screens). Reimagined dense tables as interactive cards on mobile for the Customers, Products, and Statement breakdown tabs. Polished container paddings and font sizes across the Overview dashboard for better mobile UX.
+- **v1.0.624:** **Organized Links Library.** Implemented a robust "Folders" feature for the Library module, adding local and remote storage persistence for `folderId`. Created a responsive sidebar for folder management (Create, Rename, Delete). Refined the edit modal to attach folders to links, retaining backwards compatibility by gracefully handling `null` or missing folder IDs. Added unique folder name validation and cascading unassignment on folder deletion.
 - **v1.0.623:** **Fixed State Synchronization Crash.** Resolved the `TypeError: f.customerCodes is not iterable` by ensuring `customerCodes` is properly initialized in the `handleUpload` flow. Added comprehensive null-safety guards to all `setFilters` operations involving array spreads and filters.
 - **v1.0.622:** **Expanded Null-Safety for Filtering Logic.** Hardened the applied filters removal and tag display layers by adding comprehensive null-safety checks to `.includes()`, `.filter()`, and `.forEach()` calls. This prevents runtime crashes when loading partial filter states or interacting with dynamically generated filter options.
 - **v1.0.621:** **Hardened Data Resilience & Error Handling.** Implemented extensive null-safety guards across the entire analysis pipeline to resolve `Uncaught TypeError` crashes during asynchronous data transitions. Optimized `useSortableTable`, `memo` aggregations, and pagination counters to gracefully handle undefined states. Fixed potential memory leaks in Web Worker normalization.
@@ -188,4 +190,4 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 - **v1.0.001:** Initial release. Authentication, CSV parsing, Analysis tools, and Admin panel implemented.
 
 ---
-© 2026 Data Lens Analytics | version 1.0.618
+© 2026 Data Lens Analytics | version 1.0.625

@@ -105,8 +105,45 @@ const MRCardSearch = ({ mr }) => {
   );
 };
 
+const COACHING_PALETTE = [
+  { border: "border-slate-400", ring: "ring-slate-200", bgLight: "bg-slate-50", hoverBorder: "hover:border-slate-500", hoverShadow: "hover:shadow-slate-100", bannerBg: "bg-slate-100", bannerText: "text-slate-900", badgeBg: "bg-slate-200", badgeText: "text-slate-900", legendBg: "bg-slate-100" },
+  { border: "border-red-400", ring: "ring-red-200", bgLight: "bg-red-50", hoverBorder: "hover:border-red-500", hoverShadow: "hover:shadow-red-100", bannerBg: "bg-red-100", bannerText: "text-red-900", badgeBg: "bg-red-200", badgeText: "text-red-900", legendBg: "bg-red-100" },
+  { border: "border-amber-400", ring: "ring-amber-200", bgLight: "bg-amber-50", hoverBorder: "hover:border-amber-500", hoverShadow: "hover:shadow-amber-100", bannerBg: "bg-amber-100", bannerText: "text-amber-900", badgeBg: "bg-amber-200", badgeText: "text-amber-900", legendBg: "bg-amber-100" },
+  { border: "border-lime-400", ring: "ring-lime-200", bgLight: "bg-lime-50", hoverBorder: "hover:border-lime-500", hoverShadow: "hover:shadow-lime-100", bannerBg: "bg-lime-100", bannerText: "text-lime-900", badgeBg: "bg-lime-200", badgeText: "text-lime-900", legendBg: "bg-lime-100" },
+  { border: "border-green-400", ring: "ring-green-200", bgLight: "bg-green-50", hoverBorder: "hover:border-green-500", hoverShadow: "hover:shadow-green-100", bannerBg: "bg-green-100", bannerText: "text-green-900", badgeBg: "bg-green-200", badgeText: "text-green-900", legendBg: "bg-green-100" },
+  { border: "border-emerald-400", ring: "ring-emerald-200", bgLight: "bg-emerald-50", hoverBorder: "hover:border-emerald-500", hoverShadow: "hover:shadow-emerald-100", bannerBg: "bg-emerald-100", bannerText: "text-emerald-900", badgeBg: "bg-emerald-200", badgeText: "text-emerald-900", legendBg: "bg-emerald-100" },
+  { border: "border-teal-400", ring: "ring-teal-200", bgLight: "bg-teal-50", hoverBorder: "hover:border-teal-500", hoverShadow: "hover:shadow-teal-100", bannerBg: "bg-teal-100", bannerText: "text-teal-900", badgeBg: "bg-teal-200", badgeText: "text-teal-900", legendBg: "bg-teal-100" },
+  { border: "border-cyan-400", ring: "ring-cyan-200", bgLight: "bg-cyan-50", hoverBorder: "hover:border-cyan-500", hoverShadow: "hover:shadow-cyan-100", bannerBg: "bg-cyan-100", bannerText: "text-cyan-900", badgeBg: "bg-cyan-200", badgeText: "text-cyan-900", legendBg: "bg-cyan-100" },
+  { border: "border-sky-400", ring: "ring-sky-200", bgLight: "bg-sky-50", hoverBorder: "hover:border-sky-500", hoverShadow: "hover:shadow-sky-100", bannerBg: "bg-sky-100", bannerText: "text-sky-900", badgeBg: "bg-sky-200", badgeText: "text-sky-900", legendBg: "bg-sky-100" },
+  { border: "border-blue-400", ring: "ring-blue-200", bgLight: "bg-blue-50", hoverBorder: "hover:border-blue-500", hoverShadow: "hover:shadow-blue-100", bannerBg: "bg-blue-100", bannerText: "text-blue-900", badgeBg: "bg-blue-200", badgeText: "text-blue-900", legendBg: "bg-blue-100" },
+  { border: "border-indigo-400", ring: "ring-indigo-200", bgLight: "bg-indigo-50", hoverBorder: "hover:border-indigo-500", hoverShadow: "hover:shadow-indigo-100", bannerBg: "bg-indigo-100", bannerText: "text-indigo-900", badgeBg: "bg-indigo-200", badgeText: "text-indigo-900", legendBg: "bg-indigo-100" },
+  { border: "border-violet-400", ring: "ring-violet-200", bgLight: "bg-violet-50", hoverBorder: "hover:border-violet-500", hoverShadow: "hover:shadow-violet-100", bannerBg: "bg-violet-100", bannerText: "text-violet-900", badgeBg: "bg-violet-200", badgeText: "text-violet-900", legendBg: "bg-violet-100" },
+  { border: "border-purple-400", ring: "ring-purple-200", bgLight: "bg-purple-50", hoverBorder: "hover:border-purple-500", hoverShadow: "hover:shadow-purple-100", bannerBg: "bg-purple-100", bannerText: "text-purple-900", badgeBg: "bg-purple-200", badgeText: "text-purple-900", legendBg: "bg-purple-100" },
+  { border: "border-fuchsia-400", ring: "ring-fuchsia-200", bgLight: "bg-fuchsia-50", hoverBorder: "hover:border-fuchsia-500", hoverShadow: "hover:shadow-fuchsia-100", bannerBg: "bg-fuchsia-100", bannerText: "text-fuchsia-900", badgeBg: "bg-fuchsia-200", badgeText: "text-fuchsia-900", legendBg: "bg-fuchsia-100" },
+  { border: "border-pink-400", ring: "ring-pink-200", bgLight: "bg-pink-50", hoverBorder: "hover:border-pink-500", hoverShadow: "hover:shadow-pink-100", bannerBg: "bg-pink-100", bannerText: "text-pink-900", badgeBg: "bg-pink-200", badgeText: "text-pink-900", legendBg: "bg-pink-100" },
+  { border: "border-rose-400", ring: "ring-rose-200", bgLight: "bg-rose-50", hoverBorder: "hover:border-rose-500", hoverShadow: "hover:shadow-rose-100", bannerBg: "bg-rose-100", bannerText: "text-rose-900", badgeBg: "bg-rose-200", badgeText: "text-rose-900", legendBg: "bg-rose-100" }
+];
+const getPalette = day => COACHING_PALETTE[day % COACHING_PALETTE.length];
+
+const getCoachingColorClasses = (days, isExpanded) => {
+  const p = getPalette(days);
+  return isExpanded ? `${p.border} ring-2 ${p.ring} ${p.bgLight}` : `${p.border} ${p.hoverBorder} ${p.hoverShadow}`;
+};
+
+const getCoachingHeaderBanner = (days) => {
+  const p = getPalette(days);
+  return `${p.bannerBg} ${p.bannerText}`;
+};
+
+const getCoachingHeaderBadge = (days) => {
+  const p = getPalette(days);
+  return `${p.badgeBg} ${p.badgeText}`;
+};
+
 const MRCard = ({ mr, isExpanded, onToggle, targets, onOpenCalendar }) => {
-  const isCoached = (mr.coachingDays ?? 0) >= 1;
+  const coachingDays = mr.coachingDays ?? 0;
+  const isCoached = coachingDays >= 1;
+  const colorClasses = getCoachingColorClasses(coachingDays, isExpanded);
 
   const formatDate = (d) => {
     if (!d) return "—";
@@ -135,10 +172,7 @@ const MRCard = ({ mr, isExpanded, onToggle, targets, onOpenCalendar }) => {
     <div className={`
       rounded-2xl border shadow-sm transition-all duration-200 overflow-hidden
       ${isExpanded ? 'scale-[1.03] shadow-2xl z-10' : 'hover:shadow-xl'}
-      ${isCoached
-        ? "border-yellow-400 ring-2 ring-yellow-300 ring-offset-1"
-        : isExpanded ? "border-yellow-400" : "border-gray-200 hover:border-yellow-300"
-      }
+      ${colorClasses}
     `}>
       <div
         role="button"
@@ -158,30 +192,30 @@ const MRCard = ({ mr, isExpanded, onToggle, targets, onOpenCalendar }) => {
             title="🎓 Coaching Activity"
             color="yellow"
             lines={[
-              `Coached on ${mr.coachingDays} unique day(s)`,
+              `Coached on ${coachingDays} unique day(s)`,
               `Total coached interactions: ${mr.coachedVisits}`,
               `An MR is marked "Coached" when`,
               `IsMRCoachingSubmitted = true OR`,
               `IsManagerCoachingSubmitted = true`,
               `on that visit record`,
             ]}>
-            <div className="flex items-center justify-between px-4 py-1.5 bg-yellow-400">
+            <div className={`flex items-center justify-between px-4 py-1.5 ${getCoachingHeaderBanner(coachingDays)}`}>
               {/* Emoji collage */}
               <div className="flex items-center gap-1">
                 <span className="text-base">🎓</span>
                 <span className="text-base">📋</span>
                 <span className="text-base">👥</span>
-                <span className="text-sm font-black text-gray-900 ml-1">
+                <span className="text-sm font-black ml-1">
                   COACHED
                 </span>
               </div>
               {/* Days + visits count */}
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-gray-800 bg-yellow-300 px-2 py-0.5 rounded-full">
-                  {mr.coachingDays}
-                  {mr.coachingDays === 1 ? " day" : " days"}
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${getCoachingHeaderBadge(coachingDays)}`}>
+                  {coachingDays}
+                  {coachingDays === 1 ? " day" : " days"}
                 </span>
-                <span className="text-[10px] text-gray-700">
+                <span className="text-[10px] opacity-90">
                   {mr.coachedVisits} visits
                 </span>
               </div>
@@ -190,7 +224,7 @@ const MRCard = ({ mr, isExpanded, onToggle, targets, onOpenCalendar }) => {
         )}
 
         {/* ── CARD BODY (HEADER) ── */}
-        <div className={`p-4 sm:p-5 relative ${isCoached ? "bg-yellow-50/40" : "bg-white"}`}>
+        <div className={`p-4 sm:p-5 relative ${isCoached ? "bg-white/50" : "bg-white"}`}>
           {/* MR Name + last date */}
           <div className="flex items-start justify-between gap-2 mb-3">
             <div className="min-w-0 pr-8">
@@ -431,40 +465,61 @@ const MRCardsGrid = ({ data, targets, mrStats, onSelectMRForCalendar }) => {
 
   return (
     <div className="mb-12">
-      <div className="flex items-center justify-between mb-10 border-b-2 border-gray-50 pb-6 flex-wrap gap-6">
-        <div className="flex flex-wrap gap-2">
-          {[
-            { id: 'performance', label: 'By Performance' },
-            { id: 'asc', label: 'A→Z' },
-            { id: 'hcp', label: 'HCP Focus' },
-            { id: 'hco', label: 'HCO Focus' },
-            { id: 'ph', label: 'PH Flow' },
-            { id: 'coaching', label: 'Coaching' }
-          ].map(opt => (
-            <button
-              key={opt.id}
-              onClick={() => setSortBy(opt.id)}
-              className={`text-[10px] font-black uppercase tracking-widest px-5 py-3 rounded-2xl border-2 transition-all ${
-                sortBy === opt.id
-                  ? "bg-yellow-400 border-yellow-400 text-gray-900 shadow-xl shadow-yellow-100 scale-105"
-                  : "bg-white border-gray-50 text-gray-400 hover:border-yellow-200 hover:text-gray-600"
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
+      <div className="flex flex-col xl:flex-row items-center justify-between mb-10 border-b-2 border-gray-50 pb-6 gap-6">
+        <div className="flex flex-col lg:flex-row items-center gap-6 w-full xl:w-auto">
+          {/* Sorting Buttons */}
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {[
+              { id: 'performance', label: 'By Performance' },
+              { id: 'asc', label: 'A→Z' },
+              { id: 'hcp', label: 'HCP Focus' },
+              { id: 'hco', label: 'HCO Focus' },
+              { id: 'ph', label: 'PH Flow' },
+              { id: 'coaching', label: 'Coaching' }
+            ].map(opt => (
+              <button
+                key={opt.id}
+                onClick={() => setSortBy(opt.id)}
+                className={`text-[10px] font-black uppercase tracking-widest px-5 py-3 rounded-2xl border-2 transition-all ${
+                  sortBy === opt.id
+                    ? "bg-yellow-400 border-yellow-400 text-gray-900 shadow-xl shadow-yellow-100 scale-105"
+                    : "bg-white border-gray-50 text-gray-400 hover:border-yellow-200 hover:text-gray-600"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Coaching Legend */}
+          <div className="flex items-center gap-3 bg-gray-50/80 px-4 py-2.5 rounded-2xl border border-gray-200/50 hidden md:flex flex-wrap">
+             <div className="flex items-center gap-1.5 border-r border-gray-200 pr-3">
+               <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Coaching Days:</span>
+             </div>
+             <div className="flex items-center gap-3 flex-wrap">
+               {[...new Set(mrStats.map(mr => mr.coachingDays || 0))].sort((a,b)=>a-b).map(day => {
+                 const p = getPalette(day);
+                 return (
+                   <div key={day} className="flex items-center gap-1.5">
+                     <div className={`w-2.5 h-2.5 rounded-full ${p.bannerBg} shadow-sm border border-black/5`}></div>
+                     <span className="text-[10px] font-bold text-gray-600">{day}</span>
+                   </div>
+                 );
+               })}
+             </div>
+          </div>
         </div>
 
         <div className="flex gap-2">
           <button
             onClick={collapseAll}
-            className="text-[10px] font-black uppercase tracking-widest px-5 py-3 rounded-2xl border-2 border-gray-50 bg-white hover:bg-gray-900 hover:text-white transition-all text-gray-400 shadow-sm"
+            className="text-[10px] font-black uppercase tracking-widest px-5 py-3 rounded-2xl border-2 border-gray-50 bg-white hover:bg-gray-900 hover:text-white transition-all text-gray-400 shadow-sm whitespace-nowrap"
           >
             Collapse All
           </button>
           <button
             onClick={expandAll}
-            className="text-[10px] font-black uppercase tracking-widest px-5 py-3 rounded-2xl border-2 border-gray-50 bg-white hover:bg-gray-900 hover:text-white transition-all text-gray-400 shadow-sm"
+            className="text-[10px] font-black uppercase tracking-widest px-5 py-3 rounded-2xl border-2 border-gray-50 bg-white hover:bg-gray-900 hover:text-white transition-all text-gray-400 shadow-sm whitespace-nowrap"
           >
             Expand All
           </button>
