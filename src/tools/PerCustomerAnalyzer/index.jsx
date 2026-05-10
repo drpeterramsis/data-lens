@@ -268,6 +268,85 @@ const PerCustomerAnalyzer = () => {
     arabicOnly: false
   });
 
+  const DEFAULT_FILTERS = {
+    products: [],
+    evaBricks: [],
+    disBricks: [],
+    distributors: [],
+    customers: [],
+    customerCodes: [],
+    customerCode: '',
+    minValue: '',
+    maxValue: '',
+    minQty: '',
+    maxQty: '',
+    arabicOnly: false
+  };
+
+  const handleResetData = async () => {
+    // 1) Close modals/sidebars
+    setIsSessionModalOpen(false);
+    setShowPresetModal(false);
+    setIsSidebarOpen(false);
+    setSelectedCustomer(null);
+    setStatementModal(prev => ({ ...prev, open: false, rows: [], loading: false, query: '', page: 1, title: '' }));
+    setProductSummaryModal(prev => ({ ...prev, open: false, rows: [], loading: false, query: '', page: 1, totalQty: 0, totalValue: 0 }));
+    setDuplicatesModal(prev => ({ ...prev, open: false, rows: [], loading: false, query: '', page: 1, total: 0, stored: 0 }));
+
+    // 2) Cancel pending worker requests to avoid late state updates
+    pendingRequests.current.forEach(({ reject }) => {
+      try { reject(new Error('Cancelled due to reset')); } catch {}
+    });
+    pendingRequests.current.clear();
+
+    // 3) Hard-stop any parsing/preparing UI
+    setParsing(false);
+    setIsPreparing(false);
+    setIsFiltering(false);
+    setPrepError('');
+    setPrepProgress({ stage: '', processed: 0, total: 0 });
+    setParseProgress({ stage: '', rows: 0 });
+
+    // 4) Clear all tool state (this makes the UI go back to upload screen)
+    setPrepared(null);
+    setPreparedFiltered(null);
+    setData([]);
+    setFileNames([]);
+    setFileMeta({ name: '', reportMonthLabel: 'Unknown Month' });
+    setLastMergeStats(null);
+
+    setFilters(DEFAULT_FILTERS);
+    setAppliedFilters(DEFAULT_FILTERS);
+    setExpandedFilters({});
+    setFilterSearch({ product: '', distributor: '', evaBrick: '', disBrick: '', customer: '' });
+    setTagsExpanded(false);
+
+    setActiveTab('overview');
+    setPage(1);
+    setCustomerSearch('');
+    setProductTableQuery('');
+    setStatementSearch('');
+    setStatementPage(1);
+
+    // 5) Terminate worker completely (strong reset)
+    try {
+      if (workerRef.current) {
+        workerRef.current.terminate();
+        workerRef.current = null;
+      }
+    } catch (err) {
+      console.error("Worker terminate failed", err);
+    }
+
+    // 6) Reset file inputs so user can re-upload same file
+    try {
+      const fu = document.getElementById('file-upload');
+      if (fu) fu.value = '';
+      const mu = document.getElementById('merge-upload');
+      if (mu) mu.value = '';
+    } catch {}
+  };
+
   const [tagsExpanded, setTagsExpanded] = useState(false);
 
   const activePrepared = preparedFiltered || prepared;
@@ -332,13 +411,19 @@ const PerCustomerAnalyzer = () => {
   };
 
   const reportMonthLabel = useMemo(() => {
-    if (activePrepared?.period?.label) return activePrepared.period.label;
-    if (fileNames.length > 0) {
-      const inferred = inferPeriodFromFiles(fileNames);
-      if (inferred) return inferred.label;
+    if (activePrepared?.period?.label && !/unknown/i.test(activePrepared.period.label)) {
+      return activePrepared.period.label;
     }
-    return fileMeta.reportMonthLabel || 'UNKNOWN PERIOD';
-  }, [activePrepared, fileNames, fileMeta.reportMonthLabel]);
+
+    const inferred = inferPeriodFromFiles(fileNames);
+    if (inferred?.label) return inferred.label;
+
+    if (fileMeta?.reportMonthLabel && !/unknown/i.test(fileMeta.reportMonthLabel)) {
+      return fileMeta.reportMonthLabel;
+    }
+
+    return 'UNKNOWN PERIOD';
+  }, [activePrepared, fileNames, fileMeta?.reportMonthLabel]);
 
   // 1) File Handling
   useEffect(() => {
@@ -487,25 +572,18 @@ const PerCustomerAnalyzer = () => {
         const csvText = await file.text();
         const worker = initWorker();
 
-        // Detect month from filename (Fallback handled by reportMonthLabel memo now)
-        setFileNames(prev => isMerge ? [...prev, file.name] : [file.name]);
-        
-        const lowerName = file.name.toLowerCase();
-        const nameKeywords = [
-          'January', 'February', 'March', 'April', 'May', 'June', 
-          'July', 'August', 'September', 'October', 'November', 'December'
-        ];
-        const foundMonthName = nameKeywords.find(m => lowerName.includes(m.toLowerCase()));
-        let initialMonthKey = "Unknown Month";
-        if (foundMonthName) {
-          const yearMatch = file.name.match(/\d{4}/);
-          initialMonthKey = `${foundMonthName} ${yearMatch ? yearMatch[0] : ''}`;
-        }
+        const nextFileNames = isMerge ? [...fileNames, file.name] : [file.name];
+        setFileNames(nextFileNames);
+
+        const inferred = inferPeriodFromFiles(nextFileNames); 
+        const label = inferred?.label || inferred?.key || 'UNKNOWN PERIOD';
+
+        setFileMeta({ name: file.name, reportMonthLabel: label });
 
         worker.postMessage({ 
           type: isMerge ? 'merge' : 'prepare', 
           csvText,
-          fileMonthKey: initialMonthKey,
+          fileMonthKey: label,
           sourceFileName: file.name
         });
       } catch (err) {
@@ -568,19 +646,10 @@ const PerCustomerAnalyzer = () => {
       setData(rowBuffer);
       
       // Month Detection
-      let detectedMonth = "Unknown Month";
-      const nameKeywords = [
-        'January', 'February', 'March', 'April', 'May', 'June', 
-        'July', 'August', 'September', 'October', 'November', 'December'
-      ];
-      const lowerName = file.name.toLowerCase();
-      const foundMonth = nameKeywords.find(m => lowerName.includes(m.toLowerCase()));
-      if (foundMonth) {
-        const yearMatch = file.name.match(/\d{4}/);
-        detectedMonth = `${foundMonth} ${yearMatch ? yearMatch[0] : ''}`;
-      }
+      const inferred = inferPeriodFromFiles([file.name]);
+      const label = inferred?.label || inferred?.key || 'UNKNOWN PERIOD';
       
-      setFileMeta({ name: file.name, reportMonthLabel: detectedMonth });
+      setFileMeta({ name: file.name, reportMonthLabel: label });
     } catch (err) {
       console.error("Parsing failed", err);
       alert("Failed to parse file. Check console for details.");
@@ -1135,7 +1204,7 @@ const PerCustomerAnalyzer = () => {
   }
 
   return (
-    <FullscreenWrapper isFullscreen={fullscreen} setIsFullscreen={setFullscreen}>
+    <FullscreenWrapper isFullscreen={fullscreen} setIsFullscreen={setFullscreen} showButton={false}>
       <div className="flex-1 flex flex-col bg-gray-50 overflow-hidden relative h-full">
         
         {/* HEADER */}
@@ -1194,7 +1263,7 @@ const PerCustomerAnalyzer = () => {
                 {fullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
               </button>
               <button 
-                onClick={() => setData([])}
+                onClick={() => { console.log('trash clicked'); handleResetData(); }}
                 className="p-2 text-gray-400 hover:text-red-500 transition-colors">
                 <Trash2 size={18} />
               </button>

@@ -348,6 +348,19 @@ self.onmessage = async (e) => {
 
        const { payload, period } = aggregateData(baseRows);
        self.postMessage({ type: 'done', requestId, payload, period });
+    } else if (type === 'reset') {
+       baseRows = [];
+       rowKeys = new Map();
+       duplicatesBuffer = [];
+       Object.keys(dicts).forEach(k => {
+         dicts[k] = [];
+         revDicts[k].clear();
+       });
+       Object.keys(indexes).forEach(k => indexes[k].clear());
+       globalMapping = null;
+       globalDelimiter = null;
+       basePeriod = { minMonth: null, maxMonth: null, label: 'Unknown Period' };
+       self.postMessage({ type: 'resetDone', requestId, payload: { ok: true } });
     }
 
   } catch (error) {

@@ -42,6 +42,7 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 
 ## Version History
 
+- **v1.0.628:** **Fixed Data Reset & UI Cleanup.** Implemented a comprehensive `handleResetData` routine that fully clears UI state and worker-side memory (releasing heavy raw rows and indexes). Fixed duplicate "Fullscreen" buttons by disabling the automatic injector in the wrapper. Added explicit user confirmation for destructive reset actions.
 - **v1.0.627:** **Customer Code in Transactions Popup.** Added the "CUST CODE" column to the transactional data popups (opened from Distributors/Bricks tables). Updated the worker to ensure `clientCode` is consistently passed to the UI. Enhanced the CSV export within the popup to include customer codes.
 - **v1.0.626:** **Optimized Period Inference.** Implemented a robust filename-based period inference helper (`inferPeriodFromFilename`) in the Per Customer Analyzer. Added fallback logic to detect months from common filename patterns (YYYY-MM, Month YYYY, etc.) when data-based detection fails. Enhanced the UI to display period ranges for merged datasets by analyzing all source filenames. Polished session saving to preserve inferred periods.
 - **v1.0.625:** **Responsive Per Customer Analyzer.** Refactored the core analyzer to be mobile-friendly. Implemented `useIsMobile` hook for screen-specific logic. Updated Header/Toolbar to stack on mobile, optimized Merge Statistics card with a grid layout, and made filter tags responsive (showing fewer chips with "+more" on small screens). Reimagined dense tables as interactive cards on mobile for the Customers, Products, and Statement breakdown tabs. Polished container paddings and font sizes across the Overview dashboard for better mobile UX.
@@ -192,4 +193,4 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 - **v1.0.001:** Initial release. Authentication, CSV parsing, Analysis tools, and Admin panel implemented.
 
 ---
-© 2026 Data Lens Analytics | version 1.0.627
+© 2026 Data Lens Analytics | version 1.0.628
