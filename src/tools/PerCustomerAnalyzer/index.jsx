@@ -19,6 +19,7 @@ import {
 import { 
   toNumberSafe, formatKpi, formatKpiGrouped, formatKpiPercent 
 } from '../../utils/formatNumber';
+import { inferPeriodFromFiles } from '../../utils/inferPeriodFromFilename';
 import { FilterButton } from '../../components/ui/FilterButton';
 import { 
   saveSession as dbSaveSession, 
@@ -122,6 +123,7 @@ const PerCustomerAnalyzer = () => {
   }, []);
 
   const [data, setData] = useState([]);
+  const [fileNames, setFileNames] = useState([]);
   const [fileMeta, setFileMeta] = useState({ name: '', reportMonthLabel: 'Unknown Month' });
   const [parsing, setParsing] = useState(false);
   const [parseProgress, setParseProgress] = useState({ stage: '', rows: 0 });
@@ -329,6 +331,15 @@ const PerCustomerAnalyzer = () => {
     }
   };
 
+  const reportMonthLabel = useMemo(() => {
+    if (activePrepared?.period?.label) return activePrepared.period.label;
+    if (fileNames.length > 0) {
+      const inferred = inferPeriodFromFiles(fileNames);
+      if (inferred) return inferred.label;
+    }
+    return fileMeta.reportMonthLabel || 'UNKNOWN PERIOD';
+  }, [activePrepared, fileNames, fileMeta.reportMonthLabel]);
+
   // 1) File Handling
   useEffect(() => {
     return () => {
@@ -434,8 +445,9 @@ const PerCustomerAnalyzer = () => {
       setFilterSearch({ product: '', distributor: '', evaBrick: '', disBrick: '', customer: '' });
     } else if (type === 'filtered') {
       setPreparedFiltered(payload);
-      if (period) setFileMeta(prev => ({ ...prev, reportMonthLabel: period.label }));
-      else if (prepared?.period) setFileMeta(prev => ({ ...prev, reportMonthLabel: prepared.period.label }));
+      if (period) {
+        setFileMeta(prev => ({ ...prev, reportMonthLabel: period.label }));
+      }
       setIsFiltering(false);
     }
   };
@@ -447,6 +459,7 @@ const PerCustomerAnalyzer = () => {
       setPrepared(null);
       setPreparedFiltered(null);
       setData([]); 
+      setFileNames([file.name]);
       setPrepError('');
       setSelectedCustomer(null);
       setFilters({
@@ -474,7 +487,9 @@ const PerCustomerAnalyzer = () => {
         const csvText = await file.text();
         const worker = initWorker();
 
-        // Detect month from filename
+        // Detect month from filename (Fallback handled by reportMonthLabel memo now)
+        setFileNames(prev => isMerge ? [...prev, file.name] : [file.name]);
+        
         const lowerName = file.name.toLowerCase();
         const nameKeywords = [
           'January', 'February', 'March', 'April', 'May', 'June', 
@@ -964,9 +979,10 @@ const PerCustomerAnalyzer = () => {
         id: `session-${Date.now()}`,
         name,
         createdAt: Date.now(),
-        period: activePrepared?.period || { label: fileMeta.reportMonthLabel },
+        period: activePrepared?.period || { label: reportMonthLabel },
         rowCount: activePrepared?.globalTotals?.totalAdded || aggregates.customers.length,
-        fileMeta: { name: fileMeta.name, label: fileMeta.reportMonthLabel },
+        fileMeta: { name: fileMeta.name, label: reportMonthLabel },
+        fileNames,
         mergeStats: lastMergeStats,
         snapshot,
         filters,
@@ -994,6 +1010,7 @@ const PerCustomerAnalyzer = () => {
       setFilters(session.filters || filters);
       setAppliedFilters(session.filters || filters);
       setActiveTab(session.uiState?.activeTab || 'overview');
+      setFileNames(session.fileNames || (session.fileMeta?.name ? [session.fileMeta.name] : []));
       setFileMeta(session.fileMeta || { name: 'Restored', reportMonthLabel: 'Unknown' });
       setLastMergeStats(session.mergeStats || null);
 
@@ -1130,7 +1147,7 @@ const PerCustomerAnalyzer = () => {
             <div>
               <h2 className="text-sm md:text-base font-black text-gray-900 uppercase tracking-tight">Per Customer Analyzer</h2>
               <div className="flex items-center gap-2">
-                <p className="text-[10px] text-violet-600 font-bold uppercase tracking-widest">{fileMeta.reportMonthLabel}</p>
+                <p className="text-[10px] text-violet-600 font-bold uppercase tracking-widest">{reportMonthLabel}</p>
                 {preparedFiltered && (
                   <span className="text-[8px] bg-amber-100 text-amber-700 px-1 rounded font-black uppercase">Filtered</span>
                 )}
@@ -2282,8 +2299,8 @@ const PerCustomerAnalyzer = () => {
                         </div>
                         <button 
                           onClick={() => {
-                            const csvContent = "Product,Distributor,Customer,Month,Qty,Value\n" + 
-                              drillDownRows.map(r => `"${r.product}","${r.distributor}","${r.clientName}","${r.monthKey}",${r.qty},${r.value}`).join("\n");
+                            const csvContent = "Product,Distributor,Cust Code,Customer,Month,Qty,Value\n" + 
+                              drillDownRows.map(r => `"${r.product}","${r.distributor}","${r.clientCode}","${r.clientName}","${r.monthKey}",${r.qty},${r.value}`).join("\n");
                             const blob = new Blob([csvContent], { type: 'text/csv' });
                             const link = document.createElement("a");
                             link.href = URL.createObjectURL(blob);
@@ -2302,6 +2319,7 @@ const PerCustomerAnalyzer = () => {
                                 <tr className="border-b border-gray-100">
                                    <th className="px-4 py-3 text-left font-black text-gray-500 uppercase tracking-widest">Product</th>
                                    <th className="px-4 py-3 text-left font-black text-gray-500 uppercase tracking-widest">Distributor</th>
+                                   <th className="px-4 py-3 text-left font-black text-gray-500 uppercase tracking-widest">Cust Code</th>
                                    <th className="px-4 py-3 text-left font-black text-gray-500 uppercase tracking-widest">Customer</th>
                                    <th className="px-4 py-3 text-center font-black text-gray-500 uppercase tracking-widest">Month</th>
                                    <th className="px-4 py-3 text-right font-black text-gray-500 uppercase tracking-widest">Qty</th>
@@ -2313,6 +2331,7 @@ const PerCustomerAnalyzer = () => {
                                   <tr key={i} className="hover:bg-violet-50/20 transition-colors">
                                      <td className="px-4 py-3 font-bold text-gray-900">{r.product}</td>
                                      <td className="px-4 py-3 text-gray-500">{r.distributor}</td>
+                                     <td className="px-4 py-3 font-mono text-violet-600 font-black text-[9px]">{r.clientCode}</td>
                                      <td className="px-4 py-3 font-bold text-gray-600">{r.clientName}</td>
                                      <td className="px-4 py-3 text-center">
                                         <span className="px-2 py-1 bg-gray-100 text-[9px] font-black text-gray-600 rounded-lg uppercase">{r.monthKey}</span>
@@ -2323,7 +2342,7 @@ const PerCustomerAnalyzer = () => {
                                 ))}
                                 {paginatedDrillDown.length === 0 && (
                                   <tr>
-                                    <td colSpan={6} className="py-20 text-center text-gray-400 font-black uppercase tracking-widest italic">No matching records found</td>
+                                    <td colSpan={7} className="py-20 text-center text-gray-400 font-black uppercase tracking-widest italic">No matching records found</td>
                                   </tr>
                                 )}
                              </tbody>
