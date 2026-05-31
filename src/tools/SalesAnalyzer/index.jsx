@@ -5,7 +5,7 @@ import {
   ChevronDown, Filter, Users, Search, X, 
   Trash2, Save, Edit2, Plus, CheckCircle2, History, Clock,
   Calendar, AlertCircle, Expand, Download,
-  Maximize2, Minimize2, Type, ChevronsUpDown, TrendingUp
+  Maximize2, Minimize2, Type, ChevronsUpDown, TrendingUp, TrendingDown
 } from 'lucide-react';
 import FullscreenWrapper from '../../components/shared/FullscreenWrapper';
 
@@ -41,9 +41,9 @@ const TD_NUM =
   `${TD_BASE} whitespace-nowrap tabular-nums font-mono font-bold text-right`;
 
 const APP_VERSION = {
-  version: '1.0.564',
+  version: '1.0.567',
   releaseDate: 'May 2026',
-  label: 'Enhanced Search & Layout'
+  label: 'Returns Tab — Fullscreen & Range Filters'
 };
 
 const CACHE_KEY = 'atr_sales_v1';
@@ -1495,6 +1495,78 @@ if (filters.toDate) {
     return { netValue, netQty, returnsValue, returnsQty, salesValue, salesQty, uniqueProducts };
   }, [filteredData]);
 
+  const [returnsModal, setReturnsModal] = useState({
+    open: false,
+    query: '',
+    page: 1
+  });
+
+  // Custom persistent states for Returns tab fullscreen mode and range inputs
+  const [returnsFullscreen, setReturnsFullscreen] = useState(false);
+  const [returnsValueFilter, setReturnsValueFilter] = useState({
+    fromQty: '', toQty: '',
+    fromValue: '', toValue: ''
+  });
+
+  // ── RETURNS ──
+  const returnRows = useMemo(() => {
+    return (filteredData || []).filter(r =>
+      (r.returnQty > 0) || (r.returnValue > 0)
+    );
+  }, [filteredData]);
+
+  const returnsKpis = useMemo(() => {
+    const totalQty   = returnRows.reduce((s, r) => s + (r.returnQty   || 0), 0);
+    const totalValue = returnRows.reduce((s, r) => s + (r.returnValue || 0), 0);
+    const custs      = new Set(returnRows.map(r => r.customerName)).size;
+    const prods      = new Set(returnRows.map(r => r.productName)).size;
+    const invs       = new Set(returnRows.map(r => r.invoiceNo)).size;
+    return { totalQty, totalValue, custs, prods, invs };
+  }, [returnRows]);
+
+  // Comprehensive multi-criteria return rows filter logic including both textual search and numeric ranges
+  const returnRowsSearched = useMemo(() => {
+    let rows = returnRows;
+
+    // Filter using main text search term if specified
+    const q = returnsModal.query.trim().toLowerCase();
+    if (q) {
+      rows = rows.filter(r =>
+        String(r.productName  || '').toLowerCase().includes(q) ||
+        String(r.customerName || '').toLowerCase().includes(q) ||
+        String(r.customerId   || '').toLowerCase().includes(q) ||
+        String(r.mrName       || '').toLowerCase().includes(q) ||
+        String(r.branch       || '').toLowerCase().includes(q) ||
+        String(r.supervisor   || '').toLowerCase().includes(q) ||
+        String(r.invoiceNo    || '').toLowerCase().includes(q) ||
+        String(r.lineName     || '').toLowerCase().includes(q)
+      );
+    }
+
+    // Filter using custom quantity bounds if specified
+    const fv = returnsValueFilter;
+    if (fv.fromQty  !== '') rows = rows.filter(r => r.returnQty   >= parseFloat(fv.fromQty));
+    if (fv.toQty    !== '') rows = rows.filter(r => r.returnQty   <= parseFloat(fv.toQty));
+    if (fv.fromValue !== '') rows = rows.filter(r => r.returnValue >= parseFloat(fv.fromValue));
+    if (fv.toValue  !== '') rows = rows.filter(r => r.returnValue <= parseFloat(fv.toValue));
+
+    return rows;
+  }, [returnRows, returnsModal.query, returnsValueFilter]);
+
+  const {
+    sorted:  sortedReturns,
+    sortKey: retSortKey,
+    sortDir: retSortDir,
+    toggle:  retToggle
+  } = useSortableTable(returnRowsSearched, 'returnValue', 'desc');
+
+  const RETURNS_PAGE_SIZE = 50;
+
+  const paginatedReturns = useMemo(() => {
+    const start = (returnsModal.page - 1) * RETURNS_PAGE_SIZE;
+    return sortedReturns.slice(start, start + RETURNS_PAGE_SIZE);
+  }, [sortedReturns, returnsModal.page]);
+
 
   const [trendGroup, setTrendGroup] = useState('monthly');
   const [customerSearch, setCustomerSearch] = useState('');
@@ -2723,6 +2795,23 @@ invoiceDate: (() => {
           >
             <RefreshCw size={13}/>
           </FilterButton>
+          <button
+            onClick={() => setReturnsModal({ open: true, query: '', page: 1 })}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl
+                       bg-red-50 text-red-600 text-xs font-black
+                       uppercase tracking-widest
+                       hover:bg-red-600 hover:text-white
+                       transition-all shadow-sm shrink-0"
+          >
+            <TrendingDown size={13} />
+            Returns
+            {returnRows.length > 0 && (
+              <span className="bg-red-100 text-red-700 px-1.5 py-0.5
+                               rounded-full text-[9px] font-black">
+                {returnRows.length}
+              </span>
+            )}
+          </button>
         </div>
       </div>
 
@@ -2812,7 +2901,7 @@ invoiceDate: (() => {
             </div>
 
             <div className="flex gap-2 pb-3 shrink-0 flex-wrap">
-              {['Overview','By Product','By SR','By Customer','By Branch','Trend', 'Compare', 'Reports'].map(tab => (
+              {['Overview','By Product','By SR','By Customer','By Branch','Trend','Returns','Compare','Reports'].map(tab => (
                 <FilterButton 
                   key={tab} 
                   onClick={() => setActiveTab(tab)} 
@@ -3253,6 +3342,492 @@ invoiceDate: (() => {
                   </div>
               )}
             
+{activeTab === 'Returns' && (
+  <FullscreenWrapper
+    title="Returns"
+    isFullscreen={returnsFullscreen}
+    onToggleFullscreen={setReturnsFullscreen}
+    showButton={false}
+  >
+  <div className="space-y-6">
+
+    {/* ── KPI STRIP ── */}
+    {/* Provides visual cards highlighting key performance indicators for raw returns transactions */}
+    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      {[
+        { label: 'Return Rows',        value: formatKpiGrouped(returnRows.length),      color: 'text-gray-900', bg: 'bg-gray-50'    },
+        { label: 'Return Qty',         value: formatKpiGrouped(returnsKpis.totalQty),   color: 'text-red-600',  bg: 'bg-red-50'     },
+        { label: 'Return Value (EGP)', value: formatKpiGrouped(returnsKpis.totalValue), color: 'text-red-700',  bg: 'bg-red-50'     },
+        { label: 'Customers',          value: returnsKpis.custs,                        color: 'text-amber-600',bg: 'bg-amber-50'   },
+        { label: 'Products',           value: returnsKpis.prods,                        color: 'text-violet-600',bg:'bg-violet-50'  }
+      ].map((k, i) => (
+        <div key={i} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex flex-col gap-1">
+          <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{k.label}</p>
+          <p className={`text-xl font-black ${k.color} tabular-nums leading-none`}>{k.value}</p>
+        </div>
+      ))}
+    </div>
+
+    {/* ── MAIN TABLE CARD ── */}
+    {/* Displays descriptive tabular list of all individual returns transactions matching custom active filters */}
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+
+      {/* Toolbar */}
+      <div className="px-6 py-4 border-b border-gray-100 bg-white">
+        <div className="flex flex-col gap-4">
+
+          {/* Row 1: Title + Fullscreen + Export */}
+          <div className="flex items-center justify-between gap-4">
+            <div className="shrink-0">
+              <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">
+                Returns Breakdown
+              </h3>
+              <p className="text-[10px] text-gray-400 mt-0.5">
+                Raw return rows — no netting with positive sales
+                {activeFilterCount > 0 && (
+                  <span className="ml-2 text-amber-600 font-bold">· Filtered</span>
+                )}
+                {(returnsValueFilter.fromQty || returnsValueFilter.toQty ||
+                  returnsValueFilter.fromValue || returnsValueFilter.toValue) && (
+                  <span className="ml-2 text-red-500 font-bold">· Range Active</span>
+                )}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              {/* Fullscreen Button */}
+              <button
+                onClick={() => setReturnsFullscreen(true)}
+                className="flex items-center gap-2 px-4 py-2.5
+                           text-[10px] font-black text-gray-700
+                           bg-white border border-gray-100
+                           hover:border-gray-200 hover:bg-gray-50
+                           rounded-2xl transition-all active:scale-95
+                           uppercase tracking-widest shadow-sm"
+              >
+                <Maximize2 size={12} className="text-gray-400" />
+                Fullscreen
+              </button>
+
+              {/* Export CSV */}
+              <button
+                onClick={() => {
+                  const headers =
+                    'Invoice No,Date,Product,Customer,Customer ID,' +
+                    'Type,SR,Branch,Supervisor,Line,Return Qty,Return Value';
+                  const csvRows = sortedReturns.map(r =>
+                    `"${r.invoiceNo}","${fmt(r.invoiceDate)}",` +
+                    `"${r.productName}","${r.customerName}",` +
+                    `"${r.customerId || ''}","${r.customerType || ''}",` +
+                    `"${r.mrName}","${r.branch}",` +
+                    `"${r.supervisor || ''}","${r.lineName || ''}",` +
+                    `${r.returnQty},${r.returnValue}`
+                  );
+                  const blob = new Blob(
+                    [headers + '\n' + csvRows.join('\n')],
+                    { type: 'text/csv' }
+                  );
+                  const link = document.createElement('a');
+                  link.href = URL.createObjectURL(blob);
+                  link.setAttribute(
+                    'download',
+                    `Returns_ATR_${new Date().toLocaleDateString('en-GB').replace(/\//g,'-')}.csv`
+                  );
+                  link.click();
+                }}
+                className="flex items-center gap-2 px-4 py-2.5
+                           text-[10px] font-black text-white
+                           bg-gray-900 hover:bg-red-600
+                           rounded-2xl transition-all active:scale-95
+                           uppercase tracking-widest shadow-sm"
+              >
+                <Download size={12} />
+                Export CSV
+              </button>
+            </div>
+          </div>
+
+          {/* Row 2: Search */}
+          <div className="relative group">
+            <Search
+              className="absolute left-4 top-1/2 -translate-y-1/2
+                         text-gray-400 group-focus-within:text-red-500
+                         transition-colors"
+              size={14}
+            />
+            <input
+              value={returnsModal.query}
+              onChange={e =>
+                setReturnsModal(prev => ({
+                  ...prev,
+                  query: e.target.value,
+                  page: 1
+                }))
+              }
+              placeholder="Search invoice, product, customer, SR, branch, line, supervisor..."
+              className="w-full pl-10 pr-10 py-2.5 bg-gray-50
+                         border border-gray-100 rounded-2xl
+                         text-xs font-bold outline-none
+                         focus:bg-white focus:border-red-200
+                         focus:ring-4 focus:ring-red-50
+                         transition-all font-sans"
+            />
+            {returnsModal.query && (
+              <button
+                onClick={() =>
+                  setReturnsModal(prev => ({ ...prev, query: '', page: 1 }))
+                }
+                className="absolute right-3 top-1/2 -translate-y-1/2
+                           text-gray-400 hover:text-gray-700 transition-colors"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          {/* Row 3: Value / Qty Range Filters */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3
+                          p-4 bg-gray-50 rounded-2xl border border-gray-100">
+            <div>
+              <label className="text-[9px] font-black text-gray-400
+                                uppercase tracking-widest mb-1.5 block">
+                Return Qty — From
+              </label>
+              <input
+                type="number"
+                placeholder="0"
+                value={returnsValueFilter.fromQty}
+                onChange={e =>
+                  setReturnsValueFilter(prev => ({
+                    ...prev,
+                    fromQty: e.target.value
+                  }))
+                }
+                className="w-full bg-white border border-gray-200
+                           rounded-xl px-3 py-2 text-xs font-bold
+                           outline-none focus:border-red-400
+                           focus:ring-2 focus:ring-red-100
+                           transition-all tabular-nums"
+              />
+            </div>
+            <div>
+              <label className="text-[9px] font-black text-gray-400
+                                uppercase tracking-widest mb-1.5 block">
+                Return Qty — To
+              </label>
+              <input
+                type="number"
+                placeholder="∞"
+                value={returnsValueFilter.toQty}
+                onChange={e =>
+                  setReturnsValueFilter(prev => ({
+                    ...prev,
+                    toQty: e.target.value
+                  }))
+                }
+                className="w-full bg-white border border-gray-200
+                           rounded-xl px-3 py-2 text-xs font-bold
+                           outline-none focus:border-red-400
+                           focus:ring-2 focus:ring-red-100
+                           transition-all tabular-nums"
+              />
+            </div>
+            <div>
+              <label className="text-[9px] font-black text-red-400
+                                uppercase tracking-widest mb-1.5 block">
+                Return Value — From (EGP)
+              </label>
+              <input
+                type="number"
+                placeholder="0"
+                value={returnsValueFilter.fromValue}
+                onChange={e =>
+                  setReturnsValueFilter(prev => ({
+                    ...prev,
+                    fromValue: e.target.value
+                  }))
+                }
+                className="w-full bg-white border border-gray-200
+                           rounded-xl px-3 py-2 text-xs font-bold
+                           outline-none focus:border-red-400
+                           focus:ring-2 focus:ring-red-100
+                           transition-all tabular-nums"
+              />
+            </div>
+            <div>
+              <label className="text-[9px] font-black text-red-400
+                                uppercase tracking-widest mb-1.5 block">
+                Return Value — To (EGP)
+              </label>
+              <input
+                type="number"
+                placeholder="∞"
+                value={returnsValueFilter.toValue}
+                onChange={e =>
+                  setReturnsValueFilter(prev => ({
+                    ...prev,
+                    toValue: e.target.value
+                  }))
+                }
+                className="w-full bg-white border border-gray-200
+                           rounded-xl px-3 py-2 text-xs font-bold
+                           outline-none focus:border-red-400
+                           focus:ring-2 focus:ring-red-100
+                           transition-all tabular-nums"
+              />
+            </div>
+
+            {/* Clear Range Button — only shows when active */}
+            {(returnsValueFilter.fromQty  || returnsValueFilter.toQty ||
+              returnsValueFilter.fromValue || returnsValueFilter.toValue) && (
+              <div className="col-span-2 md:col-span-4 flex justify-end">
+                <button
+                  onClick={() =>
+                    setReturnsValueFilter({
+                      fromQty: '', toQty: '',
+                      fromValue: '', toValue: ''
+                    })
+                  }
+                  className="flex items-center gap-1.5 px-3 py-1.5
+                             text-[10px] font-black uppercase
+                             text-red-500 hover:bg-red-50
+                             rounded-xl transition-all"
+                >
+                  <X size={12} /> Clear Range Filters
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Result Count */}
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-black text-gray-400
+                             uppercase tracking-widest">
+              {returnRowsSearched.length} rows
+              {returnRowsSearched.length !== returnRows.length && (
+                <span className="ml-1 text-red-500">
+                  (filtered from {returnRows.length})
+                </span>
+              )}
+            </span>
+          </div>
+
+        </div>
+      </div>
+
+      {/* Table scroll wrapper */}
+      <div className="max-h-[60vh] overflow-y-auto overflow-x-auto no-scrollbar">
+        <table className={`${TABLE_BASE} table-auto w-full`}>
+          <thead className={`sticky top-0 z-10 ${THEAD_ROW} bg-gray-50`}>
+            <tr>
+              <th className={`${TH_BASE} w-8`}>#</th>
+              <SortableTH label="Invoice"    sortKey="invoiceNo"    currentKey={retSortKey} dir={retSortDir} onSort={retToggle} />
+              <SortableTH label="Date"       sortKey="invoiceDate"  currentKey={retSortKey} dir={retSortDir} onSort={retToggle} />
+              <SortableTH label="Product"    sortKey="productName"  currentKey={retSortKey} dir={retSortDir} onSort={retToggle} />
+              <SortableTH label="Customer"   sortKey="customerName" currentKey={retSortKey} dir={retSortDir} onSort={retToggle} />
+              <SortableTH label="Type"       sortKey="customerType" currentKey={retSortKey} dir={retSortDir} onSort={retToggle} />
+              <SortableTH label="SR"         sortKey="mrName"       currentKey={retSortKey} dir={retSortDir} onSort={retToggle} />
+              <SortableTH label="Branch"     sortKey="branch"       currentKey={retSortKey} dir={retSortDir} onSort={retToggle} />
+              <SortableTH label="Supervisor" sortKey="supervisor"   currentKey={retSortKey} dir={retSortDir} onSort={retToggle} />
+              <SortableTH label="Line"       sortKey="lineName"     currentKey={retSortKey} dir={retSortDir} onSort={retToggle} />
+              <SortableTH label="Ret Qty"    sortKey="returnQty"    currentKey={retSortKey} dir={retSortDir} onSort={retToggle} className="text-right" />
+              <SortableTH label="Ret Value"  sortKey="returnValue"  currentKey={retSortKey} dir={retSortDir} onSort={retToggle} className="text-right" />
+            </tr>
+          </thead>
+          <tbody>
+            {paginatedReturns.length === 0 ? (
+              <tr>
+                <td colSpan={12}
+                  className="py-20 text-center text-gray-400
+                             font-black uppercase tracking-widest
+                             italic text-[10px]">
+                  {returnsModal.query ||
+                   returnsValueFilter.fromQty  || returnsValueFilter.toQty ||
+                   returnsValueFilter.fromValue || returnsValueFilter.toValue
+                    ? 'No results — try adjusting search or range filters'
+                    : 'No return transactions in current filter'}
+                </td>
+              </tr>
+            ) : (
+              paginatedReturns.map((r, i) => (
+                <tr
+                  key={`${r.invoiceNo}-${r.productName}-${i}`}
+                  className="border-b border-gray-50
+                             hover:bg-red-50/20 transition-colors"
+                >
+                  <td className={`${TD_BASE} w-8 text-gray-300
+                                 font-mono text-[10px]`}>
+                    {(returnsModal.page - 1) * RETURNS_PAGE_SIZE + i + 1}
+                  </td>
+                  <td className="px-3 py-2 font-mono font-black
+                                 text-[10px] text-violet-700
+                                 border-b border-gray-50 whitespace-nowrap">
+                    {r.invoiceNo}
+                  </td>
+                  <td className={`${TD_BASE} whitespace-nowrap
+                                 text-gray-500 font-medium text-[10px]`}>
+                    {fmt(r.invoiceDate)}
+                  </td>
+                  <td className={TD_TEXT}>{r.productName}</td>
+                  <td className={TD_TEXT}>{r.customerName}</td>
+                  <td className={`${TD_BASE} text-[10px] font-bold text-gray-500`}>
+                    {r.customerType || '—'}
+                  </td>
+                  <td className={TD_TEXT}>{r.mrName}</td>
+                  <td className={TD_TEXT}>{r.branch}</td>
+                  <td className={`${TD_BASE} text-[10px] font-bold text-gray-500`}>
+                    {r.supervisor || '—'}
+                  </td>
+                  <td className={`${TD_BASE} text-[10px] font-bold text-gray-500`}>
+                    {r.lineName || '—'}
+                  </td>
+                  <td className="px-3 py-2 text-right font-mono font-black
+                                 tabular-nums text-red-600
+                                 border-b border-gray-50 whitespace-nowrap">
+                    {formatKpiGrouped(r.returnQty)}
+                  </td>
+                  <td className="px-3 py-2 text-right font-mono font-black
+                                 tabular-nums text-red-700
+                                 border-b border-gray-50 whitespace-nowrap
+                                 bg-red-50/30">
+                    {formatKpiGrouped(r.returnValue)}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination */}
+      {sortedReturns.length > RETURNS_PAGE_SIZE && (
+        <div className="px-6 py-3 border-t border-gray-100
+                        bg-gray-50/50 flex items-center justify-between">
+          <p className="text-[10px] text-gray-400 font-bold
+                        uppercase tracking-tight">
+            Showing{' '}
+            {Math.min(sortedReturns.length, (returnsModal.page - 1) * RETURNS_PAGE_SIZE + 1)}–
+            {Math.min(sortedReturns.length, returnsModal.page * RETURNS_PAGE_SIZE)}{' '}
+            of {sortedReturns.length}
+          </p>
+          <div className="flex items-center gap-1">
+            <button
+              disabled={returnsModal.page <= 1}
+              onClick={() =>
+                setReturnsModal(prev => ({ ...prev, page: prev.page - 1 }))
+              }
+              className="p-2 bg-white rounded-xl shadow-sm border
+                         border-gray-100 disabled:opacity-30
+                         hover:bg-red-600 hover:text-white
+                         hover:border-red-600 transition-all"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <span className="text-[10px] font-black px-3 tabular-nums">
+              {returnsModal.page} / {Math.ceil(sortedReturns.length / RETURNS_PAGE_SIZE)}
+            </span>
+            <button
+              disabled={returnsModal.page * RETURNS_PAGE_SIZE >= sortedReturns.length}
+              onClick={() =>
+                setReturnsModal(prev => ({ ...prev, page: prev.page + 1 }))
+              }
+              className="p-2 bg-white rounded-xl shadow-sm border
+                         border-gray-100 disabled:opacity-30
+                         hover:bg-red-600 hover:text-white
+                         hover:border-red-600 transition-all"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+
+    {/* ── CHARTS ── */}
+    {/* Bar graphics representing return aggregates per product and sales representative */}
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <h4 className="text-xs font-black uppercase text-gray-400 mb-4">
+          Top 10 Products by Return Value
+        </h4>
+        <ResponsiveContainer height={260}>
+          <BarChart
+            data={
+              Object.values(
+                returnRows.reduce((acc, r) => {
+                  if (!acc[r.productName]) {
+                    acc[r.productName] = {
+                      name: r.productName.substring(0, 22),
+                      val: 0
+                    };
+                  }
+                  acc[r.productName].val += r.returnValue || 0;
+                  return acc;
+                }, {})
+              )
+                .sort((a, b) => b.val - a.val)
+                .slice(0, 10)
+            }
+            layout="vertical"
+            margin={{ left: 40 }}
+          >
+            <XAxis type="number" fontSize={10} />
+            <YAxis dataKey="name" type="category" fontSize={9} width={110} />
+            <Tooltip
+              formatter={v => formatKpiGrouped(v)}
+              contentStyle={{
+                borderRadius: '16px',
+                border: 'none',
+                boxShadow: '0 10px 25px rgba(0,0,0,0.1)'
+              }}
+            />
+            <Bar dataKey="val" fill="#EF4444" radius={[0, 8, 8, 0]} barSize={18} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <h4 className="text-xs font-black uppercase text-gray-400 mb-4">
+          Top 10 SRs by Return Value
+        </h4>
+        <ResponsiveContainer height={260}>
+          <BarChart
+            data={
+              Object.values(
+                returnRows.reduce((acc, r) => {
+                  if (!acc[r.mrName]) {
+                    acc[r.mrName] = { name: r.mrName, val: 0 };
+                  }
+                  acc[r.mrName].val += r.returnValue || 0;
+                  return acc;
+                }, {})
+              )
+                .sort((a, b) => b.val - a.val)
+                .slice(0, 10)
+            }
+            layout="vertical"
+            margin={{ left: 60 }}
+          >
+            <XAxis type="number" fontSize={10} />
+            <YAxis dataKey="name" type="category" fontSize={9} width={80} />
+            <Tooltip
+              formatter={v => formatKpiGrouped(v)}
+              contentStyle={{
+                borderRadius: '16px',
+                border: 'none',
+                boxShadow: '0 10px 25px rgba(0,0,0,0.1)'
+              }}
+            />
+            <Bar dataKey="val" fill="#F59E0B" radius={[0, 8, 8, 0]} barSize={18} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+
+  </div>
+  </FullscreenWrapper>
+)}
+
 {activeTab === 'Compare' && (
   <FullscreenWrapper title="Compare" showButton={false}>
     <div className={compareFullscreen ? "fixed inset-0 z-50 bg-gray-50 overflow-y-auto" : "space-y-2.5"}>
@@ -4461,6 +5036,213 @@ const to = new Date(+tp[0], +tp[1]-1, +tp[2], 23, 59, 59);
           </div>
         </div>
       </div>
+
+      {/* ── RETURNS MODAL ── */}
+      {returnsModal.open && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-md"
+            onClick={() => setReturnsModal(prev => ({ ...prev, open: false }))}
+          />
+          <div className="bg-white w-full max-w-6xl max-h-[90vh] rounded-[40px]
+                          shadow-2xl relative z-[310] flex flex-col overflow-hidden
+                          animate-in fade-in zoom-in duration-300">
+
+            {/* Header */}
+            <div className="p-6 border-b border-gray-100 flex items-center
+                            justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-red-50 text-red-600 rounded-2xl">
+                  <TrendingDown size={22} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-gray-900
+                                 uppercase tracking-tight">
+                    Returns Report
+                  </h3>
+                  <p className="text-[10px] text-gray-400 font-bold
+                                uppercase tracking-widest mt-0.5">
+                    Raw return rows only — no netting with positive sales
+                    {activeFilterCount > 0 && (
+                      <span className="ml-2 text-amber-600">
+                        · Filtered view active
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setReturnsModal(prev => ({ ...prev, open: false }))}
+                className="w-10 h-10 bg-gray-50 text-gray-400
+                           hover:text-gray-900 rounded-2xl
+                           flex items-center justify-center transition-all"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* KPI Strip */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 p-6 pb-0 shrink-0">
+              {[
+                { label: 'Return Rows',        value: formatKpiGrouped(returnRows.length),       color: 'text-gray-900', bg: 'bg-gray-50'   },
+                { label: 'Return Qty',         value: formatKpiGrouped(returnsKpis.totalQty),    color: 'text-red-600',  bg: 'bg-red-50'    },
+                { label: 'Return Value (EGP)', value: formatKpiGrouped(returnsKpis.totalValue),  color: 'text-red-700',  bg: 'bg-red-50'    },
+                { label: 'Customers',          value: returnsKpis.custs,                         color: 'text-amber-600',bg: 'bg-amber-50'  },
+                { label: 'Products',           value: returnsKpis.prods,                         color: 'text-violet-600',bg:'bg-violet-50' }
+              ].map((k, i) => (
+                <div key={i} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex flex-col gap-1">
+                  <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{k.label}</p>
+                  <p className={`text-xl font-black ${k.color} tabular-nums leading-none`}>{k.value}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Toolbar */}
+            <div className="px-6 pt-4 pb-2 flex items-center justify-between gap-4 shrink-0">
+              <div className="flex items-center gap-3 flex-1">
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest shrink-0">
+                  {returnRowsSearched.length} rows
+                </span>
+                <div className="relative flex-1 max-w-md">
+                  <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search product, customer, SR, branch, invoice..."
+                    value={returnsModal.query}
+                    onChange={e => setReturnsModal(prev => ({ ...prev, query: e.target.value, page: 1 }))}
+                    className="w-full text-[10px] font-bold bg-gray-50 border-none outline-none
+                               pl-8 pr-4 py-2 rounded-xl focus:ring-2 focus:ring-red-300"
+                  />
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  const headers = 'Invoice No,Date,Product,Customer,Customer ID,Type,SR,Branch,Supervisor,Line,Return Qty,Return Value';
+                  const rows = sortedReturns.map(r =>
+                    `"${r.invoiceNo}","${fmt(r.invoiceDate)}","${r.productName}","${r.customerName}",` +
+                    `"${r.customerId || ''}","${r.customerType || ''}","${r.mrName}","${r.branch}",` +
+                    `"${r.supervisor || ''}","${r.lineName || ''}",${r.returnQty},${r.returnValue}`
+                  );
+                  const blob = new Blob([headers + '\n' + rows.join('\n')], { type: 'text/csv' });
+                  const link = document.createElement('a');
+                  link.href = URL.createObjectURL(blob);
+                  link.setAttribute('download', `Returns_ATR_${new Date().toLocaleDateString('en-GB').replace(/\//g, '-')}.csv`);
+                  link.click();
+                }}
+                className="px-4 py-2 bg-gray-900 text-white rounded-xl text-[10px] font-black
+                           uppercase tracking-widest hover:bg-red-600 transition-all
+                           flex items-center gap-2 shrink-0"
+              >
+                <Download size={12} /> Export CSV
+              </button>
+            </div>
+
+            {/* Table */}
+            <div className="flex-1 overflow-auto px-6 pb-2">
+              <table className={TABLE_BASE}>
+                <thead className="sticky top-0 z-10 bg-gray-50 border-b border-gray-100 shadow-sm">
+                  <tr className={THEAD_ROW}>
+                    <th className={`${TH_BASE} w-8`}>#</th>
+                    <SortableTH label="Invoice"    sortKey="invoiceNo"     currentKey={retSortKey} dir={retSortDir} onSort={retToggle} />
+                    <SortableTH label="Date"       sortKey="invoiceDate"   currentKey={retSortKey} dir={retSortDir} onSort={retToggle} />
+                    <SortableTH label="Product"    sortKey="productName"   currentKey={retSortKey} dir={retSortDir} onSort={retToggle} />
+                    <SortableTH label="Customer"   sortKey="customerName"  currentKey={retSortKey} dir={retSortDir} onSort={retToggle} />
+                    <SortableTH label="Type"       sortKey="customerType"  currentKey={retSortKey} dir={retSortDir} onSort={retToggle} />
+                    <SortableTH label="SR"         sortKey="mrName"        currentKey={retSortKey} dir={retSortDir} onSort={retToggle} />
+                    <SortableTH label="Branch"     sortKey="branch"        currentKey={retSortKey} dir={retSortDir} onSort={retToggle} />
+                    <SortableTH label="Line"       sortKey="lineName"      currentKey={retSortKey} dir={retSortDir} onSort={retToggle} />
+                    <SortableTH label="Ret Qty"    sortKey="returnQty"     currentKey={retSortKey} dir={retSortDir} onSort={retToggle} className="text-right" />
+                    <SortableTH label="Ret Value"  sortKey="returnValue"   currentKey={retSortKey} dir={retSortDir} onSort={retToggle} className="text-right" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {paginatedReturns.length === 0 ? (
+                    <tr>
+                      <td colSpan={11} className="py-20 text-center text-gray-400 font-black uppercase tracking-widest italic text-[10px]">
+                        {returnsModal.query ? 'No results — try clearing the search' : 'No return transactions in current filter'}
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedReturns.map((r, i) => (
+                      <tr key={`${r.invoiceNo}-${r.productName}-${i}`}
+                          className="hover:bg-red-50/20 transition-colors">
+                        <td className={`${TD_BASE} w-8 text-gray-300 font-mono text-[10px]`}>
+                          {(returnsModal.page - 1) * RETURNS_PAGE_SIZE + i + 1}
+                        </td>
+                        <td className="px-3 py-2 font-mono font-black text-[10px] text-violet-700 border-b border-gray-50 whitespace-nowrap">
+                          {r.invoiceNo}
+                        </td>
+                        <td className={`${TD_BASE} whitespace-nowrap text-gray-500 font-medium text-[10px]`}>
+                          {fmt(r.invoiceDate)}
+                        </td>
+                        <td className={TD_TEXT}>{r.productName}</td>
+                        <td className={TD_TEXT}>{r.customerName}</td>
+                        <td className={`${TD_BASE} text-[10px] font-bold text-gray-500`}>{r.customerType || '—'}</td>
+                        <td className={TD_TEXT}>{r.mrName}</td>
+                        <td className={TD_TEXT}>{r.branch}</td>
+                        <td className={`${TD_BASE} text-[10px] font-bold text-gray-500`}>{r.lineName || '—'}</td>
+                        <td className="px-3 py-2 text-right font-mono font-black tabular-nums text-red-600 border-b border-gray-50 whitespace-nowrap">
+                          {formatKpiGrouped(r.returnQty)}
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono font-black tabular-nums text-red-700 border-b border-gray-50 whitespace-nowrap bg-red-50/30">
+                          {formatKpiGrouped(r.returnValue)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {sortedReturns.length > RETURNS_PAGE_SIZE && (
+              <div className="px-6 py-3 border-t border-gray-100 bg-gray-50/50
+                              flex items-center justify-between shrink-0">
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">
+                  Showing {Math.min(sortedReturns.length, (returnsModal.page - 1) * RETURNS_PAGE_SIZE + 1)}–
+                  {Math.min(sortedReturns.length, returnsModal.page * RETURNS_PAGE_SIZE)} of {sortedReturns.length}
+                </p>
+                <div className="flex items-center gap-1">
+                  <button
+                    disabled={returnsModal.page <= 1}
+                    onClick={() => setReturnsModal(prev => ({ ...prev, page: prev.page - 1 }))}
+                    className="p-2 bg-white rounded-xl shadow-sm border border-gray-100
+                               disabled:opacity-30 hover:bg-red-600 hover:text-white
+                               hover:border-red-600 transition-all"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <span className="text-[10px] font-black px-3 tabular-nums">
+                    {returnsModal.page} / {Math.ceil(sortedReturns.length / RETURNS_PAGE_SIZE)}
+                  </span>
+                  <button
+                    disabled={returnsModal.page * RETURNS_PAGE_SIZE >= sortedReturns.length}
+                    onClick={() => setReturnsModal(prev => ({ ...prev, page: prev.page + 1 }))}
+                    className="p-2 bg-white rounded-xl shadow-sm border border-gray-100
+                               disabled:opacity-30 hover:bg-red-600 hover:text-white
+                               hover:border-red-600 transition-all"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Footer */}
+            <div className="p-5 border-t border-gray-100 bg-white flex justify-end shrink-0">
+              <button
+                onClick={() => setReturnsModal(prev => ({ ...prev, open: false }))}
+                className="px-8 py-3 bg-white border border-gray-200 text-gray-900
+                           rounded-xl text-[10px] font-black uppercase tracking-widest
+                           hover:bg-gray-900 hover:text-white transition-all"
+              >
+                Close
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
       <footer className="px-6 py-4 bg-white border-t border-gray-100 shrink-0 text-center">
         <p className="text-[10px] font-black text-gray-300 uppercase tracking-[0.3em]">
           ATR Sales Analyzer • v{APP_VERSION.version} • {APP_VERSION.label}
