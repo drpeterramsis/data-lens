@@ -1,6 +1,28 @@
 {
   "users": [
     {
+      "id": "usr_dc_a2_mr",
+      "fullName": "DiaCore A2 MR",
+      "username": "dc_a2_mr",
+      "email": "dc_a2_mr@datalens.com",
+      "password": "Di@core2026",
+      "role": "Medical Representative",
+      "userType": "Medical Representative",
+      "avatar": "MR",
+      "isActive": true,
+      "allowedPages": [
+        "dashboard",
+        "call-detailing",
+        "sales-analyzer",
+        "sales-forecast",
+        "routing-analyzer",
+        "links-library",
+        "skill-zaty"
+      ],
+      "createdAt": "2026-06-02T10:00:00Z",
+      "updatedAt": "2026-06-02T10:00:00Z"
+    },
+    {
       "id": "1",
       "fullName": "Peter Admin",
       "username": "peterramsis",

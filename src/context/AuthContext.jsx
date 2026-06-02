@@ -91,12 +91,24 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('pharma_current_user');
   };
 
+  const updateDisplayName = (newName) => {
+    if (user) {
+      const updatedUser = { ...user, fullName: newName };
+      setUser(updatedUser);
+      localStorage.setItem('pharma_current_user', JSON.stringify(updatedUser));
+      // Also update in our users list locally
+      if (users.length > 0) {
+        setUsers(prevUsers => prevUsers.map(u => u.id === user.id ? { ...u, fullName: newName } : u));
+      }
+    }
+  };
+
   const updateUsers = (newUsers) => {
     setUsers(newUsers);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, users, updateUsers, loading }}>
+    <AuthContext.Provider value={{ user, login, logout, users, updateUsers, updateDisplayName, loading }}>
       {!loading && children}
     </AuthContext.Provider>
   );

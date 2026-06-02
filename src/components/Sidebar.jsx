@@ -212,6 +212,46 @@ const Sidebar = () => {
             <X size={20} />
           </button>
         </div>
+        
+        {/* Top Section - User Info Card */}
+        <div className={`shrink-0 border-b border-gray-800 bg-gray-950/20 p-4 transition-all duration-300 ${isExpanded || isMobileOpen ? 'block' : 'flex justify-center'}`}>
+          {isExpanded || isMobileOpen ? (
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-3 flex items-center justify-between gap-3 shadow-md group">
+              <div className="flex items-center gap-3 min-w-0">
+                <div 
+                  className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-white shrink-0 shadow-sm border border-gray-700/50"
+                  style={{ backgroundColor: user?.username ? `hsl(${user.username.length * 40}, 60%, 40%)` : '#198754' }}
+                >
+                  <span className="text-sm font-black">
+                    {user?.avatar || getInitials(user?.fullName)}
+                  </span>
+                </div>
+                <div className="min-w-0 flex flex-col justify-center">
+                  <div className="text-xs font-black text-white truncate leading-tight">{user?.fullName}</div>
+                  <div className="text-[9px] text-[#FFC300] font-black uppercase tracking-wider truncate leading-tight mt-1">{user?.role}</div>
+                </div>
+              </div>
+              <button 
+                onClick={logout}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0"
+                title="Logout"
+              >
+                <LogOut size={16} />
+              </button>
+            </div>
+          ) : (
+            <div 
+              className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-white shrink-0 cursor-pointer shadow-sm border border-gray-700/50 transition-transform hover:scale-105"
+              style={{ backgroundColor: user?.username ? `hsl(${user.username.length * 40}, 60%, 40%)` : '#198754' }}
+              title={`Logged in as ${user?.fullName}`}
+              onClick={logout}
+            >
+              <span className="text-sm font-black">
+                {user?.avatar || getInitials(user?.fullName)}
+              </span>
+            </div>
+          )}
+        </div>
 
         {/* Navigation Items */}
         <nav className="flex-1 overflow-y-auto overflow-x-hidden py-4 space-y-1 custom-scrollbar sidebar-nav">
@@ -342,32 +382,9 @@ const Sidebar = () => {
         )}
 
         {/* Bottom Section - User Info */}
-        <div className="shrink-0 border-t border-gray-800 relative sidebar-footer">
-          <div className={`flex items-center ${isExpanded || isMobileOpen ? 'p-4 gap-3' : 'p-3 flex-col gap-2 sidebar-footer-collapsed'}`}>
-            <div 
-              className="user-avatar"
-              style={{ backgroundColor: user?.username ? `hsl(${user.username.length * 40}, 60%, 40%)` : '#198754' }}
-              title={(!isExpanded && !isMobileOpen) ? user?.fullName : undefined}
-            >
-              <span className="text-xs font-black text-white">
-                {user?.avatar || getInitials(user?.fullName)}
-              </span>
-            </div>
-            
-            <div className={`flex-1 min-w-0 flex flex-col justify-center whitespace-nowrap transition-opacity duration-300 ${isExpanded || isMobileOpen ? 'opacity-100' : 'opacity-0 hidden md:block w-0 h-0'}`}>
-              <div className="text-sm font-bold truncate text-white">{user?.fullName}</div>
-              <div className="text-[10px] text-gray-400 font-medium uppercase tracking-wider truncate pb-[1px]">{user?.role}</div>
-            </div>
-
-            <button 
-              onClick={logout}
-              className={`logout-btn ${isExpanded || isMobileOpen ? 'p-1.5' : 'p-0 pt-2'}`}
-              title="Logout"
-            >
-              <LogOut size={18} />
-            </button>
-          </div>
-
+        <div className="shrink-0 border-t border-gray-800 relative sidebar-footer h-14 flex items-center justify-center">
+          {/* Default bottom user controls are now moved to the top of the sidebar. Keeping collapse button */}
+          
           {/* Desktop Collapse Arrow Button */}
           <button
             onClick={toggleExpanded}

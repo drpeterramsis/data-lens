@@ -12,7 +12,9 @@ import {
   Link as LinkIcon,
   GraduationCap,
   Settings as SettingsIcon,
-  Shield
+  Shield,
+  Edit,
+  Check
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ALL_TOOLS } from '../config/toolsConfig';
@@ -22,10 +24,27 @@ import { ModuleIcon } from '../components/dashboard/ModuleIcon';
 import MessagesPanel from '../components/dashboard/MessagesPanel';
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, updateDisplayName } = useAuth();
   const navigate = useNavigate();
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
+  
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState(user?.fullName || '');
+
+  useEffect(() => {
+    if (user?.fullName) {
+      setEditedName(user.fullName);
+    }
+  }, [user]);
+
+  const handleSaveName = (e) => {
+    e.preventDefault();
+    if (editedName.trim()) {
+      updateDisplayName(editedName.trim());
+      setIsEditingName(false);
+    }
+  };
   
   // Panel open/closed — persisted in localStorage. Default to "closed" (false) on initial load.
   const [panelOpen, setPanelOpen] = useState(() => {
@@ -203,6 +222,67 @@ const Dashboard = () => {
               <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
               <span className="text-[9px] font-black uppercase text-gray-500 tracking-widest">Node Node Primary</span>
             </div>
+          </div>
+
+          {/* USER WELCOME HERO CARD */}
+          <div className="bg-gradient-to-br from-indigo-900 via-[#1E293B] to-[#0F172A] rounded-3xl p-8 text-white relative overflow-hidden shadow-2xl border border-slate-800 animate-in fade-in slide-in-from-top-4 duration-500">
+            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="space-y-4 max-w-xl">
+                {isEditingName ? (
+                  <form onSubmit={handleSaveName} className="flex items-center gap-3 max-w-md bg-white/10 backdrop-blur-md p-1.5 pl-4 rounded-2xl border border-white/20">
+                    <input 
+                      type="text" 
+                      value={editedName} 
+                      onChange={e => setEditedName(e.target.value)}
+                      className="bg-transparent border-none outline-none flex-1 text-white text-lg font-black"
+                      placeholder="Enter new display name"
+                      required
+                      autoFocus
+                    />
+                    <button type="submit" className="px-4 py-2.5 bg-[#FFC300] hover:bg-[#FFD700] text-gray-900 rounded-xl transition-all font-black uppercase text-xs flex items-center justify-center gap-1.5 active:scale-95">
+                      <Check size={14} />
+                      Save
+                    </button>
+                    <button type="button" onClick={() => { setIsEditingName(false); setEditedName(user?.fullName || ''); }} className="px-3 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-all font-medium text-xs">
+                      Cancel
+                    </button>
+                  </form>
+                ) : (
+                  <div className="flex items-center gap-3 group flex-wrap">
+                    <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white leading-tight">
+                      Welcome Back, <span className="text-[#FFC300] hover:underline decoration-[#FFC300]/30 cursor-pointer" onClick={() => setIsEditingName(true)}>{user?.fullName}</span>!
+                    </h2>
+                    <button 
+                      onClick={() => setIsEditingName(true)} 
+                      className="p-1.5 rounded-lg bg-white/5 text-white/50 hover:text-white hover:bg-white/10 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
+                      title="Edit Display Name"
+                    >
+                      <Edit size={14} />
+                    </button>
+                  </div>
+                )}
+                <p className="text-slate-300 text-sm font-bold flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span>Role: {user?.role || 'Guest'}</span>
+                  <span className="text-slate-500">•</span>
+                  <span className="text-[#25D366] flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-[#25D366] animate-pulse" />
+                    Last Sync: Successfully synced
+                  </span>
+                </p>
+              </div>
+
+              <div className="flex items-center gap-4 bg-white/5 backdrop-blur-md border border-white/10 px-5 py-4 rounded-2xl w-full md:w-auto md:min-w-[240px]">
+                <div className="w-12 h-12 bg-[#FFC300]/10 rounded-2xl flex items-center justify-center border border-[#FFC300]/20 shrink-0">
+                  <span className="text-2xl">⚡</span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-black tracking-widest text-[#FFC300] block">System Status</span>
+                  <span className="text-xs text-slate-300 font-bold leading-none block mt-1">Pharma Nodes: Active</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="absolute top-0 right-0 w-80 h-80 bg-[#FFC300]/10 rounded-full -mr-32 -mt-32 blur-3xl opacity-25" />
           </div>
 
           {dashboardSettings.showCategories ? (

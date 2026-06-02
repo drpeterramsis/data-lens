@@ -7,6 +7,15 @@ import { getLatestSHA, saveFileToGitHub, getFileFromGitHub } from '../../../serv
 import { ALL_TOOLS } from '../../../config/toolsConfig';
 import { resolveIcon } from '../../../utils/iconResolver';
 
+export const USER_ROLES = [
+  'Medical Representative',
+  'Area Supervisor',
+  'District Manager',
+  'Product Manager',
+  'Line Sales Manager',
+  'Business Unit Manager',
+];
+
 const AVAILABLE_PAGES = ALL_TOOLS.map(tool => ({
   id: tool.id,
   label: tool.name,
@@ -40,7 +49,7 @@ const UserManagementTab = () => {
     username: '',
     email: '',
     password: '',
-    role: 'user',
+    role: '',
     isActive: true,
     allowedPages: ['dashboard']
   });
@@ -57,7 +66,7 @@ const UserManagementTab = () => {
         username: user.username || '',
         email: user.email || '',
         password: '', 
-        role: user.role || 'user',
+        role: user.role || '',
         isActive: user.isActive ?? true,
         allowedPages: user.allowedPages || ['dashboard']
       });
@@ -68,7 +77,7 @@ const UserManagementTab = () => {
         username: '',
         email: '',
         password: '',
-        role: 'user',
+        role: '',
         isActive: true,
         allowedPages: ['dashboard']
       });
@@ -259,7 +268,7 @@ const UserManagementTab = () => {
   const filteredUsers = users.filter(u => {
     const term = searchTerm.toLowerCase();
     const searchMatch = (u.fullName?.toLowerCase().includes(term) || u.username?.toLowerCase().includes(term) || u.email?.toLowerCase().includes(term));
-    const roleMatch = roleFilter === 'All' || (roleFilter === 'Admin' && u.role === 'admin') || (roleFilter === 'User' && u.role === 'user');
+    const roleMatch = roleFilter === 'All' || (roleFilter === 'Admin' && u.role === 'admin') || (roleFilter === 'User' && u.role !== 'admin');
     const statusMatch = statusFilter === 'All' || (statusFilter === 'Active' && u.isActive) || (statusFilter === 'Inactive' && !u.isActive);
     return searchMatch && roleMatch && statusMatch;
   });
@@ -325,10 +334,10 @@ const UserManagementTab = () => {
         <table className="w-full text-left">
           <thead className="bg-slate-50 border-b border-slate-100">
             <tr className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
-              <th className="px-6 py-3">Identity</th>
-              <th className="px-6 py-3">Role</th>
-              <th className="px-6 py-3">Status</th>
-              <th className="px-6 py-3 text-right">Actions</th>
+               <th className="px-6 py-3">Identity</th>
+               <th className="px-6 py-3">Role</th>
+               <th className="px-6 py-3">Status</th>
+               <th className="px-6 py-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
@@ -352,7 +361,7 @@ const UserManagementTab = () => {
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-100">
-                      User
+                      {u.role || 'User'}
                     </span>
                   )}
                 </td>
@@ -417,10 +426,15 @@ const UserManagementTab = () => {
                      </div>
                      <div className="grid grid-cols-2 gap-4">
                        <div>
-                          <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Role</label>
-                          <select value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:ring-2 focus:ring-amber-500/20 outline-none">
-                            <option value="user">User</option>
-                            <option value="admin">Admin</option>
+                          <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Role *</label>
+                          <select required value={formData.role} onChange={e => setFormData(prev => ({ ...prev, role: e.target.value }))} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:ring-2 focus:ring-amber-500/20 outline-none">
+                            <option value="">Select Role...</option>
+                            {USER_ROLES.map(r => (
+                              <option key={r} value={r}>{r}</option>
+                            ))}
+                            {editingUser && editingUser.role === 'admin' && (
+                              <option value="admin">Admin</option>
+                            )}
                           </select>
                        </div>
                        <div>

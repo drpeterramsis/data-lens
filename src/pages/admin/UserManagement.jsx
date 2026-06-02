@@ -6,6 +6,15 @@ import Toast, { useToast } from '../../components/Toast';
 import { getLatestSHA, saveFileToGitHub, getFileFromGitHub } from '../../services/githubService';
 import { ALL_TOOLS } from '../../config/toolsConfig';
 
+export const USER_ROLES = [
+  'Medical Representative',
+  'Area Supervisor',
+  'District Manager',
+  'Product Manager',
+  'Line Sales Manager',
+  'Business Unit Manager',
+];
+
 const AVAILABLE_PAGES = ALL_TOOLS.map(tool => ({
   id: tool.id,
   label: tool.name,
@@ -39,7 +48,7 @@ const UserManagement = () => {
     username: '',
     email: '',
     password: '',
-    role: 'user',
+    role: '',
     isActive: true,
     allowedPages: ['dashboard']
   });
@@ -56,7 +65,7 @@ const UserManagement = () => {
         username: user.username || '',
         email: user.email || '',
         password: '', // blank by default for edit
-        role: user.role || 'user',
+        role: user.role || '',
         isActive: user.isActive ?? true,
         allowedPages: user.allowedPages || ['dashboard']
       });
@@ -67,7 +76,7 @@ const UserManagement = () => {
         username: '',
         email: '',
         password: '',
-        role: 'user',
+        role: '',
         isActive: true,
         allowedPages: ['dashboard']
       });
@@ -265,7 +274,7 @@ const UserManagement = () => {
   const filteredUsers = users.filter(u => {
     const term = searchTerm.toLowerCase();
     const searchMatch = (u.fullName?.toLowerCase().includes(term) || u.username?.toLowerCase().includes(term) || u.email?.toLowerCase().includes(term));
-    const roleMatch = roleFilter === 'All' || (roleFilter === 'Admin' && u.role === 'admin') || (roleFilter === 'User' && u.role === 'user');
+    const roleMatch = roleFilter === 'All' || (roleFilter === 'Admin' && u.role === 'admin') || (roleFilter === 'User' && u.role !== 'admin');
     const statusMatch = statusFilter === 'All' || (statusFilter === 'Active' && u.isActive) || (statusFilter === 'Inactive' && !u.isActive);
     return searchMatch && roleMatch && statusMatch;
   });
@@ -362,7 +371,7 @@ const UserManagement = () => {
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded bg-blue-50 text-blue-600 border border-blue-100">
-                      User
+                      {u.role || 'User'}
                     </span>
                   )}
                 </td>
@@ -418,7 +427,7 @@ const UserManagement = () => {
                   {u.role === 'admin' ? (
                     <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-yellow-100 text-yellow-700">Admin</span>
                   ) : (
-                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-blue-50 text-blue-600">User</span>
+                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-blue-50 text-blue-600">{u.role || 'User'}</span>
                   )}
                   <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${u.isActive ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
                     {u.isActive ? 'Active' : 'Inactive'}
@@ -487,9 +496,14 @@ const UserManagement = () => {
                      <div className="grid grid-cols-2 gap-4">
                        <div>
                           <label className="block text-[11px] font-black text-gray-600 uppercase tracking-widest mb-1">Role *</label>
-                          <select value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 font-bold outline-none focus:ring-2 focus:ring-accent">
-                            <option value="user">User</option>
-                            <option value="admin">Admin</option>
+                          <select required value={formData.role} onChange={e => setFormData(prev => ({ ...prev, role: e.target.value }))} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 font-bold outline-none focus:ring-2 focus:ring-accent">
+                            <option value="">Select Role...</option>
+                            {USER_ROLES.map(r => (
+                              <option key={r} value={r}>{r}</option>
+                            ))}
+                            {editingUser && editingUser.role === 'admin' && (
+                              <option value="admin">Admin</option>
+                            )}
                           </select>
                        </div>
                        <div>
