@@ -336,27 +336,6 @@ const Dashboard = () => {
                 .map(mod => renderModuleCard(mod))}
             </div>
           )}
-
-          {/* Security Footer Banner */}
-          <div className="pt-12">
-            <div className="p-8 bg-gradient-to-r from-gray-900 to-slate-800 rounded-3xl text-white relative overflow-hidden shadow-2xl flex flex-col md:flex-row items-center gap-8 border border-white/5">
-              <div className="relative z-10 space-y-4 max-w-xl">
-                <h3 className="text-2xl font-black italic uppercase tracking-tight leading-none tracking-tighter">DATA LENS <span className="text-accent underline decoration-accent/30 underline-offset-4">ANALYTICS HUB</span></h3>
-                <p className="text-gray-400 text-xs leading-relaxed font-medium">
-                  Access to data modules is strictly governed by regional assignment and security clearance. 
-                  Any unauthorized access attempts are logged and flagged for administrative review.
-                </p>
-              </div>
-              <div className="relative z-10 bg-white/5 backdrop-blur-sm border border-white/10 p-5 rounded-2xl flex-1 flex flex-col items-center gap-3">
-                <span className="text-[10px] uppercase font-black tracking-[0.2em] text-accent">Clearance Verified</span>
-                <p className="text-xs text-center text-gray-300 font-medium font-mono lowercase">usr::node::{user?.fullName?.replace(/\s+/g, '_')}</p>
-                <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
-                  <div className="h-full bg-accent w-3/4" />
-                </div>
-              </div>
-              <div className="absolute top-0 right-0 w-64 h-64 bg-accent/20 rounded-full -mr-32 -mt-32 blur-3xl opacity-30" />
-            </div>
-          </div>
         </div>
       </div>
 

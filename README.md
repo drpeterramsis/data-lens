@@ -42,6 +42,7 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 
 ## Version History
 
+- **v2.1.1:** **Sidebar UX & Dashboard Cleanup.** Refactored collapsed sidebar icons to open/expand instead of log out, introduced a top hamburger Menu trigger button in collapsed state, stripped out redundant top logo icon when collapsed, and removed the heavy security hub clearance banner card from the Dashboard layout. Updated global platform version indicators.
 - **v1.0.638:** **User Persona Customizations & Interactive Profile Controls.** Introduced the high-performance inline display name modification mechanism securely integrated with standard client states and reactive Local Storage persistent overriding. Rebuilt the Dashboard header section to render a spacious, luxurious dark-themed User Welcome Hero Card with integrated live editing triggers, role information indicators, and dynamic system node status indicators. Fully recompiled the Sidebar top container to embed a compact responsive logged-in user profile card with built-in logout toggles, while completely clearing out the redundant bottom user controls. Integrated standard `USER_ROLES` lists and visibility states across pages and login contexts.
 - **v1.0.637:** **Returns Tab Interactive Enhancements.** Re-engineered the ATR Sales Analyzer Returns tab into a fully interactive module with a clean dark/light card layout. Added persistent state elements for quantity bounds (`returnsValueFilter.fromQty/toQty`) and EGP return value filters (`returnsValueFilter.fromValue/toValue`), dynamic indicator badges, responsive bar charts, and a single-click Range Filter cleaner. Wrapped the entire view in `FullscreenWrapper` support.
 - **v1.0.635:** **ATR Returns Module & Analyzer Reset Hardening.** Integrated a new global Returns report panel and modal in ATR Sales Analyzer, containing raw returns rows, custom KPI indicators, and easy CSV export. Fixed potential `ReferenceError` during `returnsModal` declaration block. Hardened the Per Customer Analyzer reset sequence to completely terminate active worker tasks, hide dialog elements, suppress environment-blocking prompt boxes, ensure prompt redirection to the file-uploader, and support `YYYY_MM` filenames pattern matching.
@@ -196,4 +197,4 @@ Data-lens is a powerful, multi-tool CSV analyzer platform designed specifically 
 - **v1.0.001:** Initial release. Authentication, CSV parsing, Analysis tools, and Admin panel implemented.
 
 ---
-© 2026 Data Lens Analytics | version 1.0.638
+© 2026 Data Lens Analytics | version 2.1.1

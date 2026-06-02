@@ -1,2 +1,6 @@
-export const APP_VERSION = '1.0.638';
+export const APP_VERSION = {
+  version: '2.1.1',
+  releaseDate: 'May 2026',
+  label: 'Sidebar UX & Dashboard Cleanup'
+};
 export const APP_NAME = 'Data Lens';

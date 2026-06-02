@@ -17,7 +17,8 @@ import {
   Shield,
   FolderOpen,
   MessageCircle,
-  HelpCircle
+  HelpCircle,
+  Menu
 } from 'lucide-react';
 
 import { SidebarIcon } from './sidebar/SidebarIcon';
@@ -187,31 +188,45 @@ const Sidebar = () => {
           ${isMobileOpen ? 'w-[280px] translate-x-0' : 'w-[280px] -translate-x-full md:translate-x-0'}
         `}
       >
-        {/* Top Section - Logo */}
-        <div 
-          onClick={toggleSidebar}
-          className={`h-14 flex items-center shrink-0 border-b border-gray-800 relative cursor-pointer hover:bg-white/10 transition-colors ${isExpanded || isMobileOpen ? 'px-4' : 'px-0 justify-center'}`}
-          title="Toggle Menu"
-        >
-          <div className="flex items-center gap-2 overflow-hidden h-full py-2">
-            <span className="text-xl shrink-0"><Search size={22} className="text-white" /></span>
-            <div className={`flex flex-col whitespace-nowrap transition-opacity duration-300 ${isExpanded || isMobileOpen ? 'opacity-100' : 'opacity-0 hidden md:block'}`}>
-              <div className="font-bold text-base text-white leading-tight">Data Lens</div>
-              <div className="text-[10px] text-yellow-400 leading-tight">Pharma Analytics Portal</div>
-            </div>
-          </div>
-          
-          {/* Mobile Close Button */}
-          <button 
-            className="md:hidden absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-white"
-            onClick={(e) => {
-              e.stopPropagation();
-              closeMobile();
-            }}
+        {/* Top Section - Logo & Menu */}
+        {isExpanded || isMobileOpen ? (
+          <div 
+            onClick={toggleSidebar}
+            className="h-14 flex items-center shrink-0 border-b border-gray-800 relative cursor-pointer hover:bg-white/10 transition-colors px-4"
+            title="Toggle Menu"
           >
-            <X size={20} />
+            <div className="flex items-center gap-2 overflow-hidden h-full py-2">
+              <span className="text-xl shrink-0"><Search size={22} className="text-white" /></span>
+              <div className="flex flex-col whitespace-nowrap transition-opacity duration-300 opacity-100">
+                <div className="font-bold text-base text-white leading-tight">Data Lens</div>
+                <div className="text-[10px] text-yellow-400 leading-tight">Pharma Analytics Portal</div>
+              </div>
+            </div>
+            
+            {/* Mobile Close Button */}
+            <button 
+              className="md:hidden absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-white"
+              onClick={(e) => {
+                e.stopPropagation();
+                closeMobile();
+              }}
+            >
+              <X size={20} />
+            </button>
+          </div>
+        ) : (
+          /* Burger icon — collapsed sidebar top */
+          <button
+            onClick={toggleExpanded}
+            title="Open Menu"
+            className="w-full h-14 flex items-center justify-center
+                       py-4 text-white/40 hover:text-white
+                       hover:bg-white/10 transition-all
+                       border-b border-white/10"
+          >
+            <Menu size={20} />
           </button>
-        </div>
+        )}
         
         {/* Top Section - User Info Card */}
         <div className={`shrink-0 border-b border-gray-800 bg-gray-950/20 p-4 transition-all duration-300 ${isExpanded || isMobileOpen ? 'block' : 'flex justify-center'}`}>
@@ -240,16 +255,16 @@ const Sidebar = () => {
               </button>
             </div>
           ) : (
-            <div 
+            <button 
               className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-white shrink-0 cursor-pointer shadow-sm border border-gray-700/50 transition-transform hover:scale-105"
               style={{ backgroundColor: user?.username ? `hsl(${user.username.length * 40}, 60%, 40%)` : '#198754' }}
-              title={`Logged in as ${user?.fullName}`}
-              onClick={logout}
+              title="Open Menu"
+              onClick={toggleExpanded}
             >
               <span className="text-sm font-black">
                 {user?.avatar || getInitials(user?.fullName)}
               </span>
-            </div>
+            </button>
           )}
         </div>
 

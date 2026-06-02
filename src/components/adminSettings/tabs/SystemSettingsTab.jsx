@@ -78,7 +78,7 @@ const SystemSettingsTab = () => {
         </div>
         <div className="grid grid-cols-3 gap-4">
            <InfoCard label="App Name" value="Data Lens Analytics" />
-           <InfoCard label="Version" value={`v${APP_VERSION}`} />
+           <InfoCard label="Version" value={`v${APP_VERSION.version}`} />
            <InfoCard label="Status" value="Healthy" color="text-emerald-500" />
         </div>
       </section>

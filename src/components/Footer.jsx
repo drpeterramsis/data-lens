@@ -4,9 +4,9 @@ import { useAuth } from '../context/AuthContext';
 import { APP_VERSION } from '../config/version';
 
 const APP_VERSION_DATA = {
-  version: APP_VERSION,
-  releaseDate: 'May 2026',
-  label: 'Skill-Zaty Training Center & Sales Analytics Portal'
+  version: APP_VERSION.version,
+  releaseDate: APP_VERSION.releaseDate,
+  label: APP_VERSION.label
 };
 
 export default function Footer() {
@@ -31,8 +31,8 @@ export default function Footer() {
         </p>
 
         {/* CENTER */}
-        <p className="text-[10px] sm:text-xs text-white/40 font-black hidden md:block uppercase tracking-[0.3em]">
-          Data Lens Analytics
+        <p className="text-[10px] sm:text-xs text-white/40 font-black hidden md:block uppercase tracking-[0.05em]">
+          DATA LENS Analytics Hub • v{APP_VERSION_DATA.version} • {APP_VERSION_DATA.label}
         </p>
 
         {/* RIGHT */}
