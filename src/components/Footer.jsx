@@ -1,8 +1,12 @@
+// ── FOOTER BRANDING AND SYSTEM STATUS DISPLAY ──
+// Renders the Area Supervisor credits, current semantic application version,
+// dynamic release labeling, and provides one-click logout handling.
 import React, { useState } from 'react';
 import { useNavigate } from "react-router-dom";
 import { useAuth } from '../context/AuthContext';
 import { APP_VERSION } from '../config/version';
 
+// Bind local version credentials from centralized configuration
 const APP_VERSION_DATA = {
   version: APP_VERSION.version,
   releaseDate: APP_VERSION.releaseDate,
@@ -11,8 +15,9 @@ const APP_VERSION_DATA = {
 
 export default function Footer() {
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout } = useAuth(); // Hook into authentication context
 
+  // Destructures session tokens and invalidates the active login credentials on clicking Logout
   const handleLogout = () => {
     logout();
     navigate("/");
@@ -21,7 +26,8 @@ export default function Footer() {
   return (
     <footer className="z-30 bg-[#000000] border-t border-gray-900 py-3 px-6 shadow-2xl">
       <div className="flex items-center justify-between">
-        {/* LEFT */}
+        
+        {/* LEFT COMPONENT — Developer credentials card info */}
         <p className="text-[10px] sm:text-xs text-white flex items-center gap-1 font-medium">
           Developed by{" "}
           <span className="text-[#F5C518] font-bold uppercase tracking-tighter">
@@ -30,12 +36,12 @@ export default function Footer() {
           <span className="hidden sm:inline text-white/50 tracking-widest">| Area Supervisor</span>
         </p>
 
-        {/* CENTER */}
+        {/* CENTER COMPONENT — App label and active version banner */}
         <p className="text-[10px] sm:text-xs text-white/40 font-black hidden md:block uppercase tracking-[0.05em]">
           DATA LENS Analytics Hub • v{APP_VERSION_DATA.version} • {APP_VERSION_DATA.label}
         </p>
 
-        {/* RIGHT */}
+        {/* RIGHT COMPONENT — Action links, version indicator and system escape door */}
         <div className="flex items-center gap-3">
           <div className="h-4 w-[1px] bg-white/10 mx-1 hidden sm:block" />
           <span className="text-[10px] sm:text-xs text-white font-medium">

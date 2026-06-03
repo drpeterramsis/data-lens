@@ -248,17 +248,25 @@ const Dashboard = () => {
                     </button>
                   </form>
                 ) : (
-                  <div className="flex items-center gap-3 group flex-wrap">
-                    <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white leading-tight">
-                      Welcome Back, <span className="text-[#FFC300] hover:underline decoration-[#FFC300]/30 cursor-pointer" onClick={() => setIsEditingName(true)}>{user?.fullName}</span>!
-                    </h2>
-                    <button 
-                      onClick={() => setIsEditingName(true)} 
-                      className="p-1.5 rounded-lg bg-white/5 text-white/50 hover:text-white hover:bg-white/10 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
-                      title="Edit Display Name"
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-3 group flex-wrap">
+                      <h6 className="text-white text-2xl font-black uppercase tracking-tight leading-none">
+                        Welcome Back,
+                      </h6>
+                      <button 
+                        onClick={() => setIsEditingName(true)} 
+                        className="p-1.5 rounded-lg bg-white/5 text-white/50 hover:text-white hover:bg-white/10 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
+                        title="Edit Display Name"
+                      >
+                        <Edit size={14} />
+                      </button>
+                    </div>
+                    <p 
+                      onClick={() => setIsEditingName(true)}
+                      className="text-[#FFC300] text-base font-bold tracking-wide mt-1 cursor-pointer hover:underline decoration-[#FFC300]/30"
                     >
-                      <Edit size={14} />
-                    </button>
+                      {user?.fullName}
+                    </p>
                   </div>
                 )}
                 <p className="text-slate-300 text-sm font-bold flex flex-wrap items-center gap-x-2 gap-y-1">

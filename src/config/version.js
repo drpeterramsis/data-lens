@@ -1,6 +1,6 @@
 export const APP_VERSION = {
-  version: '2.1.1',
+  version: '2.6.0',
   releaseDate: 'May 2026',
-  label: 'Sidebar UX & Dashboard Cleanup'
+  label: 'Forecast Engine — Quarter Fix & UX Polish'
 };
 export const APP_NAME = 'Data Lens';
